@@ -1,0 +1,12 @@
+{
+  "name": "web_search",
+  "description": "Used by the Researcher to find live data. Respects the blacklist in config.json.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": { "type": "string", "description": "The search keywords" },
+      "num_results": { "type": "integer", "description": "Max sources to return" }
+    },
+    "required": ["query"]
+  }
+}

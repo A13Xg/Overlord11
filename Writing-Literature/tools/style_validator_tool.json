@@ -1,0 +1,27 @@
+{
+  "name": "style_validator",
+  "description": "Validates that written content matches the specified style guide requirements and provides compliance scoring.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": "string",
+        "description": "The text content to validate."
+      },
+      "target_style": {
+        "type": "string",
+        "enum": ["academic", "professional", "creative", "technical", "casual"],
+        "description": "The style guide to validate against."
+      },
+      "check_tone": {
+        "type": "boolean",
+        "description": "If true, analyzes tone consistency (formal, neutral, persuasive, etc.)."
+      },
+      "check_readability": {
+        "type": "boolean",
+        "description": "If true, calculates readability scores (Flesch-Kincaid, etc.)."
+      }
+    },
+    "required": ["text", "target_style"]
+  }
+}

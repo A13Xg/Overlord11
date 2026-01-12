@@ -1,0 +1,189 @@
+{
+  "project_name": "Analysis-Summarize",
+  "version": "1.0.0",
+  "output_formats": {
+    "text_based": {
+      "summary": {
+        "description": "Simple text summary (paragraph format)",
+        "options": ["brief", "moderate", "detailed"]
+      },
+      "quotes": {
+        "description": "Detailed quotes with citations",
+        "options": ["include_sources", "include_context"]
+      },
+      "report": {
+        "description": "Structured text report with sections",
+        "options": ["executive_summary", "detailed_findings", "recommendations"]
+      },
+      "bullets": {
+        "description": "Bullet-point list format",
+        "options": ["categorized", "prioritized", "chronological"]
+      }
+    },
+    "data_based": {
+      "csv": {
+        "description": "Comma-separated values export",
+        "options": ["delimiter", "include_header", "quote_style"]
+      },
+      "json": {
+        "description": "JSON structured data",
+        "options": ["indent", "compact", "pretty_print"]
+      },
+      "xml": {
+        "description": "XML document format",
+        "options": ["schema", "encoding"]
+      },
+      "excel": {
+        "description": "Excel-compatible TSV/CSV",
+        "options": ["tab_separated", "utf8_bom"]
+      }
+    },
+    "visual": {
+      "chart": {
+        "description": "Charts and graphs",
+        "types": ["line", "bar", "pie", "scatter", "histogram", "heatmap"],
+        "formats": ["png", "svg", "html", "pdf"]
+      },
+      "infographic": {
+        "description": "Visual infographic design",
+        "styles": ["professional", "creative", "minimal"],
+        "formats": ["png", "pdf", "html"]
+      },
+      "timeline": {
+        "description": "Chronological timeline visualization",
+        "formats": ["png", "svg", "html"]
+      },
+      "network": {
+        "description": "Network/relationship diagram",
+        "formats": ["png", "svg", "html"]
+      }
+    },
+    "document": {
+      "pdf": {
+        "description": "Formatted PDF document",
+        "templates": ["professional", "academic", "technical", "minimal", "creative"],
+        "options": ["include_toc", "page_numbers", "header_footer"]
+      },
+      "html": {
+        "description": "HTML document",
+        "templates": ["professional", "minimal", "interactive"],
+        "options": ["standalone", "embedded", "responsive"]
+      },
+      "markdown": {
+        "description": "Markdown formatted text",
+        "flavors": ["github", "commonmark", "gfm"],
+        "options": ["include_metadata", "include_toc"]
+      }
+    }
+  },
+  "analysis_capabilities": {
+    "text_analysis": [
+      "summarization",
+      "entity_extraction",
+      "sentiment_analysis",
+      "keyword_extraction",
+      "topic_modeling",
+      "citation_tracking"
+    ],
+    "numerical_analysis": [
+      "statistical_summary",
+      "trend_detection",
+      "correlation_analysis",
+      "outlier_detection",
+      "distribution_analysis"
+    ],
+    "comparative_analysis": [
+      "side_by_side_comparison",
+      "change_detection",
+      "benchmarking",
+      "gap_analysis"
+    ],
+    "structural_analysis": [
+      "hierarchy_extraction",
+      "network_analysis",
+      "timeline_construction",
+      "classification"
+    ]
+  },
+  "rendering_modes": {
+    "internal": {
+      "description": "Use only Python libraries (no external APIs)",
+      "libraries": {
+        "visualization": ["matplotlib", "seaborn", "plotly"],
+        "documents": ["reportlab", "weasyprint", "markdown2"],
+        "data": ["pandas", "csv", "json"]
+      },
+      "capabilities": [
+        "basic_charts",
+        "pdf_generation",
+        "html_rendering",
+        "csv_json_export",
+        "simple_infographics"
+      ]
+    },
+    "external": {
+      "description": "Enhanced capabilities with external APIs",
+      "optional_services": {
+        "quickchart": {
+          "description": "Professional chart rendering",
+          "env_var": "QUICKCHART_API_KEY",
+          "capabilities": ["advanced_charts", "custom_styling", "high_resolution"]
+        },
+        "cloudconvert": {
+          "description": "Document conversion service",
+          "env_var": "CLOUDCONVERT_API_KEY",
+          "capabilities": ["advanced_pdf", "format_conversion", "batch_processing"]
+        }
+      }
+    }
+  },
+  "global_settings": {
+    "default_output_format": "summary",
+    "default_analysis_depth": "moderate",
+    "default_visualization_style": "professional",
+    "feature_flags": {
+      "auto_detect_format": true,
+      "include_metadata": true,
+      "generate_preview": true,
+      "save_intermediate_results": false
+    }
+  },
+  "quality_standards": {
+    "min_quality_score": 7,
+    "validate_output": true,
+    "check_data_integrity": true,
+    "verify_format_compliance": true,
+    "test_file_readability": true
+  },
+  "orchestration_logic": {
+    "mode": "hierarchical",
+    "max_loops": 12,
+    "phases": [
+      "INGEST",
+      "ANALYZE",
+      "FORMAT",
+      "RENDER",
+      "VALIDATE"
+    ],
+    "fallback_behavior": {
+      "on_api_failure": "use_internal",
+      "on_render_failure": "simplify_format",
+      "on_validation_failure": "retry_with_corrections"
+    }
+  },
+  "output_directory": "output",
+  "input_directory": "input",
+  "temp_directory": "temp",
+  "external_apis": {
+    "quickchart": {
+      "enabled": false,
+      "env_var": "QUICKCHART_API_KEY",
+      "base_url": "https://quickchart.io/chart"
+    },
+    "cloudconvert": {
+      "enabled": false,
+      "env_var": "CLOUDCONVERT_API_KEY",
+      "base_url": "https://api.cloudconvert.com/v2"
+    }
+  }
+}

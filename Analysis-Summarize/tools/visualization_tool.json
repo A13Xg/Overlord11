@@ -1,0 +1,55 @@
+{
+  "name": "visualization_generator",
+  "description": "Generates charts, graphs, and visual outputs from data.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "viz_type": {
+        "type": "string",
+        "enum": [
+          "line_chart",
+          "bar_chart",
+          "pie_chart",
+          "scatter_plot",
+          "histogram",
+          "heatmap",
+          "network_graph",
+          "timeline",
+          "wordcloud",
+          "table",
+          "infographic"
+        ],
+        "description": "The type of visualization to generate."
+      },
+      "data": {
+        "type": "string",
+        "description": "The data to visualize (JSON-stringified)."
+      },
+      "options": {
+        "type": "object",
+        "description": "Visualization-specific options.",
+        "properties": {
+          "title": {"type": "string"},
+          "x_label": {"type": "string"},
+          "y_label": {"type": "string"},
+          "color_scheme": {"type": "string"},
+          "width": {"type": "integer"},
+          "height": {"type": "integer"},
+          "style": {"type": "string", "enum": ["professional", "minimal", "colorful", "grayscale"]},
+          "interactive": {"type": "boolean"},
+          "legend_position": {"type": "string", "enum": ["top", "bottom", "left", "right", "none"]}
+        }
+      },
+      "output_format": {
+        "type": "string",
+        "enum": ["png", "svg", "html", "pdf"],
+        "description": "The format for the visualization output."
+      },
+      "use_external_api": {
+        "type": "boolean",
+        "description": "Whether to use external API for enhanced rendering (if available)."
+      }
+    },
+    "required": ["viz_type", "data", "output_format"]
+  }
+}

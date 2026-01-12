@@ -1,0 +1,41 @@
+{
+  "name": "analysis_engine",
+  "description": "Performs various analysis operations on data: statistical, textual, comparative, etc.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "analysis_type": {
+        "type": "string",
+        "enum": [
+          "summarize",
+          "extract_entities",
+          "sentiment",
+          "keywords",
+          "statistics",
+          "trends",
+          "correlations",
+          "compare",
+          "classify",
+          "timeline"
+        ],
+        "description": "The type of analysis to perform."
+      },
+      "data": {
+        "type": "string",
+        "description": "The data to analyze (text or JSON-stringified structured data)."
+      },
+      "parameters": {
+        "type": "object",
+        "description": "Analysis-specific parameters (summary length, confidence threshold, etc.).",
+        "properties": {
+          "summary_length": {"type": "string", "enum": ["brief", "moderate", "detailed"]},
+          "confidence_threshold": {"type": "number"},
+          "include_citations": {"type": "boolean"},
+          "statistical_measures": {"type": "array", "items": {"type": "string"}},
+          "comparison_baseline": {"type": "string"}
+        }
+      }
+    },
+    "required": ["analysis_type", "data"]
+  }
+}

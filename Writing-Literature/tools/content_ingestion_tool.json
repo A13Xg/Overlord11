@@ -1,0 +1,33 @@
+{
+  "name": "content_ingestion",
+  "description": "Allows the agent to read and ingest content from various sources: local files, text input, or URLs.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "source_type": {
+        "type": "string",
+        "enum": ["file", "text", "url"],
+        "description": "The type of content source to ingest."
+      },
+      "source_path": {
+        "type": "string",
+        "description": "The file path or URL to ingest. Leave empty if source_type is 'text'."
+      },
+      "content": {
+        "type": "string",
+        "description": "Direct text content to ingest. Only used when source_type is 'text'."
+      },
+      "metadata": {
+        "type": "object",
+        "description": "Optional metadata about the content (author, date, title, etc.).",
+        "properties": {
+          "title": {"type": "string"},
+          "author": {"type": "string"},
+          "date": {"type": "string"},
+          "source": {"type": "string"}
+        }
+      }
+    },
+    "required": ["source_type"]
+  }
+}

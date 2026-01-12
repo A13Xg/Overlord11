@@ -1,0 +1,32 @@
+{
+  "name": "file_management",
+  "description": "Manages file operations: read, write, list, and organize output files.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["read", "write", "list", "delete", "info"],
+        "description": "The file operation to perform."
+      },
+      "file_path": {
+        "type": "string",
+        "description": "The relative path to the file."
+      },
+      "content": {
+        "type": "string",
+        "description": "Content to write (for write action)."
+      },
+      "content_type": {
+        "type": "string",
+        "enum": ["text", "binary_base64"],
+        "description": "Type of content being written."
+      },
+      "directory": {
+        "type": "string",
+        "description": "Directory to list (for list action)."
+      }
+    },
+    "required": ["action"]
+  }
+}

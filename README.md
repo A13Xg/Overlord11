@@ -42,16 +42,38 @@ Overlord11/
 ├── .env.example              # Environment configuration template
 ├── .secrets.example          # Secrets configuration template
 ├── Consciousness.md          # AI consciousness framework documentation
-└── <ModelFolders>/          # Model-specific resources (to be organized)
+├── Analysis-Summarize/       # Multi-format analysis and output generation system
+├── Code-Development/         # Development-focused prompts and tools
+├── Generic/                  # General-purpose resources
+├── Model_Specific/           # Model-specific resources and configurations
+├── Research-InfoGather/      # Multi-agent research orchestration system
+└── Writing-Literature/       # Writing and content generation resources
 ```
 
 ## 🔷 Usage
 
-Explore the model-specific folders to find:
+Explore the organized folders to find:
 - Ready-to-use prompts
 - Agent configurations
 - Integration examples
 - Best practices and guidelines
+
+### Featured Projects
+
+#### Research-InfoGather
+A multi-agent research orchestration system for automated information gathering, synthesis, and report generation. Features hierarchical agent coordination, quality control, and support for multiple academic and informal writing styles.
+
+[View Documentation](./Research-InfoGather/README.md)
+
+#### Writing-Literature
+A multi-agent writing system for content transformation through ingestion, compression, expansion, and refinement. Converts raw content into polished written work with configurable styles, lengths, and quality assurance.
+
+[View Documentation](./Writing-Literature/README.md)
+
+#### Analysis-Summarize
+A versatile analysis and output generation system supporting diverse formats from text summaries to visual reports. Performs comprehensive analysis (text, numerical, comparative, structural) and generates outputs including charts, PDFs, infographics, and data exports using internal Python libraries or optional external APIs.
+
+[View Documentation](./Analysis-Summarize/README.md)
 
 ## 🔶 Contributing
 

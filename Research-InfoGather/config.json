@@ -1,0 +1,35 @@
+{
+  "project_name": "Research-InfoGather",
+  "version": "2.1.0",
+  "style_definitions": {
+    "formal": ["MLA", "APA", "CHICAGO", "HARVARD"],
+    "informal": ["Scientific_Descriptive", "Persuasive", "Narrative"]
+  },
+  "global_settings": {
+    "default_style": "Scientific_Descriptive",
+    "feature_flags": {
+      "table_of_contents": true,
+      "works_cited": true,
+      "executive_summary": true,
+      "conflict_reporting": true
+    }
+  },
+  "research_constraints": {
+    "min_sources_per_topic": 3,
+    "max_sources_per_topic": 6,
+    "blacklist_domains": [
+      "wikipedia.org", "facebook.com", "x.com", 
+      "reddit.com", "quora.com", "pinterest.com"
+    ],
+    "preferred_sources": [
+      "arxiv.org", "reuters.com", "bloomberg.com", 
+      "nature.com", "*.gov", "*.edu"
+    ]
+  },
+  "orchestration_logic": {
+    "mode": "hierarchical",
+    "max_loops": 12,
+    "halt_on_low_confidence": true,
+    "approval_checkpoints": ["after_planning", "before_final_output"]
+  }
+}

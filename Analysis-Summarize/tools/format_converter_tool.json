@@ -1,0 +1,36 @@
+{
+  "name": "format_converter",
+  "description": "Converts data between different formats: CSV, JSON, XML, Markdown, HTML, etc.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "input_format": {
+        "type": "string",
+        "enum": ["csv", "json", "xml", "yaml", "markdown", "html", "text", "auto"],
+        "description": "The format of the input data."
+      },
+      "output_format": {
+        "type": "string",
+        "enum": ["csv", "json", "xml", "yaml", "markdown", "html", "text", "latex"],
+        "description": "The desired output format."
+      },
+      "data": {
+        "type": "string",
+        "description": "The data to convert."
+      },
+      "formatting_options": {
+        "type": "object",
+        "description": "Format-specific options.",
+        "properties": {
+          "csv_delimiter": {"type": "string"},
+          "json_indent": {"type": "integer"},
+          "html_style": {"type": "string"},
+          "markdown_flavor": {"type": "string", "enum": ["github", "commonmark", "gfm"]},
+          "include_header": {"type": "boolean"},
+          "pretty_print": {"type": "boolean"}
+        }
+      }
+    },
+    "required": ["input_format", "output_format", "data"]
+  }
+}

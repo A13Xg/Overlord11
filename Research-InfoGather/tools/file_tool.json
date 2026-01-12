@@ -1,0 +1,23 @@
+{
+  "name": "file_management",
+  "description": "Allows the agent to read from or write to the local file system within the project directory.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["read", "write", "append"],
+        "description": "The file operation to perform."
+      },
+      "file_path": {
+        "type": "string",
+        "description": "The relative path to the file (e.g., 'output/report.md')."
+      },
+      "content": {
+        "type": "string",
+        "description": "The text content to write or append. Leave empty if action is 'read'."
+      }
+    },
+    "required": ["action", "file_path"]
+  }
+}

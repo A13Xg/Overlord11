@@ -1,0 +1,80 @@
+{
+  "project_name": "Writing-Literature",
+  "version": "1.0.0",
+  "style_definitions": {
+    "academic": {
+      "description": "Formal, structured, citation-ready writing for scholarly work",
+      "characteristics": ["formal_tone", "no_contractions", "structured_arguments", "objective_voice"],
+      "recommended_for": ["research papers", "theses", "academic articles"]
+    },
+    "professional": {
+      "description": "Business-appropriate, clear, and actionable communication",
+      "characteristics": ["clear_language", "action_oriented", "professional_terminology", "concise"],
+      "recommended_for": ["business reports", "proposals", "white papers", "case studies"]
+    },
+    "creative": {
+      "description": "Narrative-driven, engaging, and descriptive storytelling",
+      "characteristics": ["descriptive_language", "emotional_resonance", "narrative_flow", "vivid_imagery"],
+      "recommended_for": ["stories", "essays", "blog posts", "personal narratives"]
+    },
+    "technical": {
+      "description": "Precise, detailed, specification-oriented documentation",
+      "characteristics": ["precise_terminology", "detailed_specifications", "logical_structure", "accuracy_focus"],
+      "recommended_for": ["technical documentation", "user manuals", "API docs", "specifications"]
+    },
+    "casual": {
+      "description": "Conversational, accessible, and friendly communication",
+      "characteristics": ["conversational_tone", "accessible_language", "personal_voice", "approachable"],
+      "recommended_for": ["blog posts", "social media", "newsletters", "informal articles"]
+    }
+  },
+  "global_settings": {
+    "default_style": "professional",
+    "default_length": 800,
+    "default_tone": "neutral",
+    "feature_flags": {
+      "include_word_count": true,
+      "include_reading_time": true,
+      "style_validation": true,
+      "auto_formatting": true
+    }
+  },
+  "writing_constraints": {
+    "min_input_length": 50,
+    "max_input_length": 50000,
+    "length_tolerance": 0.10,
+    "compression_ratios": {
+      "verbose_input": 0.25,
+      "moderate_input": 0.35,
+      "concise_input": 0.50
+    }
+  },
+  "orchestration_logic": {
+    "mode": "hierarchical",
+    "max_loops": 10,
+    "halt_on_length_violation": false,
+    "approval_checkpoints": ["after_compression", "after_expansion", "after_proofreading"],
+    "phases": [
+      "INGEST",
+      "COMPRESS",
+      "EXPAND",
+      "REVIEW"
+    ]
+  },
+  "quality_standards": {
+    "min_quality_score": 7,
+    "grammar_check": true,
+    "tone_consistency": true,
+    "readability_check": true,
+    "style_compliance": true
+  },
+  "output_formats": {
+    "available_formats": [
+      "markdown",
+      "plain_text",
+      "html",
+      "structured_json"
+    ],
+    "default_format": "markdown"
+  }
+}
