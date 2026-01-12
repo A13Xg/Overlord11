@@ -74,7 +74,7 @@ Contributions are welcome! Please ensure:
 
 ## 🔷 License
 
-See LICENSE file for details
+This project's license will be determined by the repository owner
 
 ## 🔶 Support
 
