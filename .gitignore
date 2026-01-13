@@ -25,3 +25,22 @@ __pycache__/
 # Logs
 *.log
 logs/
+
+# Claude-related files
+claude/
+.claude/
+claude_temp/
+claude_*.tmp
+claude_*.log
+claude_*.cache
+claude_workspace/
+claude_history/
+claude_session/
+*.claude
+.claude-*
+.claude_state
+.claude_cache
+.claude_session
+.claude_history
+tmpclaude-*
+*-cwd
