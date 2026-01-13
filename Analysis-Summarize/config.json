@@ -1,6 +1,21 @@
 {
   "project_name": "Analysis-Summarize",
   "version": "1.0.0",
+  "model_config": {
+    "provider": "anthropic",
+    "models": {
+      "anthropic": {
+        "model_name": "claude-3-5-sonnet-20241022",
+        "max_tokens": 8000,
+        "env_var": "ANTHROPIC_API_KEY"
+      },
+      "gemini": {
+        "model_name": "gemini-1.5-pro",
+        "max_tokens": 8000,
+        "env_var": "GOOGLE_GEMINI_API_KEY"
+      }
+    }
+  },
   "output_formats": {
     "text_based": {
       "summary": {

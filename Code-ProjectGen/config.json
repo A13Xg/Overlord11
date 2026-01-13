@@ -1,0 +1,143 @@
+{
+  "project_name": "Code-ProjectGen",
+  "version": "1.0.0",
+  "model_config": {
+    "provider": "anthropic",
+    "models": {
+      "anthropic": {
+        "model_name": "claude-3-5-sonnet-20241022",
+        "max_tokens": 8000,
+        "env_var": "ANTHROPIC_API_KEY"
+      },
+      "gemini": {
+        "model_name": "gemini-1.5-pro",
+        "max_tokens": 8000,
+        "env_var": "GOOGLE_GEMINI_API_KEY"
+      }
+    }
+  },
+  "language_support": {
+    "primary": ["python", "javascript", "typescript", "go", "rust", "java", "csharp"],
+    "scripting": ["bash", "powershell", "python"],
+    "markup": ["html", "css", "markdown", "json", "yaml", "xml"],
+    "config": ["dockerfile", "makefile", "toml", "ini"]
+  },
+  "project_templates": {
+    "python_cli": {
+      "description": "Command-line application with argparse",
+      "structure": ["main.py", "requirements.txt", "README.md", ".gitignore"],
+      "features": ["argument_parsing", "logging", "error_handling"]
+    },
+    "python_api": {
+      "description": "FastAPI REST API service",
+      "structure": ["main.py", "routes/", "models/", "requirements.txt", "README.md"],
+      "features": ["endpoints", "validation", "error_handling", "documentation"]
+    },
+    "python_package": {
+      "description": "Installable Python package",
+      "structure": ["src/", "tests/", "pyproject.toml", "README.md", "LICENSE"],
+      "features": ["packaging", "testing", "documentation"]
+    },
+    "node_api": {
+      "description": "Express.js REST API",
+      "structure": ["src/", "package.json", "README.md", ".gitignore"],
+      "features": ["routing", "middleware", "error_handling"]
+    },
+    "react_app": {
+      "description": "React frontend application",
+      "structure": ["src/", "public/", "package.json", "README.md"],
+      "features": ["components", "routing", "state_management"]
+    },
+    "fullstack": {
+      "description": "Full-stack application with backend and frontend",
+      "structure": ["backend/", "frontend/", "docker-compose.yml", "README.md"],
+      "features": ["api", "ui", "database", "containerization"]
+    }
+  },
+  "code_standards": {
+    "python": {
+      "style_guide": "PEP8",
+      "type_hints": true,
+      "docstrings": "google",
+      "linter": "ruff",
+      "formatter": "black"
+    },
+    "javascript": {
+      "style_guide": "ESLint",
+      "module_system": "esm",
+      "linter": "eslint",
+      "formatter": "prettier"
+    },
+    "typescript": {
+      "strict_mode": true,
+      "style_guide": "ESLint",
+      "linter": "eslint",
+      "formatter": "prettier"
+    }
+  },
+  "generation_modes": {
+    "scaffold": {
+      "description": "Generate project structure and boilerplate",
+      "depth": "structure_only"
+    },
+    "implement": {
+      "description": "Generate fully functional code",
+      "depth": "full_implementation"
+    },
+    "enhance": {
+      "description": "Add features to existing code",
+      "depth": "incremental"
+    },
+    "refactor": {
+      "description": "Improve existing code quality",
+      "depth": "modification"
+    }
+  },
+  "global_settings": {
+    "default_language": "python",
+    "default_template": "python_cli",
+    "default_mode": "implement",
+    "feature_flags": {
+      "include_tests": true,
+      "include_documentation": true,
+      "include_ci_config": false,
+      "include_docker": false,
+      "auto_format": true,
+      "generate_readme": true
+    }
+  },
+  "code_execution": {
+    "enabled": true,
+    "timeout_seconds": 30,
+    "allowed_operations": ["run", "test", "lint", "format"],
+    "sandbox_mode": true
+  },
+  "quality_standards": {
+    "min_quality_score": 7,
+    "require_type_hints": true,
+    "require_docstrings": true,
+    "require_error_handling": true,
+    "max_function_length": 50,
+    "max_file_length": 500
+  },
+  "orchestration_logic": {
+    "mode": "hierarchical",
+    "max_loops": 15,
+    "phases": [
+      "PLAN",
+      "ARCHITECT",
+      "IMPLEMENT",
+      "TEST",
+      "REVIEW"
+    ],
+    "approval_checkpoints": ["after_planning", "after_architecture", "before_final_output"],
+    "fallback_behavior": {
+      "on_test_failure": "fix_and_retry",
+      "on_lint_failure": "auto_fix",
+      "on_generation_error": "simplify_approach"
+    }
+  },
+  "output_directory": "output",
+  "workspace_directory": "workspace",
+  "temp_directory": "temp"
+}

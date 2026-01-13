@@ -1,0 +1,48 @@
+{
+  "name": "dependency_management",
+  "description": "Manage project dependencies. Add, remove, update packages and generate lock files.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["add", "remove", "list", "update", "check", "generate_lockfile"],
+        "description": "Dependency management action to perform"
+      },
+      "package_manager": {
+        "type": "string",
+        "enum": ["pip", "poetry", "npm", "yarn", "pnpm", "auto"],
+        "description": "Package manager to use (auto-detect if not specified)",
+        "default": "auto"
+      },
+      "packages": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Package name"
+            },
+            "version": {
+              "type": "string",
+              "description": "Version constraint (e.g., '^1.0.0', '>=2.0,<3.0')"
+            },
+            "dev": {
+              "type": "boolean",
+              "description": "Install as dev dependency",
+              "default": false
+            }
+          },
+          "required": ["name"]
+        },
+        "description": "List of packages for add/remove actions"
+      },
+      "working_dir": {
+        "type": "string",
+        "description": "Project directory (relative to workspace)"
+      }
+    },
+    "required": ["action"]
+  }
+}

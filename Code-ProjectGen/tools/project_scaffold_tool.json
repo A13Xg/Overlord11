@@ -1,0 +1,63 @@
+{
+  "name": "project_scaffold",
+  "description": "Create project structure from templates. Generates directories, boilerplate files, and configuration based on project type.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "template": {
+        "type": "string",
+        "enum": ["python_cli", "python_api", "python_package", "node_api", "react_app", "fullstack", "custom"],
+        "description": "Project template to use"
+      },
+      "project_name": {
+        "type": "string",
+        "description": "Name of the project (used for directory and package naming)"
+      },
+      "options": {
+        "type": "object",
+        "description": "Template-specific options",
+        "properties": {
+          "include_tests": {
+            "type": "boolean",
+            "description": "Include test directory and configuration",
+            "default": true
+          },
+          "include_docker": {
+            "type": "boolean",
+            "description": "Include Dockerfile and docker-compose",
+            "default": false
+          },
+          "include_ci": {
+            "type": "boolean",
+            "description": "Include CI/CD configuration (GitHub Actions)",
+            "default": false
+          },
+          "license": {
+            "type": "string",
+            "enum": ["MIT", "Apache-2.0", "GPL-3.0", "BSD-3-Clause", "none"],
+            "description": "License to include",
+            "default": "MIT"
+          },
+          "python_version": {
+            "type": "string",
+            "description": "Python version for pyproject.toml",
+            "default": "3.11"
+          },
+          "node_version": {
+            "type": "string",
+            "description": "Node.js version for package.json engines",
+            "default": "18"
+          }
+        }
+      },
+      "custom_structure": {
+        "type": "array",
+        "description": "Custom directory/file structure (for 'custom' template)",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": ["template", "project_name"]
+  }
+}

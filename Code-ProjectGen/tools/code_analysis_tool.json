@@ -1,0 +1,51 @@
+{
+  "name": "code_analysis",
+  "description": "Analyze code quality, detect issues, and generate metrics. Supports linting, type checking, complexity analysis, and security scanning.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["lint", "type_check", "complexity", "security_scan", "coverage", "full_analysis"],
+        "description": "Type of analysis to perform"
+      },
+      "target": {
+        "type": "string",
+        "description": "File or directory to analyze (relative to workspace)"
+      },
+      "language": {
+        "type": "string",
+        "enum": ["python", "javascript", "typescript", "auto"],
+        "description": "Programming language (auto-detect if not specified)",
+        "default": "auto"
+      },
+      "config": {
+        "type": "object",
+        "description": "Analysis configuration options",
+        "properties": {
+          "max_complexity": {
+            "type": "integer",
+            "description": "Maximum allowed cyclomatic complexity",
+            "default": 10
+          },
+          "max_line_length": {
+            "type": "integer",
+            "description": "Maximum line length",
+            "default": 120
+          },
+          "ignore_patterns": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Patterns to ignore (e.g., ['test_*.py', '*.generated.js'])"
+          },
+          "strict": {
+            "type": "boolean",
+            "description": "Enable strict mode for type checking",
+            "default": false
+          }
+        }
+      }
+    },
+    "required": ["action", "target"]
+  }
+}

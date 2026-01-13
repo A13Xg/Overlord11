@@ -1,6 +1,21 @@
 {
   "project_name": "Research-InfoGather",
   "version": "2.1.0",
+  "model_config": {
+    "provider": "anthropic",
+    "models": {
+      "anthropic": {
+        "model_name": "claude-3-5-sonnet-20240620",
+        "max_tokens": 4000,
+        "env_var": "ANTHROPIC_API_KEY"
+      },
+      "gemini": {
+        "model_name": "gemini-1.5-pro",
+        "max_tokens": 4000,
+        "env_var": "GOOGLE_GEMINI_API_KEY"
+      }
+    }
+  },
   "style_definitions": {
     "formal": ["MLA", "APA", "CHICAGO", "HARVARD"],
     "informal": ["Scientific_Descriptive", "Persuasive", "Narrative"]
