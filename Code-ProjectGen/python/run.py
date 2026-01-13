@@ -1,31 +1,102 @@
 import os
+import sys
 import json
 import subprocess
 import shutil
+import logging
 import anthropic
 import google.generativeai as genai
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
+from typing import Dict, Any, Optional, Tuple
+
+# Setup Logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('code_projectgen.log', encoding='utf-8')
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Setup Paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_PATH = BASE_DIR.parent / ".env"
-load_dotenv(dotenv_path=ENV_PATH)
+
+# Load environment variables
+logger.info(f"Loading environment variables from: {ENV_PATH}")
+if not ENV_PATH.exists():
+    logger.warning(f".env file not found at {ENV_PATH}")
+    logger.warning("Please create a .env file based on .env.example")
+else:
+    load_dotenv(dotenv_path=ENV_PATH)
+    logger.info("Environment variables loaded successfully")
 
 
-def get_model_client(config):
-    """Initialize the appropriate model client based on config."""
+def get_model_client(config: Dict[str, Any]) -> Tuple[str, Any]:
+    """Initialize the appropriate model client based on config.
+
+    Args:
+        config: Configuration dictionary containing model settings
+
+    Returns:
+        Tuple of (provider_name, client_instance)
+
+    Raises:
+        ValueError: If API key is missing or invalid
+        RuntimeError: If client initialization fails
+    """
     model_config = config.get('model_config', {})
     provider = model_config.get('provider', 'anthropic')
 
-    if provider == 'gemini':
-        api_key = os.getenv(model_config['models']['gemini']['env_var'])
-        genai.configure(api_key=api_key)
-        return 'gemini', genai.GenerativeModel(model_config['models']['gemini']['model_name'])
-    else:
-        api_key = os.getenv(model_config['models']['anthropic']['env_var'])
-        return 'anthropic', anthropic.Anthropic(api_key=api_key)
+    logger.info(f"Initializing model client for provider: {provider}")
+
+    try:
+        if provider == 'gemini':
+            env_var = model_config['models']['gemini']['env_var']
+            api_key = os.getenv(env_var)
+
+            if not api_key:
+                logger.error(f"Environment variable {env_var} is not set")
+                raise ValueError(
+                    f"Missing API key: {env_var} environment variable is not set. "
+                    f"Please create a .env file with your Gemini API key."
+                )
+
+            logger.debug(f"Configuring Gemini with API key (length: {len(api_key)})")
+            genai.configure(api_key=api_key)
+            model_name = model_config['models']['gemini']['model_name']
+            client = genai.GenerativeModel(model_name)
+            logger.info(f"Successfully initialized Gemini model: {model_name}")
+            return 'gemini', client
+
+        else:  # anthropic
+            env_var = model_config['models']['anthropic']['env_var']
+            api_key = os.getenv(env_var)
+
+            if not api_key:
+                logger.error(f"Environment variable {env_var} is not set")
+                raise ValueError(
+                    f"Missing API key: {env_var} environment variable is not set. "
+                    f"Please create a .env file with your Anthropic API key. "
+                    f"See .env.example for reference."
+                )
+
+            logger.debug(f"Initializing Anthropic client with API key (length: {len(api_key)})")
+            client = anthropic.Anthropic(api_key=api_key)
+            model_name = model_config['models']['anthropic']['model_name']
+            logger.info(f"Successfully initialized Anthropic client for model: {model_name}")
+            return 'anthropic', client
+
+    except KeyError as e:
+        logger.error(f"Configuration error: missing key {e}")
+        raise RuntimeError(f"Invalid configuration: missing key {e}")
+    except Exception as e:
+        logger.error(f"Failed to initialize model client: {e}")
+        raise RuntimeError(f"Failed to initialize {provider} client: {e}")
 
 
 class CodeGenerationSystem:
@@ -39,9 +110,21 @@ class CodeGenerationSystem:
             output_dir: Custom output directory for session summaries.
                        If None, uses default output directory.
         """
+        logger.info("Initializing CodeGenerationSystem")
+
         self.config_path = BASE_DIR / "config.json"
-        with open(self.config_path, 'r') as f:
-            self.config = json.load(f)
+        logger.debug(f"Loading config from: {self.config_path}")
+
+        try:
+            with open(self.config_path, 'r') as f:
+                self.config = json.load(f)
+            logger.info("Configuration loaded successfully")
+        except FileNotFoundError:
+            logger.error(f"Configuration file not found: {self.config_path}")
+            raise
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in configuration file: {e}")
+            raise
 
         self.agents_dir = BASE_DIR / "agents"
         self.tools_dir = BASE_DIR / "tools"
@@ -49,37 +132,51 @@ class CodeGenerationSystem:
         # Handle custom output directory
         if output_dir:
             self.output_dir = Path(output_dir).resolve()
+            logger.info(f"Using custom output directory: {self.output_dir}")
         else:
             self.output_dir = BASE_DIR / "output"
+            logger.debug(f"Using default output directory: {self.output_dir}")
 
         # Handle custom workspace
         self.custom_workspace = workspace is not None
         if workspace:
             self.workspace_dir = Path(workspace).resolve()
+            logger.info(f"Using custom workspace: {self.workspace_dir}")
         else:
             self.workspace_dir = BASE_DIR / "workspace"
+            logger.debug(f"Using default workspace: {self.workspace_dir}")
 
         # Create directories if they don't exist
+        logger.debug("Creating necessary directories")
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.workspace_dir.mkdir(parents=True, exist_ok=True)
 
+        logger.debug("Loading agent definitions and tools")
         self.agents = self.load_markdown_assets()
         self.tools = self.load_json_assets()
         self.max_loops = self.config['orchestration_logic']['max_loops']
+        logger.info(f"Loaded {len(self.agents)} agents and {len(self.tools)} tools")
 
         # Initialize model client based on config
-        self.provider, self.client = get_model_client(self.config)
-        self.model_config = self.config.get('model_config', {})
+        try:
+            self.provider, self.client = get_model_client(self.config)
+            self.model_config = self.config.get('model_config', {})
+        except (ValueError, RuntimeError) as e:
+            logger.error(f"Failed to initialize model client: {e}")
+            raise
 
         # Session workspace for current run
         self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        logger.info(f"Session ID: {self.session_id}")
 
         # If custom workspace provided, use it directly; otherwise create session subfolder
         if self.custom_workspace:
             self.session_workspace = self.workspace_dir
+            logger.info(f"Using custom workspace directly (no session subfolder)")
         else:
             self.session_workspace = self.workspace_dir / f"session_{self.session_id}"
             self.session_workspace.mkdir(exist_ok=True)
+            logger.info(f"Created session workspace: {self.session_workspace}")
 
     def load_markdown_assets(self):
         """Load agent definitions from markdown files."""
@@ -181,22 +278,34 @@ Generate the requested project following all quality standards and best practice
         model_name = self.model_config['models']['anthropic']['model_name']
         max_tokens = self.model_config['models']['anthropic']['max_tokens']
 
-        response = self.client.messages.create(
-            model=model_name,
-            max_tokens=max_tokens,
-            system=system_msg,
-            tools=self.tools,
-            messages=messages
-        )
+        logger.debug(f"Calling Anthropic API with model: {model_name}")
+        logger.debug(f"Message count: {len(messages)}, Max tokens: {max_tokens}")
 
-        if response.stop_reason == "tool_use":
-            tool_use = next(block for block in response.content if block.type == "tool_use")
-            return {
-                'tool_use': {'name': tool_use.name, 'input': tool_use.input, 'id': tool_use.id},
-                'raw_content': response.content
-            }
-        else:
-            return {'text': response.content[0].text, 'tool_use': None}
+        try:
+            response = self.client.messages.create(
+                model=model_name,
+                max_tokens=max_tokens,
+                system=system_msg,
+                tools=self.tools,
+                messages=messages
+            )
+
+            logger.debug(f"API Response - Stop reason: {response.stop_reason}")
+
+            if response.stop_reason == "tool_use":
+                tool_use = next(block for block in response.content if block.type == "tool_use")
+                logger.info(f"Tool use detected: {tool_use.name}")
+                return {
+                    'tool_use': {'name': tool_use.name, 'input': tool_use.input, 'id': tool_use.id},
+                    'raw_content': response.content
+                }
+            else:
+                logger.debug("Received final response from API")
+                return {'text': response.content[0].text, 'tool_use': None}
+
+        except Exception as e:
+            logger.error(f"Anthropic API call failed: {e}")
+            raise
 
     def _call_gemini(self, system_msg, messages):
         """Call Google Gemini API."""
@@ -230,24 +339,35 @@ Generate the requested project following all quality standards and best practice
 
     def _execute_tool(self, tool_name, tool_input):
         """Execute tools with actual implementations."""
+        logger.info(f"Executing tool: {tool_name}")
+        logger.debug(f"Tool input: {json.dumps(tool_input, indent=2)}")
 
-        if tool_name == "file_management":
-            return self._handle_file_management(tool_input)
+        try:
+            if tool_name == "file_management":
+                result = self._handle_file_management(tool_input)
 
-        elif tool_name == "code_execution":
-            return self._handle_code_execution(tool_input)
+            elif tool_name == "code_execution":
+                result = self._handle_code_execution(tool_input)
 
-        elif tool_name == "project_scaffold":
-            return self._handle_project_scaffold(tool_input)
+            elif tool_name == "project_scaffold":
+                result = self._handle_project_scaffold(tool_input)
 
-        elif tool_name == "code_analysis":
-            return self._handle_code_analysis(tool_input)
+            elif tool_name == "code_analysis":
+                result = self._handle_code_analysis(tool_input)
 
-        elif tool_name == "dependency_management":
-            return self._handle_dependency_management(tool_input)
+            elif tool_name == "dependency_management":
+                result = self._handle_dependency_management(tool_input)
 
-        else:
-            return json.dumps({"status": "error", "message": f"Unknown tool: {tool_name}"})
+            else:
+                logger.warning(f"Unknown tool requested: {tool_name}")
+                result = json.dumps({"status": "error", "message": f"Unknown tool: {tool_name}"})
+
+            logger.debug(f"Tool execution result: {result[:200]}...")
+            return result
+
+        except Exception as e:
+            logger.error(f"Tool execution failed: {e}", exc_info=True)
+            return json.dumps({"status": "error", "message": f"Tool execution error: {str(e)}"})
 
     def _safe_path(self, path_str):
         """Validate and resolve path within workspace."""

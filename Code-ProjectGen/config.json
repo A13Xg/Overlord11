@@ -2,7 +2,7 @@
   "project_name": "Code-ProjectGen",
   "version": "1.0.0",
   "model_config": {
-    "provider": "anthropic",
+    "provider": "gemini",
     "models": {
       "anthropic": {
         "model_name": "claude-3-5-sonnet-20241022",
@@ -10,7 +10,7 @@
         "env_var": "ANTHROPIC_API_KEY"
       },
       "gemini": {
-        "model_name": "gemini-1.5-pro",
+        "model_name": "gemini-2.5-flash",
         "max_tokens": 8000,
         "env_var": "GOOGLE_GEMINI_API_KEY"
       }
