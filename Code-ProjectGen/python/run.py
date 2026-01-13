@@ -29,19 +29,39 @@ def get_model_client(config):
 
 
 class CodeGenerationSystem:
-    def __init__(self):
+    def __init__(self, workspace: str = None, output_dir: str = None):
+        """Initialize the Code Generation System.
+
+        Args:
+            workspace: Custom workspace directory path. If provided, code will be
+                      generated directly in this directory (no session subfolder).
+                      If None, uses default workspace with session subfolders.
+            output_dir: Custom output directory for session summaries.
+                       If None, uses default output directory.
+        """
         self.config_path = BASE_DIR / "config.json"
         with open(self.config_path, 'r') as f:
             self.config = json.load(f)
 
         self.agents_dir = BASE_DIR / "agents"
         self.tools_dir = BASE_DIR / "tools"
-        self.output_dir = BASE_DIR / "output"
-        self.workspace_dir = BASE_DIR / "workspace"
+
+        # Handle custom output directory
+        if output_dir:
+            self.output_dir = Path(output_dir).resolve()
+        else:
+            self.output_dir = BASE_DIR / "output"
+
+        # Handle custom workspace
+        self.custom_workspace = workspace is not None
+        if workspace:
+            self.workspace_dir = Path(workspace).resolve()
+        else:
+            self.workspace_dir = BASE_DIR / "workspace"
 
         # Create directories if they don't exist
-        self.output_dir.mkdir(exist_ok=True)
-        self.workspace_dir.mkdir(exist_ok=True)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.workspace_dir.mkdir(parents=True, exist_ok=True)
 
         self.agents = self.load_markdown_assets()
         self.tools = self.load_json_assets()
@@ -53,8 +73,13 @@ class CodeGenerationSystem:
 
         # Session workspace for current run
         self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.session_workspace = self.workspace_dir / f"session_{self.session_id}"
-        self.session_workspace.mkdir(exist_ok=True)
+
+        # If custom workspace provided, use it directly; otherwise create session subfolder
+        if self.custom_workspace:
+            self.session_workspace = self.workspace_dir
+        else:
+            self.session_workspace = self.workspace_dir / f"session_{self.session_id}"
+            self.session_workspace.mkdir(exist_ok=True)
 
     def load_markdown_assets(self):
         """Load agent definitions from markdown files."""
@@ -711,28 +736,414 @@ coverage/
         return templates.get(language, templates["python"])
 
 
-if __name__ == "__main__":
-    # Example usage
-    system = CodeGenerationSystem()
+def select_workspace_interactive() -> str:
+    """Interactively select or create a workspace directory.
 
-    sample_request = {
-        "description": "Create a CLI tool that converts JSON to CSV",
-        "language": "python",
-        "template": "python_cli",
-        "features": [
-            "Read JSON from file or stdin",
-            "Output CSV to file or stdout",
-            "Handle nested JSON structures",
-            "Include error handling"
-        ],
+    Returns:
+        Selected workspace path, or None to use default sandbox
+    """
+    print("\n" + "-" * 50)
+    print("WORKSPACE SELECTION")
+    print("-" * 50)
+    print("\nWhere would you like to generate the project?\n")
+    print("  [1] Built-in Agent Sandbox (default)")
+    print("      Creates session subfolder in Code-ProjectGen/workspace/")
+    print()
+    print("  [2] Specify Existing Directory")
+    print("      Use an existing directory on your system")
+    print()
+    print("  [3] Create New Directory")
+    print("      Create a new directory and use it")
+    print()
+
+    while True:
+        choice = input("Select option [1/2/3] (default: 1): ").strip()
+
+        if choice == "" or choice == "1":
+            print("\n-> Using built-in agent sandbox")
+            return None
+
+        elif choice == "2":
+            while True:
+                dir_path = input("\nEnter directory path: ").strip()
+                if not dir_path:
+                    print("  Error: Path cannot be empty.")
+                    continue
+
+                path = Path(dir_path).resolve()
+                if path.exists():
+                    if path.is_dir():
+                        # Check if directory is empty
+                        contents = list(path.iterdir())
+                        if contents:
+                            print(f"\n  Warning: Directory is not empty ({len(contents)} items)")
+                            confirm = input("  Continue anyway? [y/N]: ").strip().lower()
+                            if confirm != 'y':
+                                continue
+                        print(f"\n-> Using existing directory: {path}")
+                        return str(path)
+                    else:
+                        print(f"  Error: Path exists but is not a directory: {path}")
+                        continue
+                else:
+                    print(f"  Error: Directory does not exist: {path}")
+                    create = input("  Would you like to create it? [y/N]: ").strip().lower()
+                    if create == 'y':
+                        try:
+                            path.mkdir(parents=True, exist_ok=True)
+                            print(f"\n-> Created and using directory: {path}")
+                            return str(path)
+                        except Exception as e:
+                            print(f"  Error creating directory: {e}")
+                            continue
+                    continue
+
+        elif choice == "3":
+            while True:
+                dir_path = input("\nEnter new directory path to create: ").strip()
+                if not dir_path:
+                    print("  Error: Path cannot be empty.")
+                    continue
+
+                path = Path(dir_path).resolve()
+                if path.exists():
+                    print(f"  Error: Path already exists: {path}")
+                    use_existing = input("  Use this existing directory? [y/N]: ").strip().lower()
+                    if use_existing == 'y':
+                        if path.is_dir():
+                            print(f"\n-> Using existing directory: {path}")
+                            return str(path)
+                        else:
+                            print(f"  Error: Path is not a directory")
+                    continue
+
+                try:
+                    path.mkdir(parents=True, exist_ok=True)
+                    print(f"\n-> Created directory: {path}")
+                    return str(path)
+                except Exception as e:
+                    print(f"  Error creating directory: {e}")
+                    continue
+
+        else:
+            print("  Invalid option. Please enter 1, 2, or 3.")
+
+
+def select_language_interactive(current: str = "python") -> str:
+    """Interactively select programming language.
+
+    Args:
+        current: Current/default language
+
+    Returns:
+        Selected language
+    """
+    languages = ["python", "javascript", "typescript", "go", "rust", "java", "csharp"]
+
+    print("\n" + "-" * 50)
+    print("LANGUAGE SELECTION")
+    print("-" * 50)
+    print("\nSelect primary programming language:\n")
+
+    for i, lang in enumerate(languages, 1):
+        default_marker = " (default)" if lang == current else ""
+        print(f"  [{i}] {lang}{default_marker}")
+
+    print()
+    while True:
+        choice = input(f"Select option [1-{len(languages)}] (default: {languages.index(current)+1}): ").strip()
+
+        if choice == "":
+            return current
+
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(languages):
+                print(f"\n-> Selected: {languages[idx]}")
+                return languages[idx]
+            else:
+                print(f"  Invalid option. Please enter 1-{len(languages)}.")
+        except ValueError:
+            # Check if they typed the language name
+            if choice.lower() in languages:
+                print(f"\n-> Selected: {choice.lower()}")
+                return choice.lower()
+            print(f"  Invalid option. Please enter 1-{len(languages)} or language name.")
+
+
+def select_template_interactive(language: str, current: str = "python_cli") -> str:
+    """Interactively select project template.
+
+    Args:
+        language: Selected programming language
+        current: Current/default template
+
+    Returns:
+        Selected template
+    """
+    # Templates filtered by language compatibility
+    all_templates = {
+        "python_cli": {"desc": "Command-line application", "langs": ["python"]},
+        "python_api": {"desc": "FastAPI REST API service", "langs": ["python"]},
+        "python_package": {"desc": "Installable Python package", "langs": ["python"]},
+        "node_api": {"desc": "Express.js REST API", "langs": ["javascript", "typescript"]},
+        "react_app": {"desc": "React frontend application", "langs": ["javascript", "typescript"]},
+        "fullstack": {"desc": "Full-stack (backend + frontend)", "langs": ["python", "javascript", "typescript"]},
+        "custom": {"desc": "Custom structure (you define)", "langs": ["python", "javascript", "typescript", "go", "rust", "java", "csharp"]},
+    }
+
+    # Filter templates compatible with selected language
+    compatible = {k: v for k, v in all_templates.items() if language in v["langs"]}
+
+    print("\n" + "-" * 50)
+    print("TEMPLATE SELECTION")
+    print("-" * 50)
+    print(f"\nSelect project template (for {language}):\n")
+
+    template_list = list(compatible.keys())
+    for i, (name, info) in enumerate(compatible.items(), 1):
+        default_marker = " (default)" if name == current and name in compatible else ""
+        print(f"  [{i}] {name}{default_marker}")
+        print(f"      {info['desc']}")
+        print()
+
+    while True:
+        default_idx = template_list.index(current) + 1 if current in template_list else 1
+        choice = input(f"Select option [1-{len(template_list)}] (default: {default_idx}): ").strip()
+
+        if choice == "":
+            selected = current if current in template_list else template_list[0]
+            print(f"\n-> Selected: {selected}")
+            return selected
+
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(template_list):
+                print(f"\n-> Selected: {template_list[idx]}")
+                return template_list[idx]
+            else:
+                print(f"  Invalid option. Please enter 1-{len(template_list)}.")
+        except ValueError:
+            if choice in template_list:
+                print(f"\n-> Selected: {choice}")
+                return choice
+            print(f"  Invalid option. Please enter 1-{len(template_list)} or template name.")
+
+
+def get_features_interactive() -> list:
+    """Interactively get list of features.
+
+    Returns:
+        List of feature strings
+    """
+    print("\n" + "-" * 50)
+    print("FEATURES (Optional)")
+    print("-" * 50)
+    print("\nEnter required features (one per line, empty line to finish):")
+    print("Examples: 'user authentication', 'database integration', 'logging'\n")
+
+    features = []
+    while True:
+        feature = input(f"  Feature {len(features)+1}: ").strip()
+        if not feature:
+            break
+        features.append(feature)
+
+    if features:
+        print(f"\n-> Added {len(features)} feature(s)")
+    else:
+        print("\n-> No additional features specified")
+
+    return features
+
+
+def confirm_settings(workspace: str, description: str, language: str, template: str, features: list) -> bool:
+    """Display settings summary and confirm.
+
+    Returns:
+        True if confirmed, False otherwise
+    """
+    print("\n" + "=" * 60)
+    print("CONFIGURATION SUMMARY")
+    print("=" * 60)
+    print(f"\n  Workspace:   {workspace or 'Built-in Agent Sandbox'}")
+    print(f"  Description: {description[:50]}{'...' if len(description) > 50 else ''}")
+    print(f"  Language:    {language}")
+    print(f"  Template:    {template}")
+    print(f"  Features:    {len(features)} specified")
+    if features:
+        for f in features[:3]:
+            print(f"               - {f}")
+        if len(features) > 3:
+            print(f"               ... and {len(features)-3} more")
+
+    print()
+    confirm = input("Proceed with code generation? [Y/n]: ").strip().lower()
+    return confirm != 'n'
+
+
+def main():
+    """Main entry point with CLI argument parsing."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Code-ProjectGen: AI-powered code generation system",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+    # Interactive mode (recommended)
+    python run.py -i
+
+    # Generate project in default workspace
+    python run.py --description "Create a REST API" --language python
+
+    # Generate project in custom workspace
+    python run.py --workspace /path/to/my/project --description "Create a CLI tool"
+
+    # Use a specific template
+    python run.py --template python_api --description "Build a FastAPI service"
+
+    # Skip workspace prompt (use default sandbox)
+    python run.py -i --use-sandbox
+        """
+    )
+    parser.add_argument(
+        "--workspace", "-w",
+        type=str,
+        help="Custom workspace directory (code generated directly here, no session subfolder)"
+    )
+    parser.add_argument(
+        "--output-dir", "-o",
+        type=str,
+        help="Custom output directory for session summaries"
+    )
+    parser.add_argument(
+        "--description", "-d",
+        type=str,
+        help="Project description (what to build)"
+    )
+    parser.add_argument(
+        "--language", "-l",
+        type=str,
+        default="python",
+        choices=["python", "javascript", "typescript", "go", "rust", "java", "csharp"],
+        help="Primary programming language (default: python)"
+    )
+    parser.add_argument(
+        "--template", "-t",
+        type=str,
+        default="python_cli",
+        choices=["python_cli", "python_api", "python_package", "node_api", "react_app", "fullstack", "custom"],
+        help="Project template to use (default: python_cli)"
+    )
+    parser.add_argument(
+        "--features", "-f",
+        type=str,
+        nargs="*",
+        help="List of required features"
+    )
+    parser.add_argument(
+        "--include-tests",
+        action="store_true",
+        default=True,
+        help="Include test files (default: True)"
+    )
+    parser.add_argument(
+        "--include-docker",
+        action="store_true",
+        default=False,
+        help="Include Docker configuration"
+    )
+    parser.add_argument(
+        "--interactive", "-i",
+        action="store_true",
+        help="Run in full interactive mode (prompt for all options)"
+    )
+    parser.add_argument(
+        "--use-sandbox",
+        action="store_true",
+        help="Skip workspace prompt and use built-in sandbox"
+    )
+    parser.add_argument(
+        "--no-confirm",
+        action="store_true",
+        help="Skip confirmation prompt"
+    )
+
+    args = parser.parse_args()
+
+    # Header
+    print("\n" + "=" * 60)
+    print("  CODE-PROJECTGEN: AI-Powered Code Generation")
+    print("=" * 60)
+
+    # Determine workspace
+    workspace = args.workspace
+    if not workspace and not args.use_sandbox and (args.interactive or not args.description):
+        workspace = select_workspace_interactive()
+
+    # Get description
+    description = args.description
+    if not description:
+        print("\n" + "-" * 50)
+        print("PROJECT DESCRIPTION")
+        print("-" * 50)
+        description = input("\nDescribe what you want to build:\n> ").strip()
+        if not description:
+            print("\nError: Project description is required.")
+            return
+
+    # Interactive language/template selection
+    language = args.language
+    template = args.template
+    features = args.features or []
+
+    if args.interactive:
+        language = select_language_interactive(language)
+        template = select_template_interactive(language, template)
+        features = get_features_interactive()
+
+    # Confirmation
+    if not args.no_confirm:
+        if not confirm_settings(workspace, description, language, template, features):
+            print("\nGeneration cancelled.")
+            return
+
+    # Build project request
+    project_request = {
+        "description": description,
+        "language": language,
+        "template": template,
+        "features": features,
         "options": {
-            "include_tests": True,
+            "include_tests": args.include_tests,
+            "include_docker": args.include_docker,
             "include_documentation": True
         }
     }
 
-    result = system.run_mission(sample_request)
+    # Initialize system with optional custom workspace
+    print("\n" + "=" * 60)
+    print("STARTING CODE GENERATION")
+    print("=" * 60)
+
+    system = CodeGenerationSystem(
+        workspace=workspace,
+        output_dir=args.output_dir
+    )
+
+    # Run the mission
+    result = system.run_mission(project_request)
+
     print("\n" + "=" * 80)
     print("FINAL OUTPUT:")
     print("=" * 80)
     print(result)
+
+    print("\n" + "-" * 60)
+    print(f"Project generated in: {system.session_workspace}")
+    print("-" * 60)
+
+
+if __name__ == "__main__":
+    main()
