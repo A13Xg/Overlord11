@@ -6,7 +6,7 @@
     "properties": {
       "agent_name": {
         "type": "STRING",
-        "description": "The specialized tool for codebase analysis, architectural mapping, and understanding system-wide dependencies.\n    Invoke this tool for tasks like vague requests, bug root-cause analysis, system refactoring, comprehensive feature implementation or to answer questions about the codebase that require investigation.\n    It returns a structured report with key file paths, symbols, and actionable architectural insights."
+        "description": "The name of the specialized sub-agent to delegate the task to.\n    Available agents:\n    - Advanced Analyst\n    - API Tester\n    - Auto Bug Fixing\n    - Automation\n    - Code Debugger\n    - Code Generator\n    - Code Reviewer\n    - Code Tester\n    - Command Executor\n    - Config Manager\n    - Data Visualizer\n    - Deployment\n    - Fact Checker\n    - File Manager\n    - Git\n    - HTML Visualization\n    - Human in the Loop\n    - Language\n    - Learning\n    - Monitoring\n    - Orchestrator\n    - Planner\n    - Proofreader\n    - Researcher\n    - Summarizer\n    - UI/UX Feedback"
       },
       "objective": {
         "type": "STRING",

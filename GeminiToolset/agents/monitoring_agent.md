@@ -19,7 +19,7 @@ This agent has access to the following tools:
 
 *   **calculator_tool**: Performs basic arithmetic operations and advanced mathematical functions (square root, power, logarithm, sine, cosine, tangent) on one or two numbers.
 *   **delegate_to_agent**: Delegates a task to a specialized sub-agent. Available agents: - **codebase_investigator**: The specialized tool for codebase analysis, architectural mapping, and understanding system-wide dependencies. Invoke this tool for tasks like vague requests, bug root-cause analysis, system refactoring, comprehensive feature implementation or to answer questions about the codebase that require investigation. It returns a structured report with key file paths, symbols, and actionable architectural insights.
-*   **get_datetime**: Returns the current date and time, optionally formatted as a string.
+
 *   **git_tool**: Executes a specified git command in the current working directory and returns the output. Use this for operations like status, add, commit, pull, push, etc.
 *   **glob**: Efficiently finds files matching specific glob patterns (e.g., `src/**/*.ts`, `**/*.md`), returning absolute paths sorted by modification time (newest first). Ideal for quickly locating files based on their name or path structure, especially in large codebases.
 *   **list_directory**: Lists the names of files and subdirectories directly within a specified directory path. Can optionally ignore entries matching provided glob patterns.
