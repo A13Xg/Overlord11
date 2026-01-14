@@ -1,0 +1,14 @@
+{
+  "name": "web_fetch",
+  "description": "Performs a basic HTTP GET request to a specified URL and returns the response content as plain text.",
+  "parameters": {
+    "type": "OBJECT",
+    "properties": {
+      "url": {
+        "type": "STRING",
+        "description": "The URL to fetch content from (e.g., 'https://example.com')."
+      }
+    },
+    "required": ["url"]
+  }
+}

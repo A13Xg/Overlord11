@@ -1,0 +1,23 @@
+{
+  "name": "calculator_tool",
+  "description": "Performs basic arithmetic operations and advanced mathematical functions (square root, power, logarithm, sine, cosine, tangent) on one or two numbers.",
+  "parameters": {
+    "type": "OBJECT",
+    "properties": {
+      "num1": {
+        "type": "NUMBER",
+        "description": "The first number (or the only number for single-argument functions like sqrt, sin, cos, tan)."
+      },
+      "num2": {
+        "type": "NUMBER",
+        "description": "The second number (for two-argument functions like add, subtract, multiply, divide, power, or the base for logarithm). Optional for single-argument functions."
+      },
+      "operation": {
+        "type": "STRING",
+        "description": "The arithmetic operation or mathematical function to perform (add, subtract, multiply, divide, sqrt, power, log, sin, cos, tan).",
+        "enum": ["add", "subtract", "multiply", "divide", "sqrt", "power", "log", "sin", "cos", "tan"]
+      }
+    },
+    "required": ["num1", "operation"]
+  }
+}

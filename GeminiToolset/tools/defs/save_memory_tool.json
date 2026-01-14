@@ -1,0 +1,18 @@
+{
+  "name": "save_memory",
+  "description": "Saves a specific piece of information or fact to your long-term memory. This tool appends the fact to a designated memory file.",
+  "parameters": {
+    "type": "OBJECT",
+    "properties": {
+      "fact": {
+        "type": "STRING",
+        "description": "The specific fact or piece of information to remember. Should be a clear, self-contained statement."
+      },
+      "file_path": {
+        "type": "STRING",
+        "description": "Optional: The path to the memory file. Defaults to '../../Memory.md'."
+      }
+    },
+    "required": ["fact"]
+  }
+}

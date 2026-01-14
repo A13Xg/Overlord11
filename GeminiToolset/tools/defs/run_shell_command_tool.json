@@ -1,0 +1,18 @@
+{
+  "name": "run_shell_command",
+  "description": "This tool executes a given shell command as `powershell.exe -NoProfile -Command <command>`. Command can start background processes using PowerShell constructs such as `Start-Process -NoNewWindow` or `Start-Job`.",
+  "parameters": {
+    "type": "OBJECT",
+    "properties": {
+      "command": {
+        "type": "STRING",
+        "description": "Exact command to execute as `powershell.exe -NoProfile -Command <command>`"
+      },
+      "dir_path": {
+        "type": "STRING",
+        "description": "(OPTIONAL) The path of the directory to run the command in. If not provided, the project root directory is used. Must be a directory within the workspace and must already exist."
+      }
+    },
+    "required": ["command"]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "write_file",
+  "description": "Writes content to a specified file in the local filesystem.\n\n      The user has the ability to modify `content`. If modified, this will be stated in the response.",
+  "parameters": {
+    "type": "OBJECT",
+    "properties": {
+      "file_path": {
+        "type": "STRING",
+        "description": "The path to the file to write to."
+      },
+      "content": {
+        "type": "STRING",
+        "description": "The content to write to the file."
+      }
+    },
+    "required": [
+      "file_path",
+      "content"
+    ]
+  }
+}

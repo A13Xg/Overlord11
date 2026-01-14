@@ -1,0 +1,35 @@
+{
+  "name": "list_directory",
+  "description": "Lists the names of files and subdirectories directly within a specified directory path. Can optionally ignore entries matching provided glob patterns.",
+  "parameters": {
+    "type": "OBJECT",
+    "properties": {
+      "dir_path": {
+        "type": "STRING",
+        "description": "The path to the directory to list"
+      },
+      "ignore": {
+        "type": "ARRAY",
+        "items": {
+          "type": "STRING"
+        },
+        "description": "List of glob patterns to ignore"
+      },
+      "file_filtering_options": {
+        "type": "OBJECT",
+        "properties": {
+          "respect_git_ignore": {
+            "type": "BOOLEAN",
+            "description": "Optional: Whether to respect .gitignore patterns when listing files. Only available in git repositories. Defaults to true."
+          },
+          "respect_gemini_ignore": {
+            "type": "BOOLEAN",
+            "description": "Optional: Whether to respect .geminiignore patterns when listing files. Defaults to true."
+          }
+        },
+        "description": "Optional: Whether to respect ignore patterns from .gitignore or .geminiignore"
+      }
+    },
+    "required": ["dir_path"]
+  }
+}

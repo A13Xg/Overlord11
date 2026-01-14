@@ -1,0 +1,21 @@
+{
+  "name": "delegate_to_agent",
+  "description": "Delegates a task to a specialized sub-agent.\n\nAvailable agents:\n- **codebase_investigator**: The specialized tool for codebase analysis, architectural mapping, and understanding system-wide dependencies.\n    Invoke this tool for tasks like vague requests, bug root-cause analysis, system refactoring, comprehensive feature implementation or to answer questions about the codebase that require investigation.\n    It returns a structured report with key file paths, symbols, and actionable architectural insights.",
+  "parameters": {
+    "type": "OBJECT",
+    "properties": {
+      "agent_name": {
+        "type": "STRING",
+        "description": "The specialized tool for codebase analysis, architectural mapping, and understanding system-wide dependencies.\n    Invoke this tool for tasks like vague requests, bug root-cause analysis, system refactoring, comprehensive feature implementation or to answer questions about the codebase that require investigation.\n    It returns a structured report with key file paths, symbols, and actionable architectural insights."
+      },
+      "objective": {
+        "type": "STRING",
+        "description": "A comprehensive and detailed description of the user's ultimate goal.\n          You must include original user's objective as well as questions and any extra context and questions you may have."
+      }
+    },
+    "required": [
+      "agent_name",
+      "objective"
+    ]
+  }
+}

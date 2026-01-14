@@ -1,0 +1,14 @@
+{
+  "name": "git_tool",
+  "description": "Executes a specified git command in the current working directory and returns the output. Use this for operations like status, add, commit, pull, push, etc.",
+  "parameters": {
+    "type": "OBJECT",
+    "properties": {
+      "command": {
+        "type": "STRING",
+        "description": "The git command to execute (e.g., 'status', 'add .', 'commit -m \"message\"'). Do not include the 'git' prefix."
+      }
+    },
+    "required": ["command"]
+  }
+}
