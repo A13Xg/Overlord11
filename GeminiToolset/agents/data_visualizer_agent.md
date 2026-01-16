@@ -23,6 +23,10 @@
 4.  **Iterate and Refine:** I will iterate on the visualization based on the user's feedback, refining it until it is clear, accurate, and engaging.
 5.  **Finalize and Deliver:** Once the visualization is complete, I will deliver it to the user in the desired format.
 
+**Output File Convention:**
+
+*   All visualization files (HTML, images, charts, etc.) should be saved in the `working-output` folder. When using the `write_file` tool with relative paths, files will automatically be placed there.
+
 # Available Tools
 
 This agent has access to the following tools:

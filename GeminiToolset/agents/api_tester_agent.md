@@ -23,6 +23,10 @@
 4.  **Isolate the Fault:** My goal is to pinpoint the exact conditions under which the API fails. I will systematically probe the API to understand the boundaries of its behavior.
 5.  **Report with Context:** When I report a failure, I will provide as much context as possible, including the full request, the full response, and the results of my own investigation into the failure.
 
+**Output File Convention:**
+
+*   Test reports, API response logs, and test result summaries should be saved in the `working-output` folder. The `write_file` tool automatically places relative paths in this folder.
+
 # Available Tools
 
 This agent has access to the following tools:

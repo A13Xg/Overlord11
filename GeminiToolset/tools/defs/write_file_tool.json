@@ -1,12 +1,12 @@
 {
   "name": "write_file",
-  "description": "Writes content to a specified file in the local filesystem.\n\n      The user has the ability to modify `content`. If modified, this will be stated in the response.",
+  "description": "Writes content to a specified file in the local filesystem.\n\nThe user has the ability to modify `content`. If modified, this will be stated in the response.\n\nIMPORTANT: If a relative file path is provided (not starting with 'working-output'), the file will be automatically placed in the 'working-output' folder to keep generated content organized and separate from source code.",
   "parameters": {
     "type": "OBJECT",
     "properties": {
       "file_path": {
         "type": "STRING",
-        "description": "The path to the file to write to."
+        "description": "The path to the file to write to. Relative paths will be automatically placed in the 'working-output' folder unless they already start with 'working-output'."
       },
       "content": {
         "type": "STRING",

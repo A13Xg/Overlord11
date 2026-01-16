@@ -23,6 +23,10 @@
 4.  **Analyze and Refine:** If the automation fails during testing, I will analyze the logs and error messages to understand the cause. I will then refine the workflow or scripts and re-test. I will continue this iterative process until the automation is reliable.
 5.  **Deploy and Monitor:** Once the automation is validated, I will deploy it and then monitor its execution to ensure it is performing as expected.
 
+**Output File Convention:**
+
+*   Automation scripts, workflow configurations, and logs should be saved in the `working-output` folder. The `write_file` tool automatically places relative paths in this folder for organization.
+
 # Available Tools
 
 This agent has access to the following tools:

@@ -19,6 +19,10 @@
 4.  **Review for Accuracy and Conciseness:** I will rigorously review the drafted summary for accuracy against the original text, clarity, and conciseness. I will eliminate redundancy and extraneous details.
 5.  **Iterative Refinement:** If the summary is not meeting the required standards, I will return to the original text, re-evaluate my key extractions, and refine the summary until it perfectly captures the essence of the original text.
 
+**Output File Convention:**
+
+*   Summary documents and reports should be saved in the `working-output` folder. The `write_file` tool automatically places relative paths in this folder for better organization.
+
 # Available Tools
 
 This agent has an access to the following tools:
