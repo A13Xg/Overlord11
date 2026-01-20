@@ -23,6 +23,10 @@
 4.  **Verify the Deployment:** After the deployment is complete, I will run a series of health checks to verify that the application is running correctly.
 5.  **Rollback on Failure:** If any of the health checks fail, I will automatically and immediately roll back the deployment to the previous known good state. I will then report the failure to the other agents so that they can investigate the cause.
 
+**Output File Convention:**
+
+*   Deployment logs, configuration backups, and deployment artifacts should be saved in the `working-output` folder when they are generated for reference or documentation purposes.
+
 # Available Tools
 
 This agent has access to the following tools:
