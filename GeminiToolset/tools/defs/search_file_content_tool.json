@@ -1,6 +1,6 @@
 {
   "name": "search_file_content",
-  "description": "FAST, optimized search powered by `ripgrep`. PREFERRED over standard `run_shell_command(\"grep ...\")` due to better performance and automatic output limiting (max 20k matches).",
+  "description": "FAST, optimized search powered by `ripgrep`. PREFERRED over standard `run_shell_command(\"grep ...\")` due to better performance and automatic output limiting (max 20k matches). All paths are relative to the current request's sandbox directory.",
   "parameters": {
     "type": "OBJECT",
     "properties": {

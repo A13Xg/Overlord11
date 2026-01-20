@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Public API Showcase</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Public API Showcase</h1>
+        <p class="subtitle">A collection of free APIs for developers</p>
+    </header>
+    <div class="container">
+        <div class="api-controls">
+            <h2>Select an API to call:</h2>
+            <select id="api-select">
+                {% for api in api_list %}
+                    <option value="{{ api.value }}">{{ api.name }}</option>
+                {% endfor %}
+            </select>
+            <div id="name-input" class="api-input" style="display: none;">
+                <input type="text" id="name-param" placeholder="Enter a name">
+            </div>
+            <div id="pokemon-input" class="api-input" style="display: none;">
+                <input type="text" id="pokemon-param" placeholder="Enter a Pokémon name or ID">
+            </div>
+            <button id="call-api-btn">Call API</button>
+            <div id="api-description" class="api-description"></div>
+        </div>
+        <div class="api-result">
+            <div id="parsed-result" class="result-section">
+                <h2>Parsed Response</h2>
+                <div id="parsed-display"></div>
+            </div>
+            <div id="raw-call" class="result-section">
+                <h2>Raw API Call</h2>
+                <pre id="raw-call-display"></pre>
+            </div>
+            <div id="raw-response" class="result-section">
+                <h2>Raw API Response</h2>
+                <pre id="raw-response-display"></pre>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script id="api-data-json" type="application/json">
+        {{ api_list | tojson | safe }}
+    </script>
+</body>
+</html>

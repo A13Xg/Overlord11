@@ -1,6 +1,6 @@
 {
   "name": "run_shell_command",
-  "description": "This tool executes a given shell command as `powershell.exe -NoProfile -Command <command>`. Command can start background processes using PowerShell constructs such as `Start-Process -NoNewWindow` or `Start-Job`.",
+  "description": "This tool executes a given shell command as `powershell.exe -NoProfile -Command <command>`. Command can start background processes using PowerShell constructs such as `Start-Process -NoNewWindow` or `Start-Job`. The command will be executed in the current request's sandbox directory.",
   "parameters": {
     "type": "OBJECT",
     "properties": {

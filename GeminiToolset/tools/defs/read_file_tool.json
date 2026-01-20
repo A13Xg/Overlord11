@@ -1,6 +1,6 @@
 {
   "name": "read_file",
-  "description": "Reads and returns the content of a specified file. If the file is large, the content will be truncated. The tool's response will clearly indicate if truncation has occurred and will provide details on how to read more of the file using the 'offset' and 'limit' parameters. Handles text files.",
+  "description": "Reads and returns the content of a specified file. If the file is large, the content will be truncated. The tool's response will clearly indicate if truncation has occurred and will provide details on how to read more of the file using the 'offset' and 'limit' parameters. Handles text files. All paths are relative to the current request's sandbox directory.",
   "parameters": {
     "type": "OBJECT",
     "properties": {

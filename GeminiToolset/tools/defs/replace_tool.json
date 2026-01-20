@@ -1,6 +1,6 @@
 {
   "name": "replace",
-  "description": "Replaces text within a file. By default, replaces a single occurrence, but can replace multiple occurrences when `expected_replacements` is specified. This tool requires providing significant context around the change to ensure precise targeting.",
+  "description": "Replaces text within a file. By default, replaces a single occurrence, but can replace multiple occurrences when `expected_replacements` is specified. This tool requires providing significant context around the change to ensure precise targeting. All paths are relative to the current request's sandbox directory.",
   "parameters": {
     "type": "OBJECT",
     "properties": {

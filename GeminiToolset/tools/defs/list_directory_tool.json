@@ -1,6 +1,6 @@
 {
   "name": "list_directory",
-  "description": "Lists the names of files and subdirectories directly within a specified directory path. Can optionally ignore entries matching provided glob patterns.",
+  "description": "Lists the names of files and subdirectories directly within a specified directory path. Can optionally ignore entries matching provided glob patterns. All paths are relative to the current request's sandbox directory.",
   "parameters": {
     "type": "OBJECT",
     "properties": {

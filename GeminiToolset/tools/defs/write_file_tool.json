@@ -1,6 +1,6 @@
 {
   "name": "write_file",
-  "description": "Writes content to a specified file in the local filesystem.\n\n      The user has the ability to modify `content`. If modified, this will be stated in the response.",
+  "description": "Writes content to a specified file in the local filesystem. All paths are relative to the current request's sandbox directory.\n\n      The user has the ability to modify `content`. If modified, this will be stated in the response.",
   "parameters": {
     "type": "OBJECT",
     "properties": {
