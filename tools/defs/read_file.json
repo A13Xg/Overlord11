@@ -1,0 +1,27 @@
+{
+  "name": "read_file",
+  "description": "Read the full contents of a file at a given path. Returns the file content as a string. Handles text files of any format (code, markdown, JSON, YAML, etc.).",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "Absolute or relative path to the file to read."
+      },
+      "encoding": {
+        "type": "string",
+        "description": "File encoding to use when reading. Defaults to 'utf-8'.",
+        "default": "utf-8"
+      },
+      "start_line": {
+        "type": "integer",
+        "description": "Optional 1-based line number to start reading from. If omitted, reads from the beginning."
+      },
+      "end_line": {
+        "type": "integer",
+        "description": "Optional 1-based line number to stop reading at (inclusive). If omitted, reads to end of file."
+      }
+    },
+    "required": ["path"]
+  }
+}

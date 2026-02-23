@@ -1,0 +1,41 @@
+{
+  "name": "code_analyzer",
+  "description": "Perform static analysis on source code files to identify bugs, code smells, security vulnerabilities, complexity issues, and style violations. Supports Python, JavaScript, TypeScript, and other common languages. Returns structured findings with severity levels and line numbers.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "Path to the file or directory to analyze. For a directory, analyzes all supported source files recursively."
+      },
+      "language": {
+        "type": "string",
+        "description": "Programming language of the files. Auto-detected from file extensions if not specified.",
+        "enum": ["python", "javascript", "typescript", "go", "rust", "java", "auto"],
+        "default": "auto"
+      },
+      "checks": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": ["bugs", "security", "complexity", "style", "duplication", "all"]
+        },
+        "description": "Which categories of checks to run. Defaults to ['all'].",
+        "default": ["all"]
+      },
+      "min_severity": {
+        "type": "string",
+        "description": "Minimum severity level to report. Defaults to 'warning'.",
+        "enum": ["info", "warning", "error", "critical"],
+        "default": "warning"
+      },
+      "output_format": {
+        "type": "string",
+        "description": "Output format: 'text' for human-readable, 'json' for structured data.",
+        "enum": ["text", "json"],
+        "default": "text"
+      }
+    },
+    "required": ["path"]
+  }
+}

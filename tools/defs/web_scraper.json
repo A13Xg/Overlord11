@@ -1,0 +1,41 @@
+{
+  "name": "web_scraper",
+  "description": "Advanced web scraper that extracts clean article text, metadata, and structured content from web pages. Handles JavaScript-rendered pages, strips boilerplate navigation and ads, and returns clean readable content. Supports extracting links, images, and structured data.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "url": {
+        "type": "string",
+        "description": "The URL of the web page to scrape."
+      },
+      "extract_mode": {
+        "type": "string",
+        "description": "What to extract from the page: 'article' extracts main article content, 'full' returns all text, 'links' returns all hyperlinks, 'metadata' returns title/description/og tags only, 'structured' attempts to extract tables and lists.",
+        "enum": ["article", "full", "links", "metadata", "structured"],
+        "default": "article"
+      },
+      "follow_links": {
+        "type": "boolean",
+        "description": "Whether to recursively follow and scrape linked pages. Defaults to false.",
+        "default": false
+      },
+      "max_depth": {
+        "type": "integer",
+        "description": "Maximum recursion depth when follow_links is true. Defaults to 1.",
+        "default": 1
+      },
+      "timeout_seconds": {
+        "type": "integer",
+        "description": "Page load timeout in seconds. Defaults to 30.",
+        "default": 30
+      },
+      "output_format": {
+        "type": "string",
+        "description": "Output format: 'markdown', 'text', or 'json'.",
+        "enum": ["markdown", "text", "json"],
+        "default": "markdown"
+      }
+    },
+    "required": ["url"]
+  }
+}

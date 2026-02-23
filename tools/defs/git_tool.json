@@ -1,0 +1,50 @@
+{
+  "name": "git_tool",
+  "description": "Perform Git version control operations: status, diff, add, commit, push, pull, log, checkout, and branch management. All operations run in the project's git repository.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "operation": {
+        "type": "string",
+        "description": "The Git operation to perform.",
+        "enum": [
+          "status",
+          "diff",
+          "add",
+          "commit",
+          "push",
+          "pull",
+          "log",
+          "checkout",
+          "branch",
+          "stash",
+          "reset",
+          "show"
+        ]
+      },
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "List of file paths for operations that target specific files (add, checkout, diff)."
+      },
+      "message": {
+        "type": "string",
+        "description": "Commit message (required for 'commit' operation)."
+      },
+      "branch": {
+        "type": "string",
+        "description": "Branch name for 'branch' or 'checkout' operations."
+      },
+      "args": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Additional arguments to pass to the git command (e.g., ['--stat'] for diff --stat)."
+      }
+    },
+    "required": ["operation"]
+  }
+}

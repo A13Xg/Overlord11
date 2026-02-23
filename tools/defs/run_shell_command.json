@@ -1,0 +1,31 @@
+{
+  "name": "run_shell_command",
+  "description": "Execute a shell command in the working directory and return stdout, stderr, and exit code. Use for running tests, build commands, installing packages, linters, and other CLI operations. Commands time out after 60 seconds by default.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "command": {
+        "type": "string",
+        "description": "The shell command to execute. Can include pipes, redirects, and chained commands with && or ||."
+      },
+      "working_dir": {
+        "type": "string",
+        "description": "Working directory in which to execute the command. Defaults to the project root.",
+        "default": "."
+      },
+      "timeout_seconds": {
+        "type": "integer",
+        "description": "Maximum time to wait for the command to complete, in seconds. Defaults to 60.",
+        "default": 60
+      },
+      "env": {
+        "type": "object",
+        "description": "Optional dictionary of additional environment variables to set for this command.",
+        "additionalProperties": {
+          "type": "string"
+        }
+      }
+    },
+    "required": ["command"]
+  }
+}

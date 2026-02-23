@@ -1,0 +1,27 @@
+{
+  "name": "replace",
+  "description": "Find and replace text within a file. Replaces the first occurrence by default, or all occurrences with replace_all. The old_str must match exactly (including whitespace). Returns the number of replacements made.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "Absolute or relative path to the file to modify."
+      },
+      "old_str": {
+        "type": "string",
+        "description": "The exact string to find in the file. Must match the file content exactly, including whitespace and line endings."
+      },
+      "new_str": {
+        "type": "string",
+        "description": "The replacement string. Use an empty string to delete the matched text."
+      },
+      "replace_all": {
+        "type": "boolean",
+        "description": "Whether to replace all occurrences of old_str. Defaults to false (replaces first occurrence only).",
+        "default": false
+      }
+    },
+    "required": ["path", "old_str", "new_str"]
+  }
+}

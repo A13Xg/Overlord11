@@ -1,0 +1,32 @@
+{
+  "name": "web_fetch",
+  "description": "Perform an HTTP GET request to a URL and return the response body as text or parsed JSON. Handles redirects automatically. Useful for fetching documentation, APIs, and web pages. Returns status code, headers, and response body.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "url": {
+        "type": "string",
+        "description": "The full URL to fetch (including protocol, e.g., https://example.com/api/data)."
+      },
+      "headers": {
+        "type": "object",
+        "description": "Optional HTTP headers to include in the request (e.g., Authorization, Accept).",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "timeout_seconds": {
+        "type": "integer",
+        "description": "Request timeout in seconds. Defaults to 30.",
+        "default": 30
+      },
+      "return_format": {
+        "type": "string",
+        "description": "How to return the response body: 'text' returns raw text, 'json' parses as JSON, 'markdown' converts HTML to Markdown.",
+        "enum": ["text", "json", "markdown"],
+        "default": "text"
+      }
+    },
+    "required": ["url"]
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "name": "search_file_content",
+  "description": "Search file contents for a pattern using ripgrep. Returns matching lines with file paths and line numbers. Supports regular expressions. Significantly faster than grep for large codebases.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "pattern": {
+        "type": "string",
+        "description": "The search pattern (string or regular expression)."
+      },
+      "path": {
+        "type": "string",
+        "description": "Directory or file to search in. Defaults to the current working directory.",
+        "default": "."
+      },
+      "file_glob": {
+        "type": "string",
+        "description": "Glob pattern to restrict which files are searched (e.g., '*.py', '*.{js,ts}')."
+      },
+      "case_sensitive": {
+        "type": "boolean",
+        "description": "Whether the search is case-sensitive. Defaults to true.",
+        "default": true
+      },
+      "context_lines": {
+        "type": "integer",
+        "description": "Number of lines of context to show before and after each match. Defaults to 0.",
+        "default": 0
+      },
+      "max_results": {
+        "type": "integer",
+        "description": "Maximum number of matching lines to return. Defaults to 100.",
+        "default": 100
+      },
+      "fixed_string": {
+        "type": "boolean",
+        "description": "Treat the pattern as a literal string rather than a regex. Defaults to false.",
+        "default": false
+      }
+    },
+    "required": ["pattern"]
+  }
+}
