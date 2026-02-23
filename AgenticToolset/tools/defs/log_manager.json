@@ -1,0 +1,32 @@
+{
+  "name": "log_manager",
+  "description": "Central logging system for all AgenticToolset activity. Logs tool invocations, LLM decisions, agent switches, and errors to structured JSONL files. Supports querying and session summaries.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "The logging action to perform",
+        "enum": ["log_tool", "log_decision", "log_agent_switch", "log_error", "log_event", "query", "summary", "list_sessions"]
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session identifier for scoping logs"
+      },
+      "data": {
+        "type": "object",
+        "description": "JSON payload for the log entry. Contents vary by action type."
+      },
+      "type_filter": {
+        "type": "string",
+        "description": "Filter query results by log type (tool_invocation, llm_decision, agent_switch, error)"
+      },
+      "last_n": {
+        "type": "integer",
+        "description": "Number of recent entries to return (default: 50)",
+        "default": 50
+      }
+    },
+    "required": ["action"]
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "name": "web_scraper",
+  "description": "Advanced web scraping tool. Extracts all content from webpages (static and dynamic), downloads images, parses text, understands page structure, summarizes content, and manages output directories. Handles errors gracefully across diverse website types.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "The scraping action to perform",
+        "enum": [
+          "scrape_full",
+          "extract_text",
+          "download_images",
+          "analyze_structure",
+          "summarize",
+          "validate_url",
+          "search",
+          "find_feeds",
+          "parse_feed"
+        ]
+      },
+      "url": {
+        "type": "string",
+        "description": "Target URL (required for scrape, extract, analyze, summarize, find_feeds, parse_feed actions)"
+      },
+      "query": {
+        "type": "string",
+        "description": "Search query (required for 'search' action)"
+      },
+      "output_dir": {
+        "type": "string",
+        "description": "Directory to store scraped content (default: workspace/scrape_TIMESTAMP)"
+      },
+      "wait_for_js": {
+        "type": "boolean",
+        "description": "Wait for JavaScript to render (increases time but handles dynamic content). Default: true",
+        "default": true
+      },
+      "wait_timeout": {
+        "type": "integer",
+        "description": "Timeout in seconds for JS rendering. Default: 10",
+        "default": 10
+      },
+      "download_images": {
+        "type": "boolean",
+        "description": "Download all images found on page. Default: true",
+        "default": true
+      },
+      "max_images": {
+        "type": "integer",
+        "description": "Maximum number of images to download. Default: 50",
+        "default": 50
+      },
+      "extract_tables": {
+        "type": "boolean",
+        "description": "Extract tables as structured data. Default: true",
+        "default": true
+      },
+      "include_metadata": {
+        "type": "boolean",
+        "description": "Include page metadata (title, author, description, etc.). Default: true",
+        "default": true
+      },
+      "clean_text": {
+        "type": "boolean",
+        "description": "Remove boilerplate, navigation, ads. Default: true",
+        "default": true
+      },
+      "summarize": {
+        "type": "boolean",
+        "description": "Generate text summary of main content. Default: true",
+        "default": true
+      },
+      "max_summary_length": {
+        "type": "integer",
+        "description": "Maximum words in summary. Default: 500",
+        "default": 500
+      },
+      "max_results": {
+        "type": "integer",
+        "description": "Maximum number of search results to return. Default: 10",
+        "default": 10
+      },
+      "max_entries": {
+        "type": "integer",
+        "description": "Maximum number of feed entries to return. Default: 20",
+        "default": 20
+      },
+      "output": {
+        "type": "string",
+        "description": "Optional file path to write result JSON"
+      }
+    },
+    "required": ["action", "url"]
+  }
+}

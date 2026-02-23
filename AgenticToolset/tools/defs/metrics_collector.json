@@ -1,0 +1,25 @@
+{
+  "name": "metrics_collector",
+  "description": "Collects comprehensive code metrics: lines of code by language, file size distributions, function/class counts, test-to-source ratios, git activity (commits, contributors, change frequency), and project size breakdowns.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "Project root path to collect metrics from",
+        "default": "."
+      },
+      "metric": {
+        "type": "string",
+        "description": "Type of metrics to collect",
+        "enum": ["all", "loc", "files", "functions", "tests", "git", "size"],
+        "default": "all"
+      },
+      "output": {
+        "type": "string",
+        "description": "Optional file path to write metrics result"
+      }
+    },
+    "required": ["path"]
+  }
+}

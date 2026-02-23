@@ -1,0 +1,33 @@
+{
+  "name": "code_analyzer",
+  "description": "Static analysis tool for code quality. Measures cyclomatic complexity, detects code smells (long lines, bare excepts, star imports, mutable defaults, loose equality, TODO markers), analyzes imports, and extracts function signatures. Supports Python, JavaScript, TypeScript, Go, Rust, Java, and C#.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "Project root to analyze (mutually exclusive with 'file')"
+      },
+      "file": {
+        "type": "string",
+        "description": "Single file path to analyze (mutually exclusive with 'path')"
+      },
+      "language": {
+        "type": "string",
+        "description": "Filter analysis to specific language",
+        "enum": ["python", "javascript", "typescript", "go", "rust", "java", "csharp"]
+      },
+      "check": {
+        "type": "string",
+        "description": "Type of analysis to perform",
+        "enum": ["all", "complexity", "smells", "imports", "functions"],
+        "default": "all"
+      },
+      "output": {
+        "type": "string",
+        "description": "Optional file path to write analysis result"
+      }
+    },
+    "required": []
+  }
+}

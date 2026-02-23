@@ -1,0 +1,33 @@
+{
+  "name": "scaffold_generator",
+  "description": "Generates project scaffolding from templates. Creates complete directory structures with boilerplate code, configuration, and tests. Templates: python_cli, python_api, node_api, react_app.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "template": {
+        "type": "string",
+        "description": "Template to generate from",
+        "enum": ["python_cli", "python_api", "node_api", "react_app"]
+      },
+      "name": {
+        "type": "string",
+        "description": "Project name (used for directories, imports, etc)"
+      },
+      "output": {
+        "type": "string",
+        "description": "Output directory path"
+      },
+      "description": {
+        "type": "string",
+        "description": "Project description for template placeholders",
+        "default": ""
+      },
+      "list_templates": {
+        "type": "boolean",
+        "description": "If true, list all available templates instead of generating",
+        "default": false
+      }
+    },
+    "required": ["template", "name"]
+  }
+}
