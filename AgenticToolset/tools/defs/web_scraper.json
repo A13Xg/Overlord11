@@ -1,14 +1,16 @@
 {
   "name": "web_scraper",
-  "description": "Advanced web scraping tool. Extracts all content from webpages (static and dynamic), downloads images, parses text, understands page structure, summarizes content, and manages output directories. Handles errors gracefully across diverse website types.",
+  "description": "Unified web operations tool with intelligent content detection, cascading fetch pipeline, reader-mode extraction, image downloading, RSS/Atom feeds, and web search. Detects content type via heuristics and recommends the best extraction mode. When confidence is low, returns analysis for the LLM agent to decide.",
   "parameters": {
     "type": "object",
     "properties": {
       "action": {
         "type": "string",
-        "description": "The scraping action to perform",
+        "description": "The action to perform",
         "enum": [
+          "detect_type",
           "scrape_full",
+          "extract_article",
           "extract_text",
           "download_images",
           "analyze_structure",
@@ -21,55 +23,51 @@
       },
       "url": {
         "type": "string",
-        "description": "Target URL (required for scrape, extract, analyze, summarize, find_feeds, parse_feed actions)"
+        "description": "Target URL (required for all actions except search)"
       },
       "query": {
         "type": "string",
-        "description": "Search query (required for 'search' action)"
+        "description": "Search query (required for search action)"
+      },
+      "extract_mode": {
+        "type": "string",
+        "description": "Extraction strategy for scrape_full. 'auto' detects and picks one mode. 'full' runs every extractor (article metadata + text + tables + links + images). 'article' uses reader mode. 'structured' extracts tables/links. 'images_only' skips text. 'raw' dumps unfiltered text as fallback. Default: auto",
+        "enum": ["auto", "full", "article", "images_only", "structured", "raw"],
+        "default": "auto"
       },
       "output_dir": {
         "type": "string",
-        "description": "Directory to store scraped content (default: workspace/scrape_TIMESTAMP)"
+        "description": "Directory to store scraped content (auto-generated if not provided)"
       },
       "wait_for_js": {
-        "type": "boolean",
-        "description": "Wait for JavaScript to render (increases time but handles dynamic content). Default: true",
-        "default": true
+        "type": "string",
+        "description": "Wait for JavaScript rendering. 'true' or 'false'. Default: true",
+        "default": "true"
       },
       "wait_timeout": {
         "type": "integer",
-        "description": "Timeout in seconds for JS rendering. Default: 10",
+        "description": "Timeout in seconds for page loading. Default: 10",
         "default": 10
       },
       "download_images": {
-        "type": "boolean",
-        "description": "Download all images found on page. Default: true",
-        "default": true
+        "type": "string",
+        "description": "Download images found on page. 'true' or 'false'. Default: true",
+        "default": "true"
       },
       "max_images": {
         "type": "integer",
-        "description": "Maximum number of images to download. Default: 50",
+        "description": "Maximum images to download (filters tiny images automatically). Default: 50",
         "default": 50
       },
-      "extract_tables": {
-        "type": "boolean",
-        "description": "Extract tables as structured data. Default: true",
-        "default": true
-      },
-      "include_metadata": {
-        "type": "boolean",
-        "description": "Include page metadata (title, author, description, etc.). Default: true",
-        "default": true
-      },
       "clean_text": {
-        "type": "boolean",
-        "description": "Remove boilerplate, navigation, ads. Default: true",
-        "default": true
+        "type": "string",
+        "description": "Clean and normalize text content. 'true' or 'false'. Default: true",
+        "default": "true"
       },
       "summarize": {
-        "type": "boolean",
-        "description": "Generate text summary of main content. Default: true",
-        "default": true
+        "type": "string",
+        "description": "Generate text summary. 'true' or 'false'. Default: true",
+        "default": "true"
       },
       "max_summary_length": {
         "type": "integer",
@@ -78,12 +76,12 @@
       },
       "max_results": {
         "type": "integer",
-        "description": "Maximum number of search results to return. Default: 10",
+        "description": "Maximum search results to return. Default: 10",
         "default": 10
       },
       "max_entries": {
         "type": "integer",
-        "description": "Maximum number of feed entries to return. Default: 20",
+        "description": "Maximum feed entries to return. Default: 20",
         "default": 20
       },
       "output": {
@@ -91,6 +89,6 @@
         "description": "Optional file path to write result JSON"
       }
     },
-    "required": ["action", "url"]
+    "required": ["action"]
   }
 }

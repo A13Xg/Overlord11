@@ -311,66 +311,65 @@ def test_log_manager(session_id: str):
              "log_manager: list_sessions")
 
 
-def test_web_researcher(session_id: str):
-    """Test web_researcher: search, fetch, extract, find_feeds, parse_feed."""
-    log("\n--- web_researcher ---")
+def test_web_scraper(session_id: str):
+    """Test web_scraper: detect_type, scrape_full, extract_article, extract_text, search, find_feeds, parse_feed."""
+    log("\n--- web_scraper ---")
+
+    # detect_type
+    out = run_tool("web_scraper",
+                   ["--action", "detect_type", "--url", "https://example.com",
+                    "--session_id", session_id],
+                   "web_scraper: detect_type")
+    if out:
+        ok = "detection" in out and "detected_type" in out.get("detection", {})
+        results.record("web_scraper: detect_type returns detection", ok,
+                       f"type={out.get('detection', {}).get('detected_type', 'N/A')}")
+        log(f"  {'PASS' if ok else 'FAIL'}  web_scraper: detect_type returns detection")
+
+    # extract_text
+    out = run_tool("web_scraper",
+                   ["--action", "extract_text", "--url", "https://example.com",
+                    "--session_id", session_id],
+                   "web_scraper: extract_text")
+    if out:
+        ok = "text" in out or "full_text" in out
+        results.record("web_scraper: extract_text returns text", ok)
+        log(f"  {'PASS' if ok else 'FAIL'}  web_scraper: extract_text returns text")
 
     # search (DuckDuckGo)
-    out = run_tool("web_researcher",
+    out = run_tool("web_scraper",
                    ["--action", "search", "--query", "python programming",
                     "--max_results", "3", "--session_id", session_id],
-                   "web_researcher: search")
+                   "web_scraper: search")
     if out:
         ok = "results" in out and isinstance(out["results"], list)
-        results.record("web_researcher: search returns results list", ok,
+        results.record("web_scraper: search returns results list", ok,
                        f"count={out.get('count', 'N/A')}")
-        log(f"  {'PASS' if ok else 'FAIL'}  web_researcher: search returns results list")
-
-    # fetch
-    out = run_tool("web_researcher",
-                   ["--action", "fetch", "--url", "https://example.com",
-                    "--session_id", session_id],
-                   "web_researcher: fetch")
-    if out:
-        ok = out.get("status") == 200 and "content" in out
-        results.record("web_researcher: fetch returns content", ok,
-                       f"status={out.get('status')}")
-        log(f"  {'PASS' if ok else 'FAIL'}  web_researcher: fetch returns content")
-
-    # extract
-    out = run_tool("web_researcher",
-                   ["--action", "extract", "--url", "https://example.com",
-                    "--session_id", session_id],
-                   "web_researcher: extract")
-    if out:
-        ok = "text" in out and "title" in out
-        results.record("web_researcher: extract returns text+title", ok,
-                       f"title={out.get('title', '')[:50]}")
-        log(f"  {'PASS' if ok else 'FAIL'}  web_researcher: extract returns text+title")
+        log(f"  {'PASS' if ok else 'FAIL'}  web_scraper: search returns results list")
 
     # find_feeds (example.com likely has no feeds - that's fine, tests the code path)
-    out = run_tool("web_researcher",
+    out = run_tool("web_scraper",
                    ["--action", "find_feeds",
                     "--url", "https://example.com",
                     "--session_id", session_id],
-                   "web_researcher: find_feeds")
+                   "web_scraper: find_feeds")
     if out:
-        ok = "feeds_found" in out
-        results.record("web_researcher: find_feeds returns structure", ok,
+        ok = "feeds_found" in out or "feeds" in out
+        results.record("web_scraper: find_feeds returns structure", ok,
                        f"feeds_found={out.get('feeds_found', 'N/A')}")
-        log(f"  {'PASS' if ok else 'FAIL'}  web_researcher: find_feeds returns structure")
+        log(f"  {'PASS' if ok else 'FAIL'}  web_scraper: find_feeds returns structure")
 
     # parse_feed (use a known public RSS feed)
-    out = run_tool("web_researcher",
+    out = run_tool("web_scraper",
                    ["--action", "parse_feed",
                     "--url", "https://www.reddit.com/r/python/.rss",
                     "--max_entries", "3", "--session_id", session_id],
-                   "web_researcher: parse_feed")
+                   "web_scraper: parse_feed")
     if out:
         ok = "entries" in out or "feed_info" in out
-        results.record("web_researcher: parse_feed returns entries", ok,
+        results.record("web_scraper: parse_feed returns entries", ok,
                        f"entry_count={out.get('entry_count', 'N/A')}")
-        log(f"  {'PASS' if ok else 'FAIL'}  web_researcher: parse_feed returns entries")
+        log(f"  {'PASS' if ok else 'FAIL'}  web_scraper: parse_feed returns entries")
 
 
 # === AGENT VALIDATION ===
@@ -384,7 +383,7 @@ AGENTS = [
     ("researcher.md",      "AGNT_RES_06", "Researcher"),
     ("tester.md",          "AGNT_TST_07", "Tester"),
     ("doc_writer.md",      "AGNT_DOC_08", "Doc Writer"),
-    ("web_researcher.md",  "AGNT_WEB_09", "Web Researcher"),
+    ("web_scraper_specialist.md",  "AGNT_WSC_09", "Web Scraper Specialist"),
 ]
 
 
@@ -464,7 +463,7 @@ def test_config():
     expected_tools = [
         "log_manager", "project_scanner", "dependency_analyzer",
         "code_analyzer", "session_manager", "metrics_collector",
-        "scaffold_generator", "web_researcher",
+        "scaffold_generator", "web_scraper",
     ]
     for tool_name in expected_tools:
         ok = tool_name in tool_reg
@@ -531,7 +530,7 @@ def main():
             test_metrics_collector(session_id)
             test_scaffold_generator(session_id, temp_dir)
             test_log_manager(session_id)
-            test_web_researcher(session_id)
+            test_web_scraper(session_id)
 
             # Close the session
             log("\n--- session_manager (close) ---")

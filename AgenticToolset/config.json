@@ -40,8 +40,7 @@
     "AGNT_RES_06": {"name": "Researcher", "file": "agents/researcher.md"},
     "AGNT_TST_07": {"name": "Tester", "file": "agents/tester.md"},
     "AGNT_DOC_08": {"name": "Doc Writer", "file": "agents/doc_writer.md"},
-    "AGNT_WEB_09": {"name": "Web Researcher", "file": "agents/web_researcher.md"},
-    "AGNT_WSC_10": {"name": "Web Scraper Specialist", "file": "agents/web_scraper_specialist.md"}
+    "AGNT_WSC_09": {"name": "Web Scraper Specialist", "file": "agents/web_scraper_specialist.md"}
   },
 
   "tool_registry": {
@@ -72,10 +71,6 @@
     "scaffold_generator": {
       "def": "tools/defs/scaffold_generator.json",
       "impl": "tools/python/scaffold_generator.py"
-    },
-    "web_researcher": {
-      "def": "tools/defs/web_researcher.json",
-      "impl": "tools/python/web_researcher.py"
     },
     "web_scraper": {
       "def": "tools/defs/web_scraper.json",

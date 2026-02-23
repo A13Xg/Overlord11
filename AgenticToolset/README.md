@@ -63,7 +63,7 @@ AgenticToolset/
 │   ├── researcher.md      # AGNT_RES_06 - Context gathering
 │   ├── tester.md          # AGNT_TST_07 - Test engineering
 │   ├── doc_writer.md      # AGNT_DOC_08 - Documentation
-│   └── web_researcher.md  # AGNT_WEB_09 - Web research
+│   └── web_scraper_specialist.md  # AGNT_WSC_09 - Web scraping & content extraction
 │
 ├── tools/
 │   ├── defs/              # JSON tool schemas
@@ -75,7 +75,7 @@ AgenticToolset/
 │       ├── metrics_collector.py
 │       ├── scaffold_generator.py
 │       ├── log_manager.py
-│       └── web_researcher.py
+│       └── web_scraper.py
 │
 ├── logs/                  # Runtime logs (auto-created, gitignored)
 └── workspace/             # Session workspaces (auto-created, gitignored)
@@ -93,7 +93,7 @@ AgenticToolset/
 | AGNT_RES_06 | Researcher | Gathers context and researches approaches |
 | AGNT_TST_07 | Tester | Writes and runs tests |
 | AGNT_DOC_08 | Doc Writer | Writes documentation and API docs |
-| AGNT_WEB_09 | Web Researcher | Web search, RSS feeds, page scraping |
+| AGNT_WSC_09 | Web Scraper Specialist | Web scraping, content detection, RSS feeds, web search, image download |
 
 ## Tools
 
@@ -106,7 +106,7 @@ AgenticToolset/
 | `metrics_collector` | LOC, file stats, function counts, git activity |
 | `scaffold_generator` | Generates project boilerplate from templates |
 | `log_manager` | Central structured logging and log queries |
-| `web_researcher` | Web search, RSS feed discovery, page scraping |
+| `web_scraper` | Web scraping, content detection, reader mode, image download, RSS feeds, web search |
 
 All tools are standalone Python CLI scripts. Run any tool with `--help` for usage:
 

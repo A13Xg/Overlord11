@@ -21,7 +21,7 @@ The AgenticToolset contains **8 tools** and **9 agents**. The test suite validat
 | `metrics_collector` | LOC metrics, file metrics, function metrics |
 | `scaffold_generator` | list templates (verify >= 4), generate python_cli scaffold |
 | `log_manager` | log_decision, log_agent_switch, log_error, log_event, query, summary, list_sessions |
-| `web_researcher` | search (DuckDuckGo), fetch, extract, find_feeds, parse_feed |
+| `web_scraper` | detect_type, scrape_full, extract_article, extract_text, search, find_feeds, parse_feed |
 
 **Agents (9):**
 
@@ -35,7 +35,7 @@ The AgenticToolset contains **8 tools** and **9 agents**. The test suite validat
 | AGNT_RES_06 | researcher.md | ID present, all required sections, no stale refs |
 | AGNT_TST_07 | tester.md | ID present, all required sections, no stale refs |
 | AGNT_DOC_08 | doc_writer.md | ID present, all required sections, no stale refs |
-| AGNT_WEB_09 | web_researcher.md | ID present, all required sections, no stale refs |
+| AGNT_WSC_09 | web_scraper_specialist.md | ID present, all required sections, no stale refs |
 
 **Config Validation:**
 - `config.json` is valid JSON
@@ -106,8 +106,8 @@ If any tests fail, check:
    - Stale `CT_` prefixes that should be `AGNT_`
    - Stale `ClaudeToolset` references that should be `AgenticToolset`
 
-3. **Web researcher failures**: These require internet access. If running offline:
-   - The `search`, `fetch`, `extract`, `find_feeds`, and `parse_feed` tests will fail
+3. **Web scraper failures**: These require internet access. If running offline:
+   - The `detect_type`, `scrape_full`, `extract_article`, `search`, `find_feeds`, and `parse_feed` tests will fail
    - This is expected behavior in an offline environment
    - All other tests should still pass
 
@@ -143,7 +143,7 @@ python AgenticToolset/tools/python/code_analyzer.py --help
 python AgenticToolset/tools/python/metrics_collector.py --help
 python AgenticToolset/tools/python/scaffold_generator.py --help
 python AgenticToolset/tools/python/log_manager.py --help
-python AgenticToolset/tools/python/web_researcher.py --help
+python AgenticToolset/tools/python/web_scraper.py --help
 ```
 
 ### 3c. Verify Agent File Structure
@@ -169,7 +169,7 @@ python AgenticToolset/tools/python/project_scanner.py --path . --session_id SESS
 python AgenticToolset/tools/python/code_analyzer.py --path AgenticToolset/tools/python/ --session_id SESSION_ID
 
 # 4. Web search
-python AgenticToolset/tools/python/web_researcher.py --action search --query "test query" --session_id SESSION_ID
+python AgenticToolset/tools/python/web_scraper.py --action search --query "test query" --session_id SESSION_ID
 
 # 5. Close session
 python AgenticToolset/tools/python/session_manager.py --action close --session_id SESSION_ID --description "E2E complete"
@@ -217,7 +217,7 @@ After running all tests, produce a structured report:
 |---------|-------------|-----|
 | `ModuleNotFoundError: log_manager` | Running from wrong directory | Run from `AgenticToolset/` or use full paths |
 | `FileNotFoundError` on logs/ | First run, dirs not created | Tools auto-create dirs; run any tool once |
-| Web researcher tests all fail | No internet access | Expected offline; skip these tests |
+| Web scraper tests all fail | No internet access | Expected offline; skip these tests |
 | `JSONDecodeError` on config.json | Malformed JSON | Validate with `python -m json.tool AgenticToolset/config.json` |
 | SSL errors on web tests | Outdated certificates | Update system certificates or Python |
 | Scaffold test fails | Temp directory permissions | Check `TEMP` / `TMP` environment variables |

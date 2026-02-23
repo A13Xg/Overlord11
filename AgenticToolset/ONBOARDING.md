@@ -70,7 +70,7 @@ Task tool:
 | AGNT_RES_06 | **Researcher** | `agents/researcher.md` | Gathering context, understanding codebases, researching approaches. |
 | AGNT_TST_07 | **Tester** | `agents/tester.md` | Writing tests, running test suites, validating behavior. |
 | AGNT_DOC_08 | **Doc Writer** | `agents/doc_writer.md` | Writing documentation, READMEs, API docs, comments. |
-| AGNT_WEB_09 | **Web Researcher** | `agents/web_researcher.md` | Web search, RSS feed discovery, page scraping, online research. |
+| AGNT_WSC_09 | **Web Scraper Specialist** | `agents/web_scraper_specialist.md` | Web scraping with content detection, reader mode, image download, RSS feeds, web search, cascading fallbacks. |
 
 ### Delegation Patterns
 
@@ -196,16 +196,18 @@ python AgenticToolset/tools/python/log_manager.py --action summary --session_id 
 python AgenticToolset/tools/python/log_manager.py --action list_sessions
 ```
 
-#### 8. Web Researcher
-**Purpose**: Web search, RSS feed discovery and parsing, page scraping and text extraction.
-**When**: Researching libraries, looking up documentation, monitoring news feeds, gathering online context.
+#### 8. Web Scraper
+**Purpose**: Unified web operations with intelligent content detection, cascading fetch pipeline, reader-mode extraction, image downloading, RSS/Atom feeds, and web search.
+**When**: Scraping web content, extracting articles, downloading images, monitoring RSS feeds, searching the web.
 ```bash
-python AgenticToolset/tools/python/web_researcher.py --action search --query "fastapi authentication" --session_id SESSION_ID
-python AgenticToolset/tools/python/web_researcher.py --action extract --url https://example.com
-python AgenticToolset/tools/python/web_researcher.py --action find_feeds --url https://example.com
-python AgenticToolset/tools/python/web_researcher.py --action parse_feed --url https://example.com/feed.xml
-python AgenticToolset/tools/python/web_researcher.py --action fetch --url https://example.com
+python AgenticToolset/tools/python/web_scraper.py --action detect_type --url "https://example.com"
+python AgenticToolset/tools/python/web_scraper.py --action scrape_full --url "https://example.com" --extract_mode auto
+python AgenticToolset/tools/python/web_scraper.py --action extract_article --url "https://example.com/article"
+python AgenticToolset/tools/python/web_scraper.py --action search --query "topic" --max_results 10
+python AgenticToolset/tools/python/web_scraper.py --action find_feeds --url "https://example.com"
+python AgenticToolset/tools/python/web_scraper.py --action parse_feed --url "https://example.com/feed.xml"
 ```
+See [WEB_SCRAPER_README.md](WEB_SCRAPER_README.md) for full usage guide.
 
 ---
 
@@ -251,7 +253,7 @@ AgenticToolset/
 │   ├── researcher.md          # AGNT_RES_06 - Context gathering
 │   ├── tester.md              # AGNT_TST_07 - Test engineering
 │   ├── doc_writer.md          # AGNT_DOC_08 - Documentation
-│   └── web_researcher.md      # AGNT_WEB_09 - Web research & scraping
+│   └── web_scraper_specialist.md  # AGNT_WSC_09 - Web scraping & content extraction
 │
 ├── tools/
 │   ├── defs/                  # JSON tool definitions (schemas)
@@ -262,7 +264,7 @@ AgenticToolset/
 │   │   ├── metrics_collector.json
 │   │   ├── scaffold_generator.json
 │   │   ├── log_manager.json
-│   │   └── web_researcher.json
+│   │   └── web_scraper.json
 │   └── python/                # Python tool implementations
 │       ├── project_scanner.py
 │       ├── dependency_analyzer.py
@@ -271,7 +273,7 @@ AgenticToolset/
 │       ├── metrics_collector.py
 │       ├── scaffold_generator.py
 │       ├── log_manager.py
-│       └── web_researcher.py
+│       └── web_scraper.py
 │
 ├── logs/                      # Log output directory
 │   ├── master.jsonl           # Master log (auto-created)

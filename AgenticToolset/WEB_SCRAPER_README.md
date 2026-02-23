@@ -1,523 +1,290 @@
-# Web Scraper Tool - Complete Reference
+# Web Scraper Tool v2.0 - Usage Guide
 
-**Agent**: AGNT_WSC_10 (Web Scraper Specialist)
-**Tool**: `web_scraper` (unified web operations tool)
-**Version**: 1.0.0
-**Status**: Production Ready (Baseline)
+**Agent**: AGNT_WSC_09 (Web Scraper Specialist)
+**Tool**: `web_scraper` | **Agent Prompt**: `agents/web_scraper_specialist.md`
 
 ---
 
-## Overview
-
-The Web Scraper tool is a comprehensive, production-grade solution for all web-based operations:
-- **Web Search**: Find information across the internet
-- **Feed Discovery & Parsing**: Monitor RSS/Atom feeds for updates
-- **Content Scraping**: Extract text, images, metadata, and structure from any website
-- **Dynamic Rendering**: Handle JavaScript-rendered content
-- **Intelligent Cleanup**: Remove boilerplate and focus on meaningful content
-- **Error Resilience**: Graceful degradation when features unavailable
-
----
-
-## Installation & Dependencies
-
-### Core (Built-in)
-The tool works with Python standard library only:
-- `urllib` - HTTP requests
-- `xml.etree.ElementTree` - XML/RSS parsing
-- `re` - Text parsing
-- `json` - Output formatting
-
-### Optional (Highly Recommended)
-For enhanced functionality, install:
+## Quick Reference
 
 ```bash
-# For better HTML parsing and text extraction
-pip install beautifulsoup4
+TOOL="python tools/python/web_scraper.py"
 
-# For JavaScript rendering (dynamic content)
-pip install selenium webdriver-manager
+# 1. DETECT what a page is before scraping
+$TOOL --action detect_type --url "https://example.com"
 
-# For web search (instead of fallback)
-pip install duckduckgo-search
-```
+# 2. FULL SCRAPE with auto-detection
+$TOOL --action scrape_full --url "https://example.com" --extract_mode auto
 
----
+# 3. ARTICLE extraction (reader mode)
+$TOOL --action extract_article --url "https://blog.example.com/post"
 
-## Quick Start Examples
+# 4. TEXT only
+$TOOL --action extract_text --url "https://example.com"
 
-### 1. Search for Information
-```bash
-python tools/python/web_scraper.py \
-  --action search \
-  --query "FastAPI tutorial 2026" \
-  --max_results 10
-```
+# 5. IMAGES only
+$TOOL --action download_images --url "https://example.com" --max_images 20
 
-### 2. Find RSS Feeds on a Website
-```bash
-python tools/python/web_scraper.py \
-  --action find_feeds \
-  --url "https://blog.example.com"
-```
+# 6. STRUCTURE analysis
+$TOOL --action analyze_structure --url "https://example.com"
 
-### 3. Get Latest Feed Entries
-```bash
-python tools/python/web_scraper.py \
-  --action parse_feed \
-  --url "https://blog.example.com/feed.xml" \
-  --max_entries 20
-```
+# 7. SUMMARIZE
+$TOOL --action summarize --url "https://example.com"
 
-### 4. Extract Text from a Page
-```bash
-python tools/python/web_scraper.py \
-  --action extract_text \
-  --url "https://example.com/article" \
-  --output_dir ./articles/example
-```
+# 8. WEB SEARCH
+$TOOL --action search --query "topic" --max_results 10
 
-### 5. Full Page Scrape with Images
-```bash
-python tools/python/web_scraper.py \
-  --action scrape_full \
-  --url "https://example.com/product" \
-  --output_dir ./products/example \
-  --download_images true \
-  --max_images 30
-```
+# 9. FIND RSS FEEDS
+$TOOL --action find_feeds --url "https://example.com"
 
-### 6. Analyze Page Structure
-```bash
-python tools/python/web_scraper.py \
-  --action analyze_structure \
-  --url "https://example.com" \
-  --output_dir ./analysis
+# 10. PARSE FEED entries
+$TOOL --action parse_feed --url "https://example.com/feed.xml" --max_entries 20
+
+# 11. VALIDATE URL
+$TOOL --action validate_url --url "example.com"
 ```
 
 ---
 
-## All Actions Reference
+## How the Agent Should Use This Tool
 
-### Search Actions
+### The Detect-Then-Extract Pattern
 
-#### `search` - Web Search
-Find information across the web using DuckDuckGo.
+This is the core workflow. **Always detect before scraping an unknown URL:**
 
-**Parameters:**
-- `--query` (required) - Search query string
-- `--max_results` - Max results to return (default: 10)
-- `--output_dir` - Optional directory to save results
-- `--session_id` - Optional session ID for logging
+```
+Step 1: detect_type → returns content type + confidence + recommendation
+Step 2: Agent reviews the result
+Step 3: Agent picks the best extract_mode (or follows recommendation)
+Step 4: scrape_full / extract_article / extract_text / etc.
+```
 
-**Output:**
+**Example agent reasoning:**
+```
+Agent receives: "Scrape this URL: https://news-site.com/article/123"
+Agent runs: detect_type → {type: "article", confidence: 0.8, mode: "article"}
+Agent decides: confidence is high, use extract_article
+Agent runs: extract_article → clean article text with title/author/date
+```
+
+**When confidence is low:**
+```
+Agent receives: "Scrape this URL: https://weird-site.com/page"
+Agent runs: detect_type → {type: "generic", confidence: 0.3, note: "LOW CONFIDENCE..."}
+Agent reasons: metadata shows images=30, code_blocks=0, lists=2
+Agent decides: looks like a media gallery, try images_only
+Agent runs: scrape_full --extract_mode images_only
+```
+
+---
+
+## Extract Modes Explained
+
+### `auto` (default)
+Runs content detection internally and routes to the best mode. Use this when the agent doesn't want to do manual detection first. Note: `auto` picks ONE mode (article OR structured OR raw, etc.) — it does not run them all.
+
+### `full`
+**Maximum data extraction.** Runs EVERY extractor simultaneously:
+- Reader-mode article metadata (title, author, date, body)
+- Clean text extraction
+- Structured data (tables with headers/rows, links with text/href)
+- Image downloading (always enabled)
+- Summary generation
+
+Use `full` when you want everything from a page regardless of type, or when `auto` picked the wrong mode and you don't want to guess. This is the "give me absolutely everything" option.
+
+**`full` vs `auto`:** `auto` picks one strategy. `full` runs them all.
+**`full` vs `raw`:** `full` runs every smart extractor. `raw` skips smart extraction and just dumps text.
+
+### `article`
+**Reader mode.** Strips all noise (nav, sidebar, ads, comments, related posts) and isolates the main content body. Extracts article metadata (title, author, publish date, featured image). Best for news, blogs, essays, and any page with a single main article.
+
+### `structured`
+Extracts text AND structured data: tables (with headers + rows), links (with text + href), heading hierarchy. Best for documentation, API references, product specs, comparison pages.
+
+### `images_only`
+Skips text extraction entirely, focuses on finding and downloading images. Filters out tracking pixels, spacers, and tiny icons automatically. Best for galleries, product photo pages.
+
+### `raw`
+Extracts text with minimal filtering. No noise removal, no reader mode, no structured data parsing. Use this as a **last resort fallback** when `full` or other modes break on unusual page structures (forums, SPAs, heavily interactive sites).
+
+---
+
+## Cascading Fallbacks
+
+The tool never gives up on a single failure. Every layer has a backup:
+
+```
+FETCH:
+  Selenium (JS rendered) → urllib (static HTML) → requests library
+
+TEXT EXTRACTION:
+  BeautifulSoup (accurate) → Regex parsing (basic)
+
+READER MODE:
+  Content-score algorithm (BS4) → Regex noise-strip (basic)
+
+IMAGES:
+  Download each → skip failures → report what worked + what didn't
+
+CONTENT DETECTION:
+  15 heuristic rules → fallback to "generic" → agent overrides
+
+ENCODING:
+  Unicode NFC normalize → smart replacement map → ensure_ascii fallback
+```
+
+---
+
+## Content Type Detection Heuristics
+
+The `detect_type` action checks 15 signals:
+
+| Signal | What It Detects | Types It Scores |
+|--------|----------------|-----------------|
+| `<article>` tag | Article structure | article +4 |
+| Byline/author class | Attribution | article +3 |
+| Publish date patterns | Temporal content | article +2 |
+| `og:type="article"` | Social meta | article +3 |
+| Schema.org Article | Structured data | article +4 |
+| Schema.org Product | Structured data | product +5 |
+| Price / add-to-cart | Commerce signals | product +3 |
+| Code blocks (5+) | Technical content | documentation +4 |
+| docs/reference URL | Documentation URLs | documentation +4 |
+| Doc-nav classes | Navigation structure | documentation +3 |
+| Thread/forum classes | Community content | forum +4 |
+| High image ratio | Image-heavy pages | media_gallery +4 |
+| Gallery/carousel class | Gallery UX | media_gallery +3 |
+| CTA/hero elements | Marketing pages | landing_page +3 |
+| RSS/Atom feed links | News capability | news +1 |
+
+---
+
+## Dependencies
+
+### Required: None (works with Python stdlib only)
+
+### Recommended (install for full capability):
+```bash
+pip install beautifulsoup4    # Better text extraction + reader mode
+pip install selenium          # JavaScript-rendered pages
+pip install duckduckgo-search # Web search
+pip install requests          # Fallback HTTP client
+pip install Pillow            # Image dimension validation
+```
+
+The tool reports available capabilities in every `detect_type` response:
 ```json
-{
-  "status": "completed",
-  "query": "your search",
-  "results_found": 10,
-  "results": [
-    {
-      "title": "Result Title",
-      "url": "https://example.com",
-      "description": "Result snippet...",
-      "source": "duckduckgo"
-    }
-  ]
+"capabilities": {
+  "bs4": true,
+  "selenium": true,
+  "requests": true,
+  "pil": true
 }
 ```
 
-#### `find_feeds` - Discover Feeds
-Discover RSS/Atom feeds on a website.
+---
 
-**Parameters:**
-- `--url` (required) - Website URL
-- `--output_dir` - Optional directory to save results
-- `--session_id` - Optional session ID for logging
+## Output Examples
 
-**Output:**
+### detect_type
 ```json
 {
-  "status": "completed",
-  "url": "https://example.com",
-  "feeds_found": 5,
-  "feeds": [
-    {
-      "url": "https://example.com/feed.xml",
-      "type": "RSS/Atom",
-      "discovered_from": "https://example.com"
-    }
-  ]
-}
-```
-
-#### `parse_feed` - Parse Feed Entries
-Extract entries from an RSS/Atom feed.
-
-**Parameters:**
-- `--url` (required) - Feed URL (RSS/Atom XML)
-- `--max_entries` - Max entries to return (default: 20)
-- `--output_dir` - Optional directory to save results
-- `--session_id` - Optional session ID for logging
-
-**Output:**
-```json
-{
-  "status": "completed",
-  "url": "https://example.com/feed.xml",
-  "entries_found": 20,
-  "entries": [
-    {
-      "title": "Entry Title",
-      "link": "https://example.com/entry",
-      "description": "Entry summary...",
-      "pub_date": "Wed, 22 Feb 2026 12:00:00 +0000",
-      "type": "RSS"
-    }
-  ]
-}
-```
-
-### Scraping Actions
-
-#### `scrape_full` - Complete Page Extraction
-Extract everything from a page: text, metadata, images, structure, summary.
-
-**Parameters:**
-- `--url` (required) - Target URL
-- `--output_dir` - Optional output directory (auto-generated if not provided)
-- `--wait_for_js` - Wait for JavaScript rendering (default: true)
-- `--wait_timeout` - JS rendering timeout in seconds (default: 10)
-- `--download_images` - Download images from page (default: true)
-- `--max_images` - Max images to download (default: 50)
-- `--clean_text` - Remove boilerplate from text (default: true)
-- `--summarize` - Generate summary (default: true)
-- `--max_summary_length` - Summary length in words (default: 500)
-- `--extract_tables` - Extract tables as structured data (default: true)
-- `--include_metadata` - Extract metadata like title, author (default: true)
-- `--session_id` - Optional session ID for logging
-
-**Output Structure:**
-```
-output_dir/
-├── scrape_result.json         # Complete result summary
-├── text_content.json          # Extracted text
-├── summary.json               # Generated summary
-├── images_manifest.json       # Image metadata
-├── tables.json                # Extracted tables (if found)
-├── raw_content.html           # Original HTML
-└── images/                    # Downloaded images
-    ├── image_001.jpg
-    ├── image_002.png
-    └── ...
-```
-
-#### `extract_text` - Text Only Extraction
-Fast extraction of text content without images or downloads.
-
-**Parameters:**
-- `--url` (required) - Target URL
-- `--output_dir` - Optional output directory
-- `--wait_for_js` - Wait for JavaScript rendering (default: true)
-- `--clean_text` - Remove boilerplate (default: true)
-- `--session_id` - Optional session ID for logging
-
-#### `download_images` - Image Download Only
-Download all images from a page.
-
-**Parameters:**
-- `--url` (required) - Target URL
-- `--output_dir` - Optional output directory
-- `--max_images` - Max images to download (default: 50)
-- `--session_id` - Optional session ID for logging
-
-#### `analyze_structure` - Structure Analysis
-Understand page layout without downloading content.
-
-**Parameters:**
-- `--url` (required) - Target URL
-- `--output_dir` - Optional output directory
-- `--session_id` - Optional session ID for logging
-
-**Output:**
-```json
-{
-  "status": "completed",
-  "url": "https://example.com",
-  "metadata": {
-    "title": "Page Title",
-    "description": "...",
-    "author": "...",
-    "og_image": "..."
+  "detection": {
+    "detected_type": "documentation",
+    "confidence": 1.0,
+    "signals": [
+      {"signal": "code_blocks_19", "score": 4},
+      {"signal": "docs_url_pattern", "score": 4},
+      {"signal": "docs_nav_class", "score": 3}
+    ],
+    "recommended_extract_mode": "structured",
+    "agent_note": "HIGH CONFIDENCE: ..."
   },
-  "structure": {
-    "headings": {"h1": 5, "h2": 12, "h3": 8},
-    "lists": 4,
-    "tables": 2,
-    "forms": 1,
-    "images": 15,
-    "links": 42,
-    "videos": 0,
-    "code_blocks": 3
+  "metadata": {"title": "Python Tutorial", ...},
+  "structure": {"headings": {"h1": 1, "h2": 8}, "code_blocks": 19, ...}
+}
+```
+
+### extract_article
+```json
+{
+  "article": {
+    "title": "Article Title",
+    "author": "Author Name",
+    "publish_date": "2026-02-22",
+    "featured_image": "https://...",
+    "body_text": "Clean article text...",
+    "word_count": 2500,
+    "extraction_method": "reader_mode_scored"
   }
 }
 ```
 
-#### `summarize` - Content Summarization
-Generate a text summary from page content.
-
-**Parameters:**
-- `--url` (required) - Target URL
-- `--output_dir` - Optional output directory
-- `--max_summary_length` - Summary length in words (default: 500)
-- `--wait_for_js` - Wait for JavaScript (default: true)
-- `--session_id` - Optional session ID for logging
-
-### Utility Actions
-
-#### `validate_url` - URL Validation
-Verify and normalize a URL.
-
-**Parameters:**
-- `--url` (required) - URL to validate
-- `--session_id` - Optional session ID for logging
-
-**Output:**
+### scrape_full (with detection)
 ```json
 {
   "status": "completed",
-  "url": "example.com",
-  "valid": true,
-  "normalized_url": "https://example.com",
-  "error": null
+  "fetch_method": "urllib",
+  "extract_mode": "structured",
+  "detection": {"detected_type": "documentation", "confidence": 1.0},
+  "text": {"full_text": "...", "word_count": 5887},
+  "tables": [{"headers": [...], "rows": [...]}],
+  "links_found": 92,
+  "images_downloaded": 3,
+  "summary": "...",
+  "warnings": []
 }
 ```
 
 ---
 
-## Real-World Usage Patterns
+## Common Patterns for AI Agents
 
-### Pattern 1: Research & Aggregation
-1. Search for a topic: `search --query "topic"`
-2. For each promising result, extract text: `extract_text --url "..."`
-3. Aggregate findings in a document
-4. Optional: Generate summaries for each page
-
-### Pattern 2: Content Monitoring
-1. Find feeds on sites of interest: `find_feeds --url "..."`
-2. Set up a cron job to periodically: `parse_feed --url "..."`
-3. Aggregate new entries
-4. Alert on topics of interest
-
-### Pattern 3: Data Collection
-1. Find pages with relevant data: `search --query "..."`
-2. For each page, run full scrape: `scrape_full --url "..."`
-3. Extract tables with `--extract_tables true`
-4. Organize outputs by category
-5. Post-process for analysis
-
-### Pattern 4: Documentation Review
-1. Identify documentation sites
-2. Find feeds for updates: `find_feeds --url "..."`
-3. Periodically scrape key pages: `scrape_full --url "..."`
-4. Maintain archive of versions
-5. Track changes over time
-
-### Pattern 5: Product/Competitor Analysis
-1. Search for competitors: `search --query "..."`
-2. Full scrape each product page: `scrape_full --url "..." --download_images true`
-3. Extract product info, images, specifications
-4. Organize by product
-5. Compare features and pricing
-
----
-
-## Error Handling & Degradation
-
-The tool gracefully handles failures:
-
-| Scenario | Behavior | Recovery |
-|----------|----------|----------|
-| JavaScript rendering unavailable | Falls back to static HTML | Content extraction still works |
-| BeautifulSoup not installed | Uses basic HTML parsing | Less accurate structure detection |
-| DuckDuckGo unavailable | Shows fallback search URL | User can search manually |
-| Image download fails | Continues with remaining images | Saves metadata for failed images |
-| Feed XML invalid | Returns error with details | User can try raw HTML scrape |
-| URL unreachable | Returns error status | User can retry or validate URL |
-| Timeout on slow site | Partial results returned | User can increase wait_timeout |
-
----
-
-## Performance Notes
-
-- **Static page extraction**: 1-3 seconds
-- **Dynamic content with JS**: 5-15 seconds (depends on page complexity)
-- **Image downloading**: 1-2 seconds per image (parallel downloads recommended)
-- **Full page scrape**: 10-30 seconds depending on page size and options
-
----
-
-## Environment Variables
-
-- `ANTHROPIC_API_KEY` - Optional, for integration with logging agent
-- `GOOGLE_GEMINI_API_KEY` - Optional, for Gemini provider integration
-
----
-
-## Integration with AgenticToolset
-
-The tool logs all operations via `log_manager`:
-- All tool invocations recorded
-- Session tracking for audit trails
-- Error logging for debugging
-- Performance metrics collected
-
-**Logging with session:**
+### "Get me the latest news from this site"
 ```bash
-python tools/python/web_scraper.py \
-  --action scrape_full \
-  --url "https://example.com" \
-  --session_id 20260222_120000
+$TOOL --action find_feeds --url "https://news-site.com"
+$TOOL --action parse_feed --url "DISCOVERED_FEED_URL" --max_entries 10
+# For each interesting entry:
+$TOOL --action extract_article --url "ENTRY_LINK"
 ```
 
-Results are logged to:
-- `logs/master.jsonl` - All tool operations
-- `logs/sessions/20260222_120000.jsonl` - Session-specific log
-
----
-
-## Improvements & Future Work
-
-### Completed (v1.0 Baseline)
-✅ Static HTML scraping
-✅ Dynamic JS rendering with Selenium
-✅ Image downloading and organization
-✅ Text cleaning and summarization
-✅ Feed discovery and parsing
-✅ Web search integration
-✅ Error handling and graceful degradation
-✅ Comprehensive logging
-
-### Planned Improvements
-- [ ] Multi-page crawling with site mapping
-- [ ] Proxy rotation for rate limiting
-- [ ] PDF extraction support
-- [ ] OCR for image-based text
-- [ ] Browser automation for complex interactions
-- [ ] Content caching to reduce duplicate fetches
-- [ ] Performance metrics and optimization
-- [ ] Custom headers/authentication support
-- [ ] JavaScript injection for dynamic content
-- [ ] Machine learning for content classification
-- [ ] Video transcript extraction
-- [ ] Database export (CSV, JSON-LD, etc.)
-
----
-
-## Troubleshooting
-
-### "Selenium not installed"
-Solution: `pip install selenium webdriver-manager`
-Fallback: Tool uses static HTML parsing, dynamic content may be incomplete
-
-### "BeautifulSoup not installed"
-Solution: `pip install beautifulsoup4`
-Fallback: Tool uses basic regex parsing, less accurate for nested structures
-
-### "duckduckgo-search not installed"
-Solution: `pip install duckduckgo-search`
-Fallback: Tool shows search URL, requires manual search
-
-### Images not downloading
-- Check target image server accessibility
-- Verify `--max_images` isn't too restrictive
-- Check file system permissions for output directory
-- Review error details in images_manifest.json
-
-### Empty text content
-- Page likely uses heavy JavaScript
-- Try with `--wait_for_js true` (requires Selenium)
-- Check if content is behind authentication/paywalls
-- Verify site doesn't block scraping via robots.txt
-
-### Timeout errors
-- Increase `--wait_timeout` value
-- Try without JS rendering for faster fallback
-- Check target site status
-- Verify network connectivity
-
----
-
-## License & Compliance
-
-- Respect robots.txt and site terms of service
-- Don't overload servers (add delays between requests if bulk scraping)
-- Identify yourself with proper User-Agent
-- Respect copyright and attribution requirements
-- Check legal requirements for content use in your jurisdiction
-
----
-
-## Support & Feedback
-
-For issues, improvements, or questions:
-1. Check existing agent documentation in `agents/web_scraper_specialist.md`
-2. Review error logs in `logs/`
-3. Check tool definition in `tools/defs/web_scraper.json`
-4. Report issues with session logs for reproducibility
-
----
-
-## Appendix: Example Workflows
-
-### Complete Content Collection Workflow
+### "Grab all the images from this page"
 ```bash
-# Step 1: Discover content
-python tools/python/web_scraper.py \
-  --action search \
-  --query "machine learning best practices" \
-  --max_results 5 \
-  --session_id $SESSION_ID
-
-# Step 2: For each result, analyze structure
-for url in <search results>; do
-  python tools/python/web_scraper.py \
-    --action analyze_structure \
-    --url "$url" \
-    --output_dir "./analysis/$url" \
-    --session_id $SESSION_ID
-done
-
-# Step 3: Full scrape promising results
-python tools/python/web_scraper.py \
-  --action scrape_full \
-  --url "<best result>" \
-  --output_dir "./content/best_result" \
-  --download_images true \
-  --session_id $SESSION_ID
+$TOOL --action download_images --url "https://example.com" --max_images 50
 ```
 
-### Feed Monitoring Workflow
+### "Summarize this article for me"
 ```bash
-# Setup once
-python tools/python/web_scraper.py \
-  --action find_feeds \
-  --url "https://technical.blog.com" \
-  --output_dir "./setup/feeds" \
-  --session_id $SESSION_ID
+$TOOL --action summarize --url "https://example.com/article" --max_summary_length 300
+```
 
-# Run periodically (cron)
-for feed_url in <discovered feeds>; do
-  python tools/python/web_scraper.py \
-    --action parse_feed \
-    --url "$feed_url" \
-    --max_entries 20 \
-    --output_dir "./updates/$(date +%Y%m%d)" \
-    --session_id $SESSION_ID
-done
+### "What kind of page is this?"
+```bash
+$TOOL --action detect_type --url "https://unknown-site.com/page"
+```
+
+### "Scrape this documentation page with all its code examples and tables"
+```bash
+$TOOL --action scrape_full --url "https://docs.example.com/api" --extract_mode structured
+```
+
+### "Get everything from this page, I'm not sure what's on it"
+```bash
+$TOOL --action scrape_full --url "https://example.com" --extract_mode full
 ```
 
 ---
 
-**Last Updated**: February 22, 2026
-**Status**: Production Ready Baseline (Haiku optimized)
+## Files Reference
+
+| File | Purpose |
+|------|---------|
+| `tools/python/web_scraper.py` | Implementation (~750 lines) |
+| `tools/defs/web_scraper.json` | Tool schema (parameters + actions) |
+| `agents/web_scraper_specialist.md` | Agent prompt + workflow guide |
+| `WEB_SCRAPER_README.md` | This usage document |
+
+---
+
+**Last Updated**: February 22, 2026 | **Version**: 2.0
