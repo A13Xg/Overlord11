@@ -1,28 +1,57 @@
 {
-  "version": "2.0.0",
+  "version": "2.1.0",
   "name": "Overlord11",
   "description": "Provider-agnostic multi-agent LLM toolset",
 
   "providers": {
     "active": "anthropic",
+
     "anthropic": {
       "model": "claude-opus-4-5",
+      "available_models": {
+        "claude-opus-4-5":        "Most capable — best for complex reasoning, long-form generation, nuanced tasks",
+        "claude-opus-4-0":        "Previous Opus generation — strong capability, slightly lower cost",
+        "claude-sonnet-4-5":      "Balanced speed + capability — recommended default for most tasks",
+        "claude-sonnet-3-7":      "Extended thinking variant — ideal for step-by-step reasoning tasks",
+        "claude-haiku-3-5":       "Fast and lightweight — best for simple Q&A, classification, quick responses",
+        "claude-haiku-3-0":       "Smallest / cheapest — high-throughput, latency-sensitive workloads"
+      },
       "api_key_env": "ANTHROPIC_API_KEY",
       "max_tokens": 8192,
       "temperature": 0.7,
       "top_p": 1.0,
       "api_base": "https://api.anthropic.com/v1"
     },
+
     "gemini": {
       "model": "gemini-2.5-pro",
+      "available_models": {
+        "gemini-2.5-pro":         "Most capable Gemini — best for complex tasks, long context (1M tokens), multimodal",
+        "gemini-2.5-flash":       "Fast + capable — best balance of speed and quality for most tasks",
+        "gemini-2.5-flash-lite":  "Ultra-fast / cheapest — high-volume, latency-critical workloads",
+        "gemini-2.0-pro":         "Previous Pro generation — strong reasoning, multimodal support",
+        "gemini-2.0-flash":       "Previous Flash — fast, reliable, widely supported",
+        "gemini-1.5-pro":         "Legacy long-context model — 2M token window, good for document-heavy tasks",
+        "gemini-1.5-flash":       "Legacy fast model — cost-effective for simpler tasks"
+      },
       "api_key_env": "GOOGLE_GEMINI_API_KEY",
       "max_tokens": 8192,
       "temperature": 0.7,
       "top_p": 1.0,
       "api_base": "https://generativelanguage.googleapis.com/v1beta"
     },
+
     "openai": {
       "model": "gpt-4o",
+      "available_models": {
+        "gpt-4o":                 "Most capable GPT-4 class — best for complex tasks, vision, tool use",
+        "gpt-4o-mini":            "Fast and cheap GPT-4 class — excellent for most everyday tasks",
+        "gpt-4-turbo":            "Previous flagship — 128k context, strong reasoning",
+        "o3":                     "OpenAI reasoning model — best for multi-step logic and math",
+        "o3-mini":                "Lightweight reasoning model — fast chain-of-thought at lower cost",
+        "o4-mini":                "Latest reasoning mini — strong coding and math, very fast",
+        "gpt-3.5-turbo":          "Legacy lightweight model — cheapest option for simple completions"
+      },
       "api_key_env": "OPENAI_API_KEY",
       "max_tokens": 8192,
       "temperature": 0.7,
@@ -38,7 +67,7 @@
       "file": "agents/orchestrator.md",
       "description": "Master coordinator — delegates to all other agents",
       "entry_point": true,
-      "can_delegate_to": ["researcher", "coder", "analyst", "writer", "reviewer"]
+      "can_delegate_to": ["researcher", "coder", "analyst", "writer", "reviewer", "publisher"]
     },
     "researcher": {
       "id": "OVR_RES_02",
@@ -79,6 +108,14 @@
       "description": "QA, code review, proofreading, validation",
       "entry_point": false,
       "tools": ["read_file", "code_analyzer", "run_shell_command", "search_file_content", "glob"]
+    },
+    "publisher": {
+      "id": "OVR_PUB_07",
+      "name": "Publisher",
+      "file": "agents/publisher.md",
+      "description": "Tiered output formatter — markdown for mid-complexity, styled self-contained HTML for detailed/visual requests",
+      "entry_point": false,
+      "tools": ["read_file", "write_file", "replace", "publisher_tool"]
     }
   },
 
@@ -138,6 +175,10 @@
     "code_analyzer": {
       "def": "tools/defs/code_analyzer.json",
       "impl": "tools/python/code_analyzer.py"
+    },
+    "publisher_tool": {
+      "def": "tools/defs/publisher_tool.json",
+      "impl": "tools/python/publisher_tool.py"
     }
   },
 

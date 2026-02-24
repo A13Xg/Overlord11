@@ -1,0 +1,71 @@
+{
+  "name": "publisher_tool",
+  "description": "Generates fully self-contained styled HTML reports from structured content data. Automatically selects a visual theme based on subject matter (techno, classic, informative, contemporary, abstract, modern, colorful, tactical, editorial) and produces a single .html file with all CSS inline. Used by the Publisher agent for Tier 2 output — detailed reports, infographics, dashboards, and publication-quality documents.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Main title of the report."
+      },
+      "subtitle": {
+        "type": "string",
+        "description": "Optional subtitle or tagline shown below the title."
+      },
+      "content": {
+        "type": "string",
+        "description": "The full report content as structured Markdown or plain text. Include all sections, data, findings, and recommendations. The tool will convert this into the themed HTML layout."
+      },
+      "theme": {
+        "type": "string",
+        "description": "Visual theme for the report. 'auto' lets the tool infer the best theme from the content.",
+        "enum": ["auto", "techno", "classic", "informative", "contemporary", "abstract", "modern", "colorful", "tactical", "editorial"],
+        "default": "auto"
+      },
+      "sections": {
+        "type": "array",
+        "description": "Optional list of named sections with their content, for fine-grained layout control. Each item has 'heading' and 'body' fields.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "heading": { "type": "string" },
+            "body": { "type": "string" },
+            "type": {
+              "type": "string",
+              "description": "Layout hint: 'prose', 'table', 'metric_bar', 'timeline', 'card_grid', 'code_block', 'callout'",
+              "enum": ["prose", "table", "metric_bar", "timeline", "card_grid", "code_block", "callout"]
+            }
+          },
+          "required": ["heading", "body"]
+        }
+      },
+      "metrics": {
+        "type": "array",
+        "description": "Optional key metrics to display in a highlighted stats bar at the top of the report.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "label": { "type": "string" },
+            "value": { "type": "string" },
+            "unit": { "type": "string" }
+          },
+          "required": ["label", "value"]
+        }
+      },
+      "sources": {
+        "type": "array",
+        "description": "Optional list of source URLs or references to include in the footer.",
+        "items": { "type": "string" }
+      },
+      "output_path": {
+        "type": "string",
+        "description": "File path to save the generated HTML. Defaults to workspace/reports/YYYYMMDD_HHMMSS_[slug].html"
+      },
+      "author": {
+        "type": "string",
+        "description": "Optional author or organization name shown in the header/footer."
+      }
+    },
+    "required": ["title", "content"]
+  }
+}

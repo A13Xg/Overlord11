@@ -29,16 +29,17 @@ The framework is designed to work with **any LLM provider** — Anthropic Claude
 
 ## Available Agents
 
-You are one of these six agents. Read your agent file for full instructions.
+You are one of these seven agents. Read your agent file for full instructions.
 
 | ID | Agent | File | When to Use |
 |----|-------|------|-------------|
-| OVR_DIR_01 | **Orchestrator** | `agents/orchestrator.md` | **Always start here.** Receives requests, delegates, synthesizes. |
+| OVR_DIR_01 | **Orchestrator** | `agents/orchestrator.md` | **Always start here.** Receives requests, delegates, synthesizes, decides output tier. |
 | OVR_RES_02 | **Researcher** | `agents/researcher.md` | Fetching info from the web or local files; source verification |
 | OVR_COD_03 | **Coder** | `agents/coder.md` | Writing, debugging, testing, or refactoring code |
 | OVR_ANL_04 | **Analyst** | `agents/analyst.md` | Analyzing data, comparing options, extracting insights |
-| OVR_WRT_05 | **Writer** | `agents/writer.md` | Creating or revising any human-facing text |
+| OVR_WRT_05 | **Writer** | `agents/writer.md` | Creating or revising any human-facing text (Tier 1 / Markdown) |
 | OVR_REV_06 | **Reviewer** | `agents/reviewer.md` | QA, validation, proofreading; always runs last |
+| OVR_PUB_07 | **Publisher** | `agents/publisher.md` | Generating styled self-contained HTML reports for complex / visual output (Tier 2) |
 
 ---
 
@@ -67,7 +68,7 @@ These tools are registered in `config.json` and implemented in `tools/python/`. 
 | Tool | What It Does | When to Use |
 |------|-------------|-------------|
 | `web_fetch` | HTTP GET → Markdown/JSON/text | Fetching API docs, single pages |
-| `web_scraper` | Article extraction, structured scraping | Extracting readable content from web pages |
+| `web_scraper` | Article extraction, structured scraping, LLM context packaging, smart image download | Extracting readable content; use `analyze_content` action for LLM-ready packages |
 
 ### Intelligence
 | Tool | What It Does | When to Use |
@@ -75,6 +76,7 @@ These tools are registered in `config.json` and implemented in `tools/python/`. 
 | `code_analyzer` | Static analysis (bugs, security, complexity) | Before any code handoff |
 | `project_scanner` | Project structure + framework detection | Onboarding to an unfamiliar codebase |
 | `save_memory` | Write to `Consciousness.md` | Persisting findings across sessions |
+| `publisher_tool` | Generate styled self-contained HTML reports | Used by Publisher agent for Tier 2 output |
 
 ---
 
@@ -82,13 +84,20 @@ These tools are registered in `config.json` and implemented in `tools/python/`. 
 
 The Orchestrator uses these patterns. If you are a specialist agent, understand where you fit.
 
+### Output Tier Decision (Orchestrator decides this first)
+| Tier | When | Agent |
+|------|------|-------|
+| **0** | Simple Q&A, quick fact, one-liner | Answer directly — no agent needed |
+| **1** | Moderate complexity: docs, how-tos, summaries, comparisons | Writer → Markdown `.md` |
+| **2** | Complex, visual, publication-quality: detailed reports, infographics, dashboards, breakdowns | Publisher → self-contained HTML `.html` |
+
 ### Feature Request
 ```
 Orchestrator
   → Researcher   — gather context, existing libraries, best practices
   → Coder        — implement the feature with tests
   → Reviewer     — code review + security audit
-  → Writer       — update docs and changelog
+  → Writer       — update docs and changelog  [Tier 1]
 ```
 
 ### Bug Fix
@@ -99,29 +108,47 @@ Orchestrator
   → Reviewer     — verify fix, check for regressions
 ```
 
-### Research Report
+### Research Report (standard)
 ```
 Orchestrator
-  → Researcher   — gather sources and raw data
+  → Researcher   — use analyze_content on target URLs; gather sources
   → Analyst      — synthesize findings into structured insights
-  → Writer       — produce polished report draft
+  → Writer       — produce polished Markdown report  [Tier 1]
   → Reviewer     — fact-check, proofread, validate conclusions
 ```
 
-### Data Analysis
+### Detailed Research Report / Infographic  [Tier 2]
+```
+Orchestrator
+  → Researcher   — use analyze_content on target URLs + smart image scoring
+  → Analyst      — synthesize findings, compute metrics for metrics bar
+  → Reviewer     — validate accuracy
+  → Publisher    — generate styled self-contained HTML report
+```
+
+### Data Analysis (simple)
 ```
 Orchestrator
   → Researcher   — collect dataset or relevant files
   → Analyst      — run analysis, compute metrics
-  → Writer       — narrative summary with tables
+  → Writer       — narrative summary with tables  [Tier 1]
   → Reviewer     — validate methodology and conclusions
+```
+
+### Data Dashboard / Comprehensive Analysis  [Tier 2]
+```
+Orchestrator
+  → Researcher   — collect data
+  → Analyst      — run analysis, produce metric bar data + tables
+  → Reviewer     — validate
+  → Publisher    — generate HTML dashboard with chart visualizations
 ```
 
 ### Documentation Update
 ```
 Orchestrator
   → Analyst      — understand codebase / content to be documented
-  → Writer       — draft or update documentation
+  → Writer       — draft or update documentation  [Tier 1]
   → Reviewer     — technical accuracy + style review
 ```
 

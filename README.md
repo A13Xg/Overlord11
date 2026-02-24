@@ -58,16 +58,17 @@ python tools/python/session_manager.py --agent orchestrator --task "Research the
 
 ```
 Overlord11/
-├── agents/                  # 6 consolidated agent definitions
-│   ├── orchestrator.md      # OVR_DIR_01 — master coordinator
+├── agents/                  # 7 consolidated agent definitions
+│   ├── orchestrator.md      # OVR_DIR_01 — master coordinator + output tier logic
 │   ├── researcher.md        # OVR_RES_02 — research & info gathering
 │   ├── coder.md             # OVR_COD_03 — code generation & debugging
 │   ├── analyst.md           # OVR_ANL_04 — data analysis & summarization
-│   ├── writer.md            # OVR_WRT_05 — writing & documentation
-│   └── reviewer.md          # OVR_REV_06 — QA, review & validation
+│   ├── writer.md            # OVR_WRT_05 — writing & documentation (Tier 1)
+│   ├── reviewer.md          # OVR_REV_06 — QA, review & validation
+│   └── publisher.md         # OVR_PUB_07 — styled HTML report generation (Tier 2)
 │
 ├── tools/
-│   ├── defs/                # 14 provider-agnostic tool JSON schemas
+│   ├── defs/                # 15 provider-agnostic tool JSON schemas
 │   │   ├── read_file.json
 │   │   ├── write_file.json
 │   │   ├── list_directory.json
@@ -81,10 +82,11 @@ Overlord11/
 │   │   ├── save_memory.json
 │   │   ├── web_scraper.json
 │   │   ├── project_scanner.json
-│   │   └── code_analyzer.json
+│   │   ├── code_analyzer.json
+│   │   └── publisher_tool.json
 │   └── python/              # Python implementations of all tools
 │
-├── config.json              # Unified config (providers, agents, tools)
+├── config.json              # Unified config (providers + available_models, agents, tools)
 ├── Consciousness.md         # Shared cross-agent memory
 ├── ONBOARDING.md            # Universal LLM onboarding guide
 ├── .env.example             # Environment variable template
@@ -97,12 +99,13 @@ Overlord11/
 
 | ID | Agent | Role |
 |----|-------|------|
-| OVR_DIR_01 | **Orchestrator** | Master coordinator. Receives all requests, decomposes tasks, delegates to specialists, and synthesizes final output. Always the entry point. |
-| OVR_RES_02 | **Researcher** | Gathers information from the web and local files. Fetches pages, extracts content, cross-references sources, and structures findings. |
+| OVR_DIR_01 | **Orchestrator** | Master coordinator. Receives all requests, assesses output tier, decomposes tasks, delegates to specialists, and synthesizes final output. Always the entry point. |
+| OVR_RES_02 | **Researcher** | Gathers information from the web and local files. Fetches pages, extracts content, cross-references sources, and structures findings. Uses `analyze_content` for LLM-ready web context packages. |
 | OVR_COD_03 | **Coder** | Writes, debugs, tests, and refactors code. Works in any language. Runs static analysis and tests before handoff. |
 | OVR_ANL_04 | **Analyst** | Analyzes data, identifies patterns, computes metrics, and produces structured summaries with actionable recommendations. |
-| OVR_WRT_05 | **Writer** | Produces all human-facing content: READMEs, reports, docs, changelogs, and technical specs. |
+| OVR_WRT_05 | **Writer** | Produces all Markdown output: READMEs, reports, docs, changelogs, and technical specs. Used for Tier 1 (moderate-complexity) output. |
 | OVR_REV_06 | **Reviewer** | Final quality gate. Reviews code and documents for correctness, security, style, and completeness before delivery. |
+| OVR_PUB_07 | **Publisher** | Generates fully self-contained styled HTML reports for Tier 2 output. Chooses a visual theme (techno, classic, modern, editorial, etc.) based on content type and produces a single `.html` file with all CSS inline — no external dependencies. |
 
 ---
 
@@ -137,6 +140,33 @@ Overlord11/
 | `code_analyzer` | Static analysis: bugs, security, complexity, style |
 | `project_scanner` | Codebase structure, language detection, entry points |
 | `save_memory` | Persist facts to `Consciousness.md` across sessions |
+| `publisher_tool` | Generate themed self-contained HTML reports (9 visual themes) |
+
+---
+
+## Output Tiers
+
+The Orchestrator automatically determines the right output format:
+
+| Tier | Condition | Output |
+|------|-----------|--------|
+| **0** | Simple Q&A, one-liners | Inline text — no file |
+| **1** | Moderate complexity: docs, guides, summaries | Markdown `.md` via Writer |
+| **2** | Detailed reports, infographics, dashboards, comprehensive analyses | Self-contained HTML `.html` via Publisher |
+
+### Publisher HTML Themes
+
+| Theme | Best For |
+|-------|----------|
+| `techno` | Code, engineering, APIs, DevOps |
+| `classic` | Business, finance, executive reports |
+| `informative` | Research, academia, data science |
+| `contemporary` | Health, science, environment |
+| `abstract` | Arts, creative, culture |
+| `modern` | Startups, product, marketing |
+| `colorful` | Education, children's content |
+| `tactical` | Security, defense, risk |
+| `editorial` | Journalism, history, narrative |
 
 ---
 
@@ -230,14 +260,23 @@ python tools/python/search_file_content.py --pattern "def run" --path tools/pyth
 # Fetch a web page as Markdown
 python tools/python/web_fetch.py --url https://docs.python.org/3/
 
-# Scrape an article
-python tools/python/web_scraper.py --url https://example.com/article
+# Scrape and package for LLM analysis
+python tools/python/web_scraper.py --action analyze_content --url https://example.com/article --analysis_goal "Extract key findings"
+
+# Smart image download (content-relevant images only)
+python tools/python/web_scraper.py --action download_images --url https://example.com --smart_images true --min_image_score 0.5
 
 # Run static analysis
 python tools/python/code_analyzer.py --path tools/python/
 
 # Scan project structure
 python tools/python/project_scanner.py --path .
+
+# Generate a styled HTML report
+python tools/python/publisher_tool.py --title "Q1 Analysis" --content report.md --theme modern
+
+# Generate a report with auto theme detection
+python tools/python/publisher_tool.py --title "Security Audit Results" --content audit.txt --output workspace/reports/audit.html
 
 # Save a memory entry
 python tools/python/save_memory_tool.py --key "project_goal" --value "Build provider-agnostic toolset"

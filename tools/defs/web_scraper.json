@@ -1,41 +1,81 @@
 {
   "name": "web_scraper",
-  "description": "Advanced web scraper that extracts clean article text, metadata, and structured content from web pages. Handles JavaScript-rendered pages, strips boilerplate navigation and ads, and returns clean readable content. Supports extracting links, images, and structured data.",
+  "description": "Advanced web scraper that extracts clean article text, metadata, structured content, and intelligently scored images from web pages. Handles JavaScript-rendered pages, strips boilerplate navigation and ads, and returns clean readable content. Supports full LLM analysis packaging, smart image filtering by relevance score, RSS feeds, and web search.",
   "parameters": {
     "type": "object",
     "properties": {
+      "action": {
+        "type": "string",
+        "description": "Operation to perform. 'analyze_content' is the recommended action for LLM analysis — it returns a structured package with summary, full text, key images, tables, and a ready-to-use llm_prompt field.",
+        "enum": [
+          "detect_type",
+          "scrape_full",
+          "extract_article",
+          "extract_text",
+          "download_images",
+          "analyze_structure",
+          "summarize",
+          "validate_url",
+          "analyze_content",
+          "search",
+          "find_feeds",
+          "parse_feed"
+        ],
+        "default": "analyze_content"
+      },
       "url": {
         "type": "string",
-        "description": "The URL of the web page to scrape."
+        "description": "The URL of the web page to scrape or analyze."
+      },
+      "analysis_goal": {
+        "type": "string",
+        "description": "For 'analyze_content': describe what you want to know or do with the page content. This is embedded in the returned llm_prompt. Example: 'Summarize the main findings and extract key statistics.'"
       },
       "extract_mode": {
         "type": "string",
-        "description": "What to extract from the page: 'article' extracts main article content, 'full' returns all text, 'links' returns all hyperlinks, 'metadata' returns title/description/og tags only, 'structured' attempts to extract tables and lists.",
-        "enum": ["article", "full", "links", "metadata", "structured"],
-        "default": "article"
+        "description": "Extraction mode for scrape_full. 'auto' detects the best mode from the page type.",
+        "enum": ["auto", "full", "article", "images_only", "structured", "raw"],
+        "default": "auto"
       },
-      "follow_links": {
+      "smart_images": {
         "type": "boolean",
-        "description": "Whether to recursively follow and scrape linked pages. Defaults to false.",
+        "description": "Enable intelligent image relevance scoring when downloading. Filters out icons, logos, tracking pixels, and noise. Only returns content-relevant images above min_image_score.",
         "default": false
       },
-      "max_depth": {
-        "type": "integer",
-        "description": "Maximum recursion depth when follow_links is true. Defaults to 1.",
-        "default": 1
+      "min_image_score": {
+        "type": "number",
+        "description": "Minimum relevance score (0.0–1.0) for images when smart_images is true. Higher = stricter filtering. Default 0.4.",
+        "default": 0.4
       },
-      "timeout_seconds": {
+      "max_images": {
         "type": "integer",
-        "description": "Page load timeout in seconds. Defaults to 30.",
-        "default": 30
+        "description": "Maximum number of images to process. Default 20.",
+        "default": 20
       },
-      "output_format": {
+      "query": {
         "type": "string",
-        "description": "Output format: 'markdown', 'text', or 'json'.",
-        "enum": ["markdown", "text", "json"],
-        "default": "markdown"
+        "description": "Search query string for the 'search' action."
+      },
+      "max_results": {
+        "type": "integer",
+        "description": "Maximum search results to return. Default 10.",
+        "default": 10
+      },
+      "output_dir": {
+        "type": "string",
+        "description": "Directory to save output files (JSON manifests, downloaded images, llm_prompt.txt). Auto-generated if omitted."
+      },
+      "wait_for_js": {
+        "type": "boolean",
+        "description": "Whether to attempt JavaScript rendering via Selenium before falling back to static fetch. Default true.",
+        "default": true
+      },
+      "wait_timeout": {
+        "type": "integer",
+        "description": "Page load timeout in seconds. Default 15.",
+        "default": 15
       }
     },
-    "required": ["url"]
+    "required": ["action"]
   }
 }

@@ -1012,6 +1012,245 @@ def _save_results(data: dict, output_dir: Path, filename: str = "result.json") -
 
 
 # =========================================================================
+#  INTELLIGENT IMAGE SCORING  (enhanced)
+# =========================================================================
+
+# Patterns in alt text / filename that suggest content value
+_CONTENT_ALT_RE = re.compile(
+    r"chart|graph|diagram|figure|infographic|screenshot|photo|image|illustration|"
+    r"map|table|visualization|dashboard|result|output|example|sample|preview",
+    re.I,
+)
+_NOISE_IMG_RE = re.compile(
+    r"logo|icon|avatar|badge|button|arrow|sprite|pixel|tracking|spacer|"
+    r"banner|ad|advertisement|promo|social|share|close|search|menu|nav",
+    re.I,
+)
+_NEWS_IMG_RE = re.compile(
+    r"cdn|images|media|static|assets|uploads|content|articles|news|photos",
+    re.I,
+)
+
+
+def _score_image(img: dict, page_content_type: str = "generic") -> float:
+    """Score an image 0.0–1.0 for likely content relevance.
+
+    Criteria:
+    - Alt text signals meaningful content (+) or noise (-)
+    - URL path signals content storage location
+    - Declared dimensions (large = content, small = icon)
+    - Content type context (product page = images likely relevant)
+    """
+    score = 0.5  # neutral baseline
+
+    url = img.get("url", "")
+    alt = img.get("alt", "")
+    width = img.get("width", "")
+    height = img.get("height", "")
+
+    # Alt text scoring
+    if alt:
+        if _CONTENT_ALT_RE.search(alt):
+            score += 0.25
+        if _NOISE_IMG_RE.search(alt):
+            score -= 0.3
+        if len(alt) > 10:
+            score += 0.1  # descriptive alt = content image
+    else:
+        score -= 0.05  # missing alt = slightly less likely to be meaningful
+
+    # URL path scoring
+    url_lower = url.lower()
+    if _NOISE_IMG_RE.search(url_lower):
+        score -= 0.2
+    if _NEWS_IMG_RE.search(url_lower):
+        score += 0.1
+    if re.search(r"\d{4,}", url_lower):  # numeric path component (e.g. year, ID) = likely content image
+        score += 0.05
+
+    # Dimension scoring
+    try:
+        w = int(width) if width else 0
+        h = int(height) if height else 0
+        if w > 0 and h > 0:
+            area = w * h
+            if area > 40000:    # > 200x200 = likely real content
+                score += 0.2
+            elif area > 10000:  # 100x100 range
+                score += 0.1
+            elif area < 5000:   # < ~70x70 = icon territory
+                score -= 0.25
+        elif w > 400 or h > 300:
+            score += 0.15       # large declared dimension
+    except (ValueError, TypeError):
+        pass
+
+    # Content type context
+    if page_content_type in ("product",):
+        score += 0.15   # product images are almost always relevant
+    elif page_content_type in ("media_gallery",):
+        score += 0.2
+    elif page_content_type in ("documentation",):
+        score += 0.1    # screenshots, diagrams
+
+    # SVG / data URI penalty
+    if url.endswith(".svg") or url.startswith("data:"):
+        score -= 0.15
+
+    # Srcset bonus (responsive = real content image)
+    if img.get("has_srcset"):
+        score += 0.1
+
+    return max(0.0, min(1.0, score))
+
+
+def _filter_images_by_score(
+    images: list,
+    page_content_type: str = "generic",
+    min_score: float = 0.4,
+    max_images: int = 20,
+) -> list:
+    """Return images sorted by relevance score, filtered by min_score."""
+    scored = []
+    for img in images:
+        s = _score_image(img, page_content_type)
+        if s >= min_score:
+            scored.append({**img, "relevance_score": round(s, 3)})
+    scored.sort(key=lambda x: -x["relevance_score"])
+    return scored[:max_images]
+
+
+# =========================================================================
+#  LLM ANALYSIS PACKAGE  (new)
+# =========================================================================
+
+# Maximum characters of body text to include in LLM context.
+# 12 000 chars ≈ ~3 000 tokens at average 4 chars/token — comfortably fits
+# within the context window of all supported providers while preserving most
+# article-length content. Increase if your provider supports a larger window.
+_LLM_MAX_BODY_CHARS = 12_000
+# Summary capped at ~750 tokens to keep the header section concise.
+_LLM_MAX_SUMMARY_CHARS = 3_000
+
+
+def _build_llm_context_package(scrape_result: dict, analysis_goal: str = "") -> dict:
+    """Transform a scrape result into a clean, structured context package
+    ready for the calling LLM agent to use directly.
+
+    Returns:
+        {
+            "analysis_goal": str,
+            "page_title": str,
+            "page_url": str,
+            "content_type": str,
+            "word_count": int,
+            "summary": str,
+            "full_text": str (truncated to _LLM_MAX_BODY_CHARS),
+            "metadata": dict,
+            "tables": list,
+            "key_images": list (scored, top 10),
+            "headings": list,
+            "llm_prompt": str  (ready-to-use prompt string)
+        }
+    """
+    article = scrape_result.get("article", {})
+    text_block = scrape_result.get("text", {})
+    metadata = scrape_result.get("metadata", {})
+    detection = scrape_result.get("detection", {})
+    tables = scrape_result.get("tables", [])
+    images = scrape_result.get("images", [])
+
+    title = (
+        article.get("title")
+        or metadata.get("og_title")
+        or metadata.get("title")
+        or "Untitled"
+    )
+    url = scrape_result.get("url", "")
+    content_type = detection.get("detected_type", "generic")
+
+    # Best available body text
+    body = (
+        article.get("body_text")
+        or text_block.get("full_text")
+        or ""
+    )
+    word_count = len(body.split())
+
+    # Truncate for LLM context
+    body_truncated = body[:_LLM_MAX_BODY_CHARS]
+    if len(body) > _LLM_MAX_BODY_CHARS:
+        body_truncated += "\n\n[... content truncated for context window ...]"
+
+    # Summary
+    summary = scrape_result.get("summary", "")
+    if not summary and body:
+        summary = _summarize_text(body, 150)
+    summary = summary[:_LLM_MAX_SUMMARY_CHARS]
+
+    # Headings from text block or article
+    headings = text_block.get("headings", [])
+
+    # Top scored images
+    all_imgs = images if images else scrape_result.get("images_metadata", [])
+    key_images = []
+    if all_imgs:
+        for img in all_imgs[:30]:
+            s = _score_image(img, content_type)
+            if s >= 0.35:
+                key_images.append({
+                    "url": img.get("url", ""),
+                    "alt": img.get("alt", ""),
+                    "relevance_score": round(s, 3),
+                })
+        key_images.sort(key=lambda x: -x["relevance_score"])
+        key_images = key_images[:10]
+
+    # Build the ready-to-use LLM prompt
+    goal_line = f"**Analysis Goal**: {analysis_goal}\n\n" if analysis_goal else ""
+    table_summary = ""
+    if tables:
+        table_summary = f"\n\n**Tables found**: {len(tables)}\n"
+        for i, t in enumerate(tables[:3]):
+            headers = ", ".join(t.get("headers", []))
+            if headers:
+                table_summary += f"- Table {i+1}: {headers} ({t.get('row_count', 0)} rows)\n"
+
+    image_summary = ""
+    if key_images:
+        image_summary = f"\n\n**Key Images** (top {len(key_images)} by relevance):\n"
+        for img in key_images[:5]:
+            image_summary += f"- {img['alt'] or 'No alt'} → {img['url']}\n"
+
+    llm_prompt = (
+        f"{goal_line}"
+        f"## Web Page: {title}\n"
+        f"**URL**: {url}\n"
+        f"**Type**: {content_type} | **Words**: {word_count:,}\n"
+        f"**Description**: {metadata.get('description', '') or metadata.get('og_description', '')}\n"
+        f"{table_summary}"
+        f"{image_summary}"
+        f"\n---\n\n"
+        f"## Page Content\n\n{body_truncated}"
+    )
+
+    return {
+        "analysis_goal": analysis_goal,
+        "page_title": title,
+        "page_url": url,
+        "content_type": content_type,
+        "word_count": word_count,
+        "summary": summary,
+        "full_text": body_truncated,
+        "metadata": metadata,
+        "tables": tables[:5],  # cap for JSON size
+        "key_images": key_images,
+        "headings": headings[:20],
+        "llm_prompt": llm_prompt,
+    }
+
+
+# =========================================================================
 #  ACTIONS  (public API called by CLI)
 # =========================================================================
 
@@ -1239,7 +1478,10 @@ def act_extract_text(url: str, output_dir: str = None,
 
 def act_download_images(url: str, output_dir: str = None,
                         max_images: int = 50, wait_for_js: bool = False,
-                        min_size: int = MIN_IMAGE_BYTES, **kw) -> dict:
+                        min_size: int = MIN_IMAGE_BYTES,
+                        smart: bool = False,
+                        min_score: float = 0.4,
+                        **kw) -> dict:
     ok, url = _validate_url(url)
     if not ok:
         return {"status": "error", "error": f"Invalid URL: {url}"}
@@ -1247,11 +1489,24 @@ def act_download_images(url: str, output_dir: str = None,
         output_dir = f"workspace/images_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     odir = Path(output_dir)
     fp = fetch_page(url, want_js=wait_for_js)
-    imgs = _extract_images_from_html(fp["html"], url, max_images)
+    # Extract more candidates than needed so the scorer has a large pool
+    # to filter down to `max_images` high-quality results.
+    imgs = _extract_images_from_html(fp["html"], url, max_images * 3 if smart else max_images)
+
+    # Apply intelligent scoring filter when smart mode is on
+    if smart:
+        metadata = _extract_metadata(fp["html"], url)
+        structure = _analyze_structure(fp["html"])
+        detection = _detect_content_type(fp["html"], url, metadata, structure)
+        content_type = detection.get("detected_type", "generic")
+        imgs = _filter_images_by_score(imgs, content_type, min_score, max_images)
+
     downloaded, skipped = [], []
     for idx, img in enumerate(imgs):
         dl = _download_image(img["url"], odir, idx)
         dl["alt"] = img.get("alt", "")
+        if smart:
+            dl["relevance_score"] = img.get("relevance_score", 0)
         if dl["success"]:
             downloaded.append(dl)
         else:
@@ -1259,7 +1514,7 @@ def act_download_images(url: str, output_dir: str = None,
     result = {
         "status": "completed", "url": url,
         "images_found": len(imgs), "images_downloaded": len(downloaded),
-        "images_skipped": len(skipped),
+        "images_skipped": len(skipped), "smart_mode": smart,
         "images": downloaded, "skipped": skipped,
         "output_dir": str(odir),
     }
@@ -1314,6 +1569,75 @@ def act_validate_url(url: str, **kw) -> dict:
     return {"status": "completed", "url": url, "valid": ok,
             "normalized_url": norm if ok else None,
             "error": None if ok else norm}
+
+
+def act_analyze_content(url: str, analysis_goal: str = "",
+                        output_dir: str = None,
+                        wait_for_js: bool = True,
+                        wait_timeout: int = 15,
+                        **kw) -> dict:
+    """Scrape a URL and return a structured LLM-ready context package.
+
+    This action combines fetch + extract + structure into a single clean
+    payload that an LLM agent can directly use for analysis or Q&A.
+    The returned `llm_prompt` field is a ready-to-use prompt string
+    combining the analysis goal with the full page content.
+    """
+    ok, url = _validate_url(url)
+    if not ok:
+        return {"status": "error", "error": f"Invalid URL: {url}"}
+
+    # Full scrape without downloading images (keep it fast)
+    try:
+        scrape = act_scrape_full(
+            url=url,
+            extract_mode="auto",
+            wait_for_js=wait_for_js,
+            wait_timeout=wait_timeout,
+            download_imgs=False,
+            do_summarize=True,
+            output_dir=output_dir,
+        )
+    except Exception as e:
+        return {"status": "error", "url": url, "error": str(e)}
+
+    # Also extract image metadata (no download) for scoring
+    try:
+        fp_html = scrape.get("raw_html_file")
+        if fp_html and Path(fp_html).exists():
+            html_for_imgs = Path(fp_html).read_text(encoding="utf-8", errors="ignore")
+        else:
+            html_for_imgs = ""
+        if html_for_imgs:
+            raw_imgs = _extract_images_from_html(html_for_imgs, url, 60)
+            content_type = scrape.get("detection", {}).get("detected_type", "generic")
+            scored_imgs = _filter_images_by_score(raw_imgs, content_type, 0.3, 15)
+            scrape["images"] = scored_imgs
+    except Exception:
+        pass  # image scoring is best-effort
+
+    # Build context package
+    pkg = _build_llm_context_package(scrape, analysis_goal)
+
+    result = {
+        "status": "completed",
+        "url": url,
+        "timestamp": datetime.now().isoformat(),
+        "analysis_package": pkg,
+    }
+
+    if output_dir:
+        odir = Path(output_dir)
+        _save_results(result, odir, "llm_context.json")
+        # Also write the llm_prompt as a plain .txt file for easy consumption
+        prompt_path = odir / "llm_prompt.txt"
+        try:
+            prompt_path.write_text(pkg["llm_prompt"], encoding="utf-8")
+            result["llm_prompt_file"] = str(prompt_path)
+        except OSError as exc:
+            result["llm_prompt_file_error"] = str(exc)
+
+    return result
 
 
 # =========================================================================
@@ -1450,7 +1774,7 @@ def act_parse_feed(url: str, max_entries: int = 20, output_dir: str = None, **kw
 ALL_ACTIONS = [
     "detect_type", "scrape_full", "extract_article", "extract_text",
     "download_images", "analyze_structure", "summarize", "validate_url",
-    "search", "find_feeds", "parse_feed",
+    "analyze_content", "search", "find_feeds", "parse_feed",
 ]
 
 
@@ -1466,17 +1790,18 @@ def _safe_print_json(data: dict):
         print(json.dumps(data, indent=2, ensure_ascii=True, default=str))
 
 ACTION_DISPATCH = {
-    "detect_type":      act_detect_type,
-    "scrape_full":      act_scrape_full,
-    "extract_article":  act_extract_article,
-    "extract_text":     act_extract_text,
-    "download_images":  act_download_images,
+    "detect_type":       act_detect_type,
+    "scrape_full":       act_scrape_full,
+    "extract_article":   act_extract_article,
+    "extract_text":      act_extract_text,
+    "download_images":   act_download_images,
     "analyze_structure": act_analyze_structure,
-    "summarize":        act_summarize,
-    "validate_url":     act_validate_url,
-    "search":           act_search,
-    "find_feeds":       act_find_feeds,
-    "parse_feed":       act_parse_feed,
+    "summarize":         act_summarize,
+    "validate_url":      act_validate_url,
+    "analyze_content":   act_analyze_content,
+    "search":            act_search,
+    "find_feeds":        act_find_feeds,
+    "parse_feed":        act_parse_feed,
 }
 
 
@@ -1486,6 +1811,8 @@ def main():
     p.add_argument("--action", required=True, choices=ALL_ACTIONS)
     p.add_argument("--url")
     p.add_argument("--query")
+    p.add_argument("--analysis_goal", default="",
+                   help="Analysis goal for analyze_content action")
     p.add_argument("--output_dir")
     p.add_argument("--session_id")
     p.add_argument("--extract_mode", default="auto",
@@ -1500,6 +1827,10 @@ def main():
     p.add_argument("--summarize", default="true")
     p.add_argument("--max_summary_length", type=int, default=DEFAULT_SUMMARY_LEN)
     p.add_argument("--min_image_size", type=int, default=MIN_IMAGE_BYTES)
+    p.add_argument("--smart_images", default="false",
+                   help="Enable intelligent image scoring/filtering (true/false)")
+    p.add_argument("--min_image_score", type=float, default=0.4,
+                   help="Minimum relevance score for smart image filtering (0.0-1.0)")
     p.add_argument("--output")
     args = p.parse_args()
 
@@ -1523,6 +1854,9 @@ def main():
             "do_summarize": str2bool(args.summarize),
             "max_summary_length": args.max_summary_length,
             "min_size": args.min_image_size,
+            "smart": str2bool(args.smart_images),
+            "min_score": args.min_image_score,
+            "analysis_goal": args.analysis_goal,
         }
         # Remove None values so functions use their defaults
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
