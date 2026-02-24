@@ -890,7 +890,7 @@ def generate_report(
         if HAS_LOG and session_id:
             log_tool_invocation(
                 session_id=session_id,
-                tool="publisher_tool",
+                tool_name="publisher_tool",
                 params={"title": title, "theme": theme, "output_path": output_path},
                 result=result,
             )
@@ -900,7 +900,7 @@ def generate_report(
     except Exception as exc:
         error_result = {"success": False, "error": str(exc)}
         if HAS_LOG and session_id:
-            log_error(session_id=session_id, tool="publisher_tool", error=str(exc))
+            log_error(session_id=session_id, source="publisher_tool", error=str(exc))
         return error_result
 
 

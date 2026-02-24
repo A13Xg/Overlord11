@@ -1,0 +1,79 @@
+{
+  "session_id": "20260223_222009_test",
+  "run_at": "2026-02-23T22:20:09.403260",
+  "total_tests": 7,
+  "passed": 7,
+  "failed": 0,
+  "results": [
+    {
+      "tool": "search_file_content",
+      "test": "Search for function name",
+      "passed": true,
+      "expected": "Found hello_world (1 match(es), engine=python-fallback)",
+      "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"C:/Users/SnowBlind/Documents/GitHub/Overlord11/tests/test_workspace/search/main.py\"}, \"lines\": {\"text\": \"def hello_world():\\n\"}, \"line_number\": 1, \"submatc",
+      "duration_ms": 0.65,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "Search with file type filter (*.txt only)",
+      "passed": true,
+      "expected": "Found TODO in notes.txt=True, not in main.py=True",
+      "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"C:/Users/SnowBlind/Documents/GitHub/Overlord11/tests/test_workspace/search/notes.txt\"}, \"lines\": {\"text\": \"TODO: fix the login bug\\n\"}, \"line_number\": 1, \"",
+      "duration_ms": 0.31,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "No false positives for non-existent pattern",
+      "passed": true,
+      "expected": "Zero matches returned",
+      "actual": "has_summary=True, length=86",
+      "duration_ms": 0.29,
+      "details": "No false positives",
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "Case-insensitive search",
+      "passed": true,
+      "expected": "Case-insensitive match found",
+      "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"C:/Users/SnowBlind/Documents/GitHub/Overlord11/tests/test_workspace/search/notes.txt\"}, \"lines\": {\"text\": \"FIXME: memory leak in parser\\n\"}, \"line_number\":",
+      "duration_ms": 0.27,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "Case-sensitive search excludes wrong case",
+      "passed": true,
+      "expected": "Case-sensitive correctly excludes 'FIXME'",
+      "actual": "no matches for lowercase 'fixme'",
+      "duration_ms": 0.28,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "Search project source code for function def",
+      "passed": true,
+      "expected": "Found function def in project tools",
+      "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"C:/Users/SnowBlind/Documents/GitHub/Overlord11/tools/python/search_file_content.py\"}, \"lines\": {\"text\": \"def search_file_content(\\n\"}, \"line_number\": 153, ",
+      "duration_ms": 5.76,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "Report active search engine",
+      "passed": true,
+      "expected": "Search engine: python-fallback",
+      "actual": "rg_bin=not found",
+      "duration_ms": 0.0,
+      "details": "Both engines produce compatible JSON output",
+      "error": null
+    }
+  ]
+}
