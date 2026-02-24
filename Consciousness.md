@@ -77,8 +77,8 @@ _No active signals._
 - **Created**: 2026-01-12
 - **TTL**: persistent
 - **Status**: ACTIVE
-- **Context**: Current provider is `anthropic` with model `claude-3-5-sonnet-20241022`. Gemini available as fallback.
-- **Action**: All agents should use configured provider from their config.json
+- **Context**: Active provider is set in `config.json` under `providers.active`. Supports `anthropic` (claude-opus-4-5), `gemini` (gemini-2.5-pro), and `openai` (gpt-4o). Fallback order defined in `orchestration.fallback_provider_order`.
+- **Action**: All agents should use the configured provider from `config.json`. Do not hardcode provider or model names.
 
 ### [PERSISTENT] Workspace Conventions
 - **Source**: SYSTEM
@@ -148,27 +148,14 @@ _No active errors._
 
 ### Active Agents
 
-| System | Agent ID | Role | Status |
-|--------|----------|------|--------|
-| Analysis-Summarize | AS_DIR_01 | Lead Orchestrator | Available |
-| Analysis-Summarize | AS_ANL_02 | Data Analyzer | Available |
-| Analysis-Summarize | AS_FMT_03 | Output Formatter | Available |
-| Analysis-Summarize | AS_RND_04 | Visual Renderer | Available |
-| Analysis-Summarize | AS_VAL_05 | Quality Validator | Available |
-| Research-InfoGather | DS_DIR_01 | Lead Orchestrator | Available |
-| Research-InfoGather | DS_RES_02 | Web Researcher | Available |
-| Research-InfoGather | DS_AGG_03 | Data Synthesizer | Available |
-| Research-InfoGather | DS_FMT_04 | Document Specialist | Available |
-| Research-InfoGather | DS_REV_05 | Proofreader | Available |
-| Writing-Literature | WL_DIR_01 | Lead Orchestrator | Available |
-| Writing-Literature | WL_SUM_02 | Content Summarizer | Available |
-| Writing-Literature | WL_WRT_03 | Content Writer | Available |
-| Writing-Literature | WL_REV_04 | QA Proofreader | Available |
-| Code-ProjectGen | CG_DIR_01 | Lead Orchestrator | Available |
-| Code-ProjectGen | CG_ARC_02 | Software Architect | Available |
-| Code-ProjectGen | CG_COD_03 | Code Implementer | Available |
-| Code-ProjectGen | CG_TST_04 | Test Engineer | Available |
-| Code-ProjectGen | CG_REV_05 | Code Reviewer | Available |
+| Agent ID | Agent | Role | Definition | Status |
+|----------|-------|------|------------|--------|
+| OVR_DIR_01 | Orchestrator | Master coordinator — delegates to all other agents | `agents/orchestrator.md` | Available |
+| OVR_RES_02 | Researcher | Web research, information gathering, source verification | `agents/researcher.md` | Available |
+| OVR_COD_03 | Coder | Code generation, debugging, testing, refactoring | `agents/coder.md` | Available |
+| OVR_ANL_04 | Analyst | Data analysis, summarization, pattern recognition | `agents/analyst.md` | Available |
+| OVR_WRT_05 | Writer | Documentation, reports, content creation | `agents/writer.md` | Available |
+| OVR_REV_06 | Reviewer | QA, code review, proofreading, validation | `agents/reviewer.md` | Available |
 
 ---
 

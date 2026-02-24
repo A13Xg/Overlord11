@@ -44,3 +44,12 @@ claude_session/
 .claude_history
 tmpclaude-*
 *-cwd
+
+# Overlord11 runtime directories
+workspace/
+logs/
+working-output/
+workshop/
+
+# Temporary files
+*.tmp

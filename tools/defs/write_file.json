@@ -1,0 +1,29 @@
+{
+  "name": "write_file",
+  "description": "Write content to a file at a given path, creating the file and any intermediate directories if they do not exist. By default overwrites the file. Use append mode to add to an existing file.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "Absolute or relative path to the file to write."
+      },
+      "content": {
+        "type": "string",
+        "description": "The content to write to the file."
+      },
+      "mode": {
+        "type": "string",
+        "description": "Write mode: 'overwrite' replaces any existing content, 'append' adds to the end of the file.",
+        "enum": ["overwrite", "append"],
+        "default": "overwrite"
+      },
+      "encoding": {
+        "type": "string",
+        "description": "File encoding to use when writing. Defaults to 'utf-8'.",
+        "default": "utf-8"
+      }
+    },
+    "required": ["path", "content"]
+  }
+}

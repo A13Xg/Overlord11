@@ -1,0 +1,34 @@
+{
+  "name": "save_memory",
+  "description": "Persist a key fact, insight, or context entry to the memory file (Consciousness.md or a dedicated memory store). Use this to save information that needs to survive across sessions or be shared with other agents.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "key": {
+        "type": "string",
+        "description": "A short, descriptive key identifying this memory entry (e.g., 'api_endpoint_base_url', 'current_sprint_goal')."
+      },
+      "value": {
+        "type": "string",
+        "description": "The value or content to store. Keep under 200 words for effective context sharing."
+      },
+      "category": {
+        "type": "string",
+        "description": "Memory category for organization.",
+        "enum": ["context", "finding", "decision", "error", "config", "wip", "handoff"],
+        "default": "context"
+      },
+      "ttl": {
+        "type": "string",
+        "description": "Time-to-live for this entry: 'session' (current session only), '24h', '7d', '30d', or 'persistent'. Defaults to '7d'.",
+        "default": "7d"
+      },
+      "target_file": {
+        "type": "string",
+        "description": "Path to the memory file. Defaults to 'Consciousness.md'.",
+        "default": "Consciousness.md"
+      }
+    },
+    "required": ["key", "value"]
+  }
+}

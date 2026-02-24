@@ -1,0 +1,26 @@
+{
+  "name": "calculator",
+  "description": "Evaluate mathematical expressions and perform numerical computations safely. Supports arithmetic, algebra, trigonometry, statistics (mean, median, std), unit conversions, and expression parsing. Returns the computed result with appropriate precision.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "expression": {
+        "type": "string",
+        "description": "The mathematical expression to evaluate. Examples: '2 + 2', 'sqrt(144)', 'mean([1, 2, 3, 4, 5])', '(100 * 1.08) ** 3', 'log(1000, 10)'."
+      },
+      "precision": {
+        "type": "integer",
+        "description": "Number of decimal places in the result. Defaults to 6.",
+        "default": 6
+      },
+      "variables": {
+        "type": "object",
+        "description": "Optional dictionary of variable bindings to use in the expression (e.g., {\"x\": 5, \"y\": 10}).",
+        "additionalProperties": {
+          "type": "number"
+        }
+      }
+    },
+    "required": ["expression"]
+  }
+}

@@ -1,0 +1,229 @@
+{
+  "version": "2.1.0",
+  "name": "Overlord11",
+  "description": "Provider-agnostic multi-agent LLM toolset",
+
+  "providers": {
+    "active": "anthropic",
+
+    "anthropic": {
+      "model": "claude-opus-4-5",
+      "available_models": {
+        "claude-opus-4-5":        "Most capable — best for complex reasoning, long-form generation, nuanced tasks",
+        "claude-opus-4-0":        "Previous Opus generation — strong capability, slightly lower cost",
+        "claude-sonnet-4-5":      "Balanced speed + capability — recommended default for most tasks",
+        "claude-sonnet-3-7":      "Extended thinking variant — ideal for step-by-step reasoning tasks",
+        "claude-haiku-3-5":       "Fast and lightweight — best for simple Q&A, classification, quick responses",
+        "claude-haiku-3-0":       "Smallest / cheapest — high-throughput, latency-sensitive workloads"
+      },
+      "api_key_env": "ANTHROPIC_API_KEY",
+      "max_tokens": 8192,
+      "temperature": 0.7,
+      "top_p": 1.0,
+      "api_base": "https://api.anthropic.com/v1"
+    },
+
+    "gemini": {
+      "model": "gemini-2.5-pro",
+      "available_models": {
+        "gemini-2.5-pro":         "Most capable Gemini — best for complex tasks, long context (1M tokens), multimodal",
+        "gemini-2.5-flash":       "Fast + capable — best balance of speed and quality for most tasks",
+        "gemini-2.5-flash-lite":  "Ultra-fast / cheapest — high-volume, latency-critical workloads",
+        "gemini-2.0-pro":         "Previous Pro generation — strong reasoning, multimodal support",
+        "gemini-2.0-flash":       "Previous Flash — fast, reliable, widely supported",
+        "gemini-1.5-pro":         "Legacy long-context model — 2M token window, good for document-heavy tasks",
+        "gemini-1.5-flash":       "Legacy fast model — cost-effective for simpler tasks"
+      },
+      "api_key_env": "GOOGLE_GEMINI_API_KEY",
+      "max_tokens": 8192,
+      "temperature": 0.7,
+      "top_p": 1.0,
+      "api_base": "https://generativelanguage.googleapis.com/v1beta"
+    },
+
+    "openai": {
+      "model": "gpt-4o",
+      "available_models": {
+        "gpt-4o":                 "Most capable GPT-4 class — best for complex tasks, vision, tool use",
+        "gpt-4o-mini":            "Fast and cheap GPT-4 class — excellent for most everyday tasks",
+        "gpt-4-turbo":            "Previous flagship — 128k context, strong reasoning",
+        "o3":                     "OpenAI reasoning model — best for multi-step logic and math",
+        "o3-mini":                "Lightweight reasoning model — fast chain-of-thought at lower cost",
+        "o4-mini":                "Latest reasoning mini — strong coding and math, very fast",
+        "gpt-3.5-turbo":          "Legacy lightweight model — cheapest option for simple completions"
+      },
+      "api_key_env": "OPENAI_API_KEY",
+      "max_tokens": 8192,
+      "temperature": 0.7,
+      "top_p": 1.0,
+      "api_base": "https://api.openai.com/v1"
+    }
+  },
+
+  "agents": {
+    "orchestrator": {
+      "id": "OVR_DIR_01",
+      "name": "Orchestrator",
+      "file": "agents/orchestrator.md",
+      "description": "Master coordinator — delegates to all other agents",
+      "entry_point": true,
+      "can_delegate_to": ["researcher", "coder", "analyst", "writer", "reviewer", "publisher"]
+    },
+    "researcher": {
+      "id": "OVR_RES_02",
+      "name": "Researcher",
+      "file": "agents/researcher.md",
+      "description": "Web research, information gathering, source verification",
+      "entry_point": false,
+      "tools": ["web_fetch", "web_scraper", "read_file", "list_directory", "glob", "search_file_content", "save_memory", "project_scanner"]
+    },
+    "coder": {
+      "id": "OVR_COD_03",
+      "name": "Coder",
+      "file": "agents/coder.md",
+      "description": "Code generation, debugging, testing, refactoring",
+      "entry_point": false,
+      "tools": ["read_file", "write_file", "replace", "run_shell_command", "code_analyzer", "project_scanner", "scaffold_generator", "git_tool", "search_file_content", "glob"]
+    },
+    "analyst": {
+      "id": "OVR_ANL_04",
+      "name": "Analyst",
+      "file": "agents/analyst.md",
+      "description": "Data analysis, summarization, pattern recognition",
+      "entry_point": false,
+      "tools": ["read_file", "calculator", "code_analyzer", "project_scanner", "search_file_content", "glob", "save_memory"]
+    },
+    "writer": {
+      "id": "OVR_WRT_05",
+      "name": "Writer",
+      "file": "agents/writer.md",
+      "description": "Documentation, reports, content creation",
+      "entry_point": false,
+      "tools": ["read_file", "write_file", "replace", "list_directory", "glob"]
+    },
+    "reviewer": {
+      "id": "OVR_REV_06",
+      "name": "Reviewer",
+      "file": "agents/reviewer.md",
+      "description": "QA, code review, proofreading, validation",
+      "entry_point": false,
+      "tools": ["read_file", "code_analyzer", "run_shell_command", "search_file_content", "glob"]
+    },
+    "publisher": {
+      "id": "OVR_PUB_07",
+      "name": "Publisher",
+      "file": "agents/publisher.md",
+      "description": "Tiered output formatter — markdown for mid-complexity, styled self-contained HTML for detailed/visual requests",
+      "entry_point": false,
+      "tools": ["read_file", "write_file", "replace", "publisher_tool"]
+    }
+  },
+
+  "tools": {
+    "read_file": {
+      "def": "tools/defs/read_file.json",
+      "impl": "tools/python/read_file.py"
+    },
+    "write_file": {
+      "def": "tools/defs/write_file.json",
+      "impl": "tools/python/write_file.py"
+    },
+    "list_directory": {
+      "def": "tools/defs/list_directory.json",
+      "impl": "tools/python/list_directory.py"
+    },
+    "glob": {
+      "def": "tools/defs/glob.json",
+      "impl": "tools/python/glob_tool.py"
+    },
+    "search_file_content": {
+      "def": "tools/defs/search_file_content.json",
+      "impl": "tools/python/search_file_content.py"
+    },
+    "replace": {
+      "def": "tools/defs/replace.json",
+      "impl": null
+    },
+    "run_shell_command": {
+      "def": "tools/defs/run_shell_command.json",
+      "impl": "tools/python/run_shell_command.py"
+    },
+    "web_fetch": {
+      "def": "tools/defs/web_fetch.json",
+      "impl": "tools/python/web_fetch.py"
+    },
+    "git_tool": {
+      "def": "tools/defs/git_tool.json",
+      "impl": "tools/python/git_tool.py"
+    },
+    "calculator": {
+      "def": "tools/defs/calculator.json",
+      "impl": "tools/python/calculator_tool.py"
+    },
+    "save_memory": {
+      "def": "tools/defs/save_memory.json",
+      "impl": "tools/python/save_memory_tool.py"
+    },
+    "web_scraper": {
+      "def": "tools/defs/web_scraper.json",
+      "impl": "tools/python/web_scraper.py"
+    },
+    "project_scanner": {
+      "def": "tools/defs/project_scanner.json",
+      "impl": "tools/python/project_scanner.py"
+    },
+    "code_analyzer": {
+      "def": "tools/defs/code_analyzer.json",
+      "impl": "tools/python/code_analyzer.py"
+    },
+    "publisher_tool": {
+      "def": "tools/defs/publisher_tool.json",
+      "impl": "tools/python/publisher_tool.py"
+    }
+  },
+
+  "orchestration": {
+    "max_loops": 10,
+    "max_retries_per_agent": 3,
+    "retry_on_empty_output": true,
+    "always_review_before_delivery": true,
+    "fallback_provider_order": ["anthropic", "gemini", "openai"],
+    "phases": [
+      "intake",
+      "research",
+      "planning",
+      "execution",
+      "review",
+      "delivery"
+    ],
+    "memory_file": "Consciousness.md",
+    "log_sessions": true,
+    "log_dir": "logs/"
+  },
+
+  "quality": {
+    "min_test_coverage": 80,
+    "require_tests_for_new_code": true,
+    "require_reviewer_approval": true,
+    "max_complexity_per_function": 10,
+    "security_scan_enabled": true,
+    "require_docstrings": true
+  },
+
+  "workspace": {
+    "root": "workspace/",
+    "session_id_format": "YYYYMMDD_HHmmss",
+    "max_sessions_retained": 50,
+    "auto_cleanup_days": 30
+  },
+
+  "logging": {
+    "level": "info",
+    "log_dir": "logs/",
+    "log_format": "json",
+    "include_tool_calls": true,
+    "include_agent_outputs": true,
+    "rotate_daily": true,
+    "max_log_files": 30
+  }
+}
