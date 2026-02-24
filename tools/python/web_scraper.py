@@ -87,8 +87,22 @@ USER_AGENT = (
 DEFAULT_TIMEOUT = 15
 MAX_CONTENT_SIZE = 10_000_000   # 10 MB
 DEFAULT_SUMMARY_LEN = 500
-MIN_IMAGE_BYTES = 2_000         # skip images < 2 KB (likely icons/spacers)
-MIN_IMAGE_DIM = 80              # skip images < 80 px on either axis
+MIN_IMAGE_BYTES = 5_000         # skip images < 5 KB (icons/spacers/badges)
+MIN_IMAGE_DIM_HTML = 50         # skip images with declared HTML attrs < 50 px (true tiny icons)
+MIN_IMAGE_DIM_ACTUAL = 150      # skip downloaded images < 150 px on either axis (PIL check)
+MAX_IMAGE_ASPECT = 4.0          # skip images with aspect ratio > 4:1 (banners/ribbons)
+
+# URL patterns that indicate junk images (logos, icons, badges, tracking)
+JUNK_IMAGE_URL_RE = re.compile(
+    r"logo|icon|favicon|badge|sprite|brand|button|arrow|"
+    r"spinner|loader|placeholder|spacer|pixel|tracking|beacon|"
+    r"ad[_-]?banner|social[_-]|share[_-]|app[_-]?store|"
+    r"google[_-]?play|get[_-]?ios|get[_-]?android",
+    re.I,
+)
+
+# Parent elements that almost never contain content images
+JUNK_IMAGE_PARENTS = {"nav", "footer", "header", "aside"}
 
 # Tags/classes/roles that are almost always boilerplate
 STRIP_TAGS = ["script", "style", "noscript", "svg", "iframe"]
@@ -721,8 +735,31 @@ def _clean_text(text: str) -> str:
 #  IMAGE EXTRACTION  (Task #5 - improved)
 # =========================================================================
 
-def _extract_images_from_html(html: str, url: str, max_count: int = 50) -> list:
-    """Extract image metadata with alt text, srcset, and noise filtering."""
+_JUNK_IMAGE_ANCESTOR_CLASS_RE = re.compile(
+    r"^(?:sidebar|widget|advert|promo|cookie|consent|signup|newsletter)$"
+    r"|(?:^ad-|^ad_|^social-|^share-|^footer-|^nav-|^menu-)",
+    re.I,
+)
+
+def _is_junk_ancestor(tag) -> bool:
+    """Check if an img tag lives inside a nav/footer/header/aside or an explicitly junk container.
+    Uses structural tags (nav/footer/header/aside) + a tight class list that won't
+    false-positive on content containers like 'infinite-pagination' or 'related-articles'."""
+    for parent in tag.parents:
+        if parent.name in JUNK_IMAGE_PARENTS:
+            return True
+        # Only check immediate-ish ancestors (up to 4 levels) for junk classes
+        # to avoid matching broad layout wrappers
+        parent_classes = parent.get("class", [])
+        for cls in parent_classes:
+            if _JUNK_IMAGE_ANCESTOR_CLASS_RE.search(cls):
+                return True
+    return False
+
+
+def _extract_images_from_html(html: str, url: str, max_count: int = 50,
+                              include_svg: bool = False) -> list:
+    """Extract image metadata with alt text, srcset, and multi-layer noise filtering."""
     images = []
     seen_urls = set()
 
@@ -747,11 +784,23 @@ def _extract_images_from_html(html: str, url: str, max_count: int = 50) -> list:
 
             abs_url = urljoin(url, best_src) if not best_src.startswith("http") else best_src
 
-            # Filter tiny images by declared dimensions
+            # Skip SVGs (almost always icons/logos) unless explicitly requested
+            if not include_svg and (abs_url.endswith(".svg") or "svg" in abs_url.split("?")[0][-6:]):
+                continue
+
+            # Skip URLs matching junk image patterns (logos, icons, badges, etc.)
+            if JUNK_IMAGE_URL_RE.search(abs_url):
+                continue
+
+            # Skip images inside nav/footer/header/aside or noise-class containers
+            if _is_junk_ancestor(img):
+                continue
+
+            # Filter small images by declared dimensions (EITHER axis too small = skip)
             try:
-                if width and int(width) < MIN_IMAGE_DIM:
+                if width and int(width) < MIN_IMAGE_DIM_HTML:
                     continue
-                if height and int(height) < MIN_IMAGE_DIM:
+                if height and int(height) < MIN_IMAGE_DIM_HTML:
                     continue
             except (ValueError, TypeError):
                 pass
@@ -772,6 +821,9 @@ def _extract_images_from_html(html: str, url: str, max_count: int = 50) -> list:
 
         # Also check <picture> elements
         for pic in soup.find_all("picture"):
+            # Skip pictures in junk ancestors
+            if _is_junk_ancestor(pic):
+                continue
             sources = pic.find_all("source")
             for source in sources:
                 srcset = source.get("srcset", "")
@@ -779,6 +831,10 @@ def _extract_images_from_html(html: str, url: str, max_count: int = 50) -> list:
                     parts = [p.strip().split() for p in srcset.split(",") if p.strip()]
                     if parts:
                         pic_url = urljoin(url, parts[-1][0])
+                        if not include_svg and pic_url.endswith(".svg"):
+                            continue
+                        if JUNK_IMAGE_URL_RE.search(pic_url):
+                            continue
                         if pic_url not in seen_urls:
                             seen_urls.add(pic_url)
                             images.append({
@@ -794,6 +850,11 @@ def _extract_images_from_html(html: str, url: str, max_count: int = 50) -> list:
             if src.startswith("data:image/gif"):
                 continue
             abs_url = urljoin(url, src) if not src.startswith("http") else src
+            # Skip SVGs and junk URL patterns in regex fallback too
+            if not include_svg and abs_url.endswith(".svg"):
+                continue
+            if JUNK_IMAGE_URL_RE.search(abs_url):
+                continue
             if abs_url in seen_urls:
                 continue
             seen_urls.add(abs_url)
@@ -811,9 +872,12 @@ def _extract_images_from_html(html: str, url: str, max_count: int = 50) -> list:
 
 
 def _download_image(img_url: str, output_dir: Path, index: int) -> dict:
-    """Download a single image. Skip if too small."""
+    """Download a single image. Skip if too small, bad aspect ratio, or junk URL."""
     if img_url.startswith("data:"):
         return {"success": False, "url": img_url, "error": "data_uri_skipped"}
+    # Double-check junk URL patterns at download time (safety net)
+    if JUNK_IMAGE_URL_RE.search(img_url):
+        return {"success": False, "url": img_url, "error": "junk_url_pattern"}
     try:
         req = urllib.request.Request(img_url, headers={"User-Agent": USER_AGENT})
         ctx = _ssl_ctx()
@@ -837,15 +901,22 @@ def _download_image(img_url: str, output_dir: Path, index: int) -> dict:
                 ext = val
                 break
 
-        # Optionally validate with PIL
+        # Validate dimensions and aspect ratio with PIL
         img_width, img_height = 0, 0
         if HAS_PIL and ext not in (".svg",):
             try:
                 pil_img = PILImage.open(BytesIO(data))
                 img_width, img_height = pil_img.size
-                if img_width < MIN_IMAGE_DIM and img_height < MIN_IMAGE_DIM:
+                # Skip if EITHER axis is too small
+                if img_width < MIN_IMAGE_DIM_ACTUAL or img_height < MIN_IMAGE_DIM_ACTUAL:
                     return {"success": False, "url": img_url, "error": "dimensions_too_small",
                             "width": img_width, "height": img_height}
+                # Skip extreme aspect ratios (banners, ribbons, separator lines)
+                aspect = max(img_width, img_height) / max(min(img_width, img_height), 1)
+                if aspect > MAX_IMAGE_ASPECT:
+                    return {"success": False, "url": img_url, "error": "extreme_aspect_ratio",
+                            "width": img_width, "height": img_height,
+                            "aspect_ratio": round(aspect, 1)}
             except Exception:
                 pass
 
@@ -1319,6 +1390,7 @@ def act_scrape_full(url: str, output_dir: str = None,
                     download_imgs: bool = True, max_images: int = 50,
                     clean_text: bool = True, do_summarize: bool = True,
                     max_summary_length: int = DEFAULT_SUMMARY_LEN,
+                    include_svg: bool = False,
                     **kw) -> dict:
     """Full page scrape with extract_mode routing."""
     ok, url = _validate_url(url)
@@ -1426,7 +1498,7 @@ def act_scrape_full(url: str, output_dir: str = None,
 
     # --- Images ---
     if download_imgs:
-        imgs = _extract_images_from_html(html, url, max_images)
+        imgs = _extract_images_from_html(html, url, max_images, include_svg=include_svg)
         result["images_found"] = len(imgs)
         if imgs:
             downloaded = []
