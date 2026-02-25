@@ -457,8 +457,8 @@ def test_search_file_content():
     def t5a(r: TestResult):
         result = mod.search_file_content("hello_world", dir_path=str(TEST_WORKSPACE / "search"))
         if "hello_world" in result:
-            # Parse how many matches
-            match_count = result.count('"type": "match"')
+            # Count matches — handle both spaced (python-fallback) and compact (ripgrep) JSON
+            match_count = result.count('"type": "match"') or result.count('"type":"match"')
             engine = "ripgrep" if mod._RG_BIN else "python-fallback"
             r.set_pass(f"Found hello_world ({match_count} match(es), engine={engine})",
                        safe_str(result[:200]))
@@ -483,7 +483,8 @@ def test_search_file_content():
     def t5c(r: TestResult):
         result = mod.search_file_content("ZZZZNONEXISTENTPATTERNZZZZ", dir_path=str(TEST_WORKSPACE / "search"))
         # Should return summary with 0 matches, no actual match lines
-        has_no_match = '"type": "match"' not in result
+        # Handle both spaced (python-fallback) and compact (ripgrep) JSON
+        has_no_match = '"type": "match"' not in result and '"type":"match"' not in result
         has_summary = "summary" in result
         if has_no_match:
             r.set_pass("Zero matches returned", f"has_summary={has_summary}, length={len(result)}",
@@ -505,7 +506,8 @@ def test_search_file_content():
     def t5e(r: TestResult):
         result = mod.search_file_content("fixme", dir_path=str(TEST_WORKSPACE / "search"), case_sensitive=True)
         # "fixme" lowercase should NOT match "FIXME" uppercase
-        has_match = '"type": "match"' in result
+        # Handle both spaced (python-fallback) and compact (ripgrep) JSON
+        has_match = '"type": "match"' in result or '"type":"match"' in result
         if not has_match:
             r.set_pass("Case-sensitive correctly excludes 'FIXME'", f"no matches for lowercase 'fixme'")
         else:
@@ -516,7 +518,9 @@ def test_search_file_content():
     # --- Test 5f: Search in the actual project tools ---
     def t5f(r: TestResult):
         result = mod.search_file_content("def search_file_content", dir_path=str(TOOLS_DIR), include="*.py")
-        if "search_file_content" in result and '"type": "match"' in result:
+        # Handle both spaced (python-fallback) and compact (ripgrep) JSON
+        has_match = '"type": "match"' in result or '"type":"match"' in result
+        if "search_file_content" in result and has_match:
             r.set_pass("Found function def in project tools", safe_str(result[:200]))
         else:
             r.set_fail("Match in tools/python/*.py", safe_str(result[:200]))
