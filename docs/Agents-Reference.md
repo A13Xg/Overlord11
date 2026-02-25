@@ -179,6 +179,17 @@ Orchestrator → Analyst → Writer [Tier 1] → Reviewer
 - [ ] Git commit made with descriptive message
 - [ ] Handoff summary includes all changed files and test results
 
+#### Encoding Safety (required for every file written)
+
+- [ ] All `open()` calls include `encoding="utf-8"` (and `errors="replace"` for reads)
+- [ ] All `json.dumps()` calls include `ensure_ascii=False`
+- [ ] All `subprocess` output decoded with `.decode("utf-8", errors="replace")`
+- [ ] `safe_str()` helper present in every module that prints, logs, or returns text
+- [ ] `io.TextIOWrapper` guard added for `sys.stdout`/`sys.stderr` on `win32` entry points
+- [ ] No bare `print(user_data)` or `print(file_content)` — always routed through `safe_str()`
+
+> The full encoding safety patterns with copy-paste code are in `agents/coder.md` under **Encoding Safety (Mandatory)** and in `docs/Development.md` under **Encoding Safety**.
+
 ---
 
 ## OVR_ANL_04 — Analyst
@@ -265,6 +276,15 @@ Orchestrator → Analyst → Writer [Tier 1] → Reviewer
 - [ ] Static analysis (`code_analyzer`) shows no critical issues
 - [ ] Error handling present for expected failure modes
 - [ ] Documentation updated
+
+#### Encoding Safety (CRITICAL — flag any violation as MAJOR)
+
+- [ ] Every `open()` call specifies `encoding="utf-8"` — bare `open(path)` is a defect
+- [ ] Every `json.dumps()` call includes `ensure_ascii=False`
+- [ ] All `subprocess` stdout/stderr decoded with `.decode("utf-8", errors="replace")`
+- [ ] Any module that prints or logs has a `safe_str()` helper guarding output
+- [ ] Entry-point scripts on Windows wrap `sys.stdout`/`sys.stderr` with `io.TextIOWrapper(encoding="utf-8")`
+- [ ] No raw `print(content)` where content may contain non-ASCII
 
 ### Review Checklist — Documents
 

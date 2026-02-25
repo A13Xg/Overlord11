@@ -1,6 +1,6 @@
 {
-  "session_id": "20260224_213628_test",
-  "run_at": "2026-02-24T21:36:30.370485",
+  "session_id": "20260224_220429_test",
+  "run_at": "2026-02-24T22:04:31.206253",
   "total_tests": 72,
   "passed": 72,
   "failed": 0,
@@ -29,7 +29,7 @@
       "passed": true,
       "expected": "File content matches",
       "actual": "Line 1\nLine 2\nLine 3\n",
-      "duration_ms": 0.67,
+      "duration_ms": 0.59,
       "details": "Full file read correctly",
       "error": null
     },
@@ -39,7 +39,7 @@
       "passed": true,
       "expected": "Lines B and C present",
       "actual": "B\nC\n\n(Content truncated. Showing lines 1-2 of 5. Use offset and limit to paginate.)",
-      "duration_ms": 0.53,
+      "duration_ms": 0.47,
       "details": "Pagination works",
       "error": null
     },
@@ -59,7 +59,7 @@
       "passed": true,
       "expected": "Unicode preserved",
       "actual": "Contains e-acute and em-dash",
-      "duration_ms": 0.44,
+      "duration_ms": 0.89,
       "details": "UTF-8 special characters intact",
       "error": null
     },
@@ -69,7 +69,7 @@
       "passed": true,
       "expected": "CJK preserved",
       "actual": "Contains Chinese and Japanese chars",
-      "duration_ms": 0.62,
+      "duration_ms": 0.76,
       "details": null,
       "error": null
     },
@@ -79,7 +79,7 @@
       "passed": true,
       "expected": "Emoji file readable",
       "actual": "Contains check mark and text",
-      "duration_ms": 0.75,
+      "duration_ms": 0.94,
       "details": null,
       "error": null
     },
@@ -89,7 +89,7 @@
       "passed": true,
       "expected": "Empty string returned",
       "actual": "''",
-      "duration_ms": 0.55,
+      "duration_ms": 0.64,
       "details": null,
       "error": null
     },
@@ -99,7 +99,7 @@
       "passed": true,
       "expected": "File created with correct content",
       "actual": "Hello, Overlord11!",
-      "duration_ms": 1.03,
+      "duration_ms": 1.41,
       "details": "write_file returned: Successfully wrote to file: C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\test_workspace\\write\\new_file.txt",
       "error": null
     },
@@ -109,7 +109,7 @@
       "passed": true,
       "expected": "Both lines present",
       "actual": "First line.\nSecond line.",
-      "duration_ms": 1.26,
+      "duration_ms": 1.28,
       "details": "Append mode works",
       "error": null
     },
@@ -119,7 +119,7 @@
       "passed": true,
       "expected": "File created in nested dirs",
       "actual": "Successfully wrote to file: C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\test_workspace\\write\\deep\\nested\\dir\\file.txt",
-      "duration_ms": 1.8,
+      "duration_ms": 1.5,
       "details": "Auto-mkdir works",
       "error": null
     },
@@ -129,7 +129,7 @@
       "passed": true,
       "expected": "Rejects invalid mode",
       "actual": "Error: mode must be 'overwrite' or 'append', got 'invalid_mode'",
-      "duration_ms": 0.35,
+      "duration_ms": 0.17,
       "details": "Validation works",
       "error": null
     },
@@ -139,7 +139,7 @@
       "passed": true,
       "expected": "Unicode roundtrip OK",
       "actual": "Written and read back match",
-      "duration_ms": 0.72,
+      "duration_ms": 0.66,
       "details": null,
       "error": null
     },
@@ -149,7 +149,7 @@
       "passed": true,
       "expected": "CJK write roundtrip OK",
       "actual": "Chinese/Japanese/Korean preserved",
-      "duration_ms": 1.18,
+      "duration_ms": 0.91,
       "details": null,
       "error": null
     },
@@ -159,7 +159,7 @@
       "passed": true,
       "expected": "Lists files and directories",
       "actual": "Directory listing for C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\test_workspace\\listdir:\n      alpha.txt\n      beta.py\n[DIR] subdir",
-      "duration_ms": 0.23,
+      "duration_ms": 0.17,
       "details": "Contains expected entries",
       "error": null
     },
@@ -169,7 +169,7 @@
       "passed": true,
       "expected": "Error for missing dir",
       "actual": "Error: Directory not found at C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tes",
-      "duration_ms": 0.03,
+      "duration_ms": 0.02,
       "details": "Handled gracefully",
       "error": null
     },
@@ -188,8 +188,8 @@
       "test": "Find all *.py files recursively",
       "passed": true,
       "expected": ">=3 .py files found",
-      "actual": "Found 3: ['deep.py', 'utils.py', 'app.py']",
-      "duration_ms": 0.83,
+      "actual": "Found 3: ['app.py', 'utils.py', 'deep.py']",
+      "duration_ms": 0.46,
       "details": null,
       "error": null
     },
@@ -199,7 +199,7 @@
       "passed": true,
       "expected": "Found .md file(s)",
       "actual": "['readme.md']",
-      "duration_ms": 0.17,
+      "duration_ms": 0.18,
       "details": null,
       "error": null
     },
@@ -209,7 +209,7 @@
       "passed": true,
       "expected": "Empty list for no matches",
       "actual": "[]",
-      "duration_ms": 0.11,
+      "duration_ms": 0.09,
       "details": null,
       "error": null
     },
@@ -219,7 +219,7 @@
       "passed": true,
       "expected": "glob_tool.py has glob() function and calls glob.glob()",
       "actual": "Source validated",
-      "duration_ms": 0.11,
+      "duration_ms": 0.09,
       "details": "Note: function shadows stdlib import (known issue)",
       "error": null
     },
@@ -229,7 +229,7 @@
       "passed": true,
       "expected": "Found hello_world (1 match(es), engine=ripgrep)",
       "actual": "{\"type\":\"begin\",\"data\":{\"path\":{\"text\":\"C:\\\\Users\\\\SnowBlind\\\\Documents\\\\GitHub\\\\Overlord11\\\\tests\\\\test_workspace\\\\search\\\\main.py\"}}}\n{\"type\":\"match\",\"data\":{\"path\":{\"text\":\"C:\\\\Users\\\\SnowBlind\\\\Do",
-      "duration_ms": 54.48,
+      "duration_ms": 49.4,
       "details": null,
       "error": null
     },
@@ -239,7 +239,7 @@
       "passed": true,
       "expected": "Found TODO in notes.txt=True, not in main.py=True",
       "actual": "{\"type\":\"begin\",\"data\":{\"path\":{\"text\":\"C:\\\\Users\\\\SnowBlind\\\\Documents\\\\GitHub\\\\Overlord11\\\\tests\\\\test_workspace\\\\search\\\\notes.txt\"}}}\n{\"type\":\"match\",\"data\":{\"path\":{\"text\":\"C:\\\\Users\\\\SnowBlind\\\\",
-      "duration_ms": 54.3,
+      "duration_ms": 48.02,
       "details": null,
       "error": null
     },
@@ -249,7 +249,7 @@
       "passed": true,
       "expected": "Zero matches returned",
       "actual": "has_summary=True, length=257",
-      "duration_ms": 53.06,
+      "duration_ms": 44.55,
       "details": "No false positives",
       "error": null
     },
@@ -259,7 +259,7 @@
       "passed": true,
       "expected": "Case-insensitive match found",
       "actual": "{\"type\":\"begin\",\"data\":{\"path\":{\"text\":\"C:\\\\Users\\\\SnowBlind\\\\Documents\\\\GitHub\\\\Overlord11\\\\tests\\\\test_workspace\\\\search\\\\notes.txt\"}}}\n{\"type\":\"match\",\"data\":{\"path\":{\"text\":\"C:\\\\Users\\\\SnowBlind\\\\",
-      "duration_ms": 54.3,
+      "duration_ms": 47.53,
       "details": null,
       "error": null
     },
@@ -269,7 +269,7 @@
       "passed": true,
       "expected": "Case-sensitive correctly excludes 'FIXME'",
       "actual": "no matches for lowercase 'fixme'",
-      "duration_ms": 54.86,
+      "duration_ms": 44.17,
       "details": null,
       "error": null
     },
@@ -279,7 +279,7 @@
       "passed": true,
       "expected": "Found function def in project tools",
       "actual": "{\"type\":\"begin\",\"data\":{\"path\":{\"text\":\"C:\\\\Users\\\\SnowBlind\\\\Documents\\\\GitHub\\\\Overlord11\\\\tools\\\\python\\\\search_file_content.py\"}}}\n{\"type\":\"match\",\"data\":{\"path\":{\"text\":\"C:\\\\Users\\\\SnowBlind\\\\Doc",
-      "duration_ms": 56.22,
+      "duration_ms": 47.37,
       "details": null,
       "error": null
     },
@@ -299,7 +299,7 @@
       "passed": true,
       "expected": "Echo captured in stdout",
       "actual": "Overlord11 Test",
-      "duration_ms": 174.72,
+      "duration_ms": 151.23,
       "details": null,
       "error": null
     },
@@ -309,7 +309,7 @@
       "passed": true,
       "expected": "Python expression evaluated",
       "actual": "4",
-      "duration_ms": 155.06,
+      "duration_ms": 133.66,
       "details": null,
       "error": null
     },
@@ -319,7 +319,7 @@
       "passed": true,
       "expected": "Correct working directory",
       "actual": "Path                                                               \n----        ",
-      "duration_ms": 160.65,
+      "duration_ms": 153.43,
       "details": null,
       "error": null
     },
@@ -329,7 +329,7 @@
       "passed": true,
       "expected": "Error for bad directory",
       "actual": "Error: Directory not found: C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests",
-      "duration_ms": 0.07,
+      "duration_ms": 0.06,
       "details": null,
       "error": null
     },
@@ -339,7 +339,7 @@
       "passed": true,
       "expected": "Git status output",
       "actual": "On branch main\nYour branch is up to date with 'origin/main'.\n\nChanges not staged for commit:\n  (use \"git add <file>...\"",
-      "duration_ms": 37.28,
+      "duration_ms": 36.38,
       "details": null,
       "error": null
     },
@@ -348,8 +348,8 @@
       "test": "Git log (last 3 commits)",
       "passed": true,
       "expected": "Git log output",
-      "actual": "7dfe508 Update test.py\n72c6e9c Merge pull request #3 from A13Xg/copilot/improve-readme-and-wiki\n8f2ba42 Overhaul README, add comprehensive Wiki, and fix accumulated code issues",
-      "duration_ms": 33.93,
+      "actual": "85d4f8e Additional Polish\n7dfe508 Update test.py\n72c6e9c Merge pull request #3 from A13Xg/copilot/improve-readme-and-wiki",
+      "duration_ms": 31.56,
       "details": null,
       "error": null
     },
@@ -359,7 +359,7 @@
       "passed": true,
       "expected": "Error for invalid command",
       "actual": "Error executing git command: Command 'git totally-invalid-command-12345' returned non-zero exit status 1.\nStdout: \nStder",
-      "duration_ms": 41.94,
+      "duration_ms": 37.92,
       "details": null,
       "error": null
     },
@@ -369,7 +369,7 @@
       "passed": true,
       "expected": "{'add': 15, 'subtract': 7, 'multiply': 42, 'divide': 25.0}",
       "actual": "{'add': 15, 'subtract': 7, 'multiply': 42, 'divide': 25.0}",
-      "duration_ms": 0.01,
+      "duration_ms": 0.03,
       "details": "All basic arithmetic correct",
       "error": null
     },
@@ -379,7 +379,7 @@
       "passed": true,
       "expected": "sqrt(144) = 12.0",
       "actual": "12.0",
-      "duration_ms": 0.0,
+      "duration_ms": 0.01,
       "details": null,
       "error": null
     },
@@ -399,7 +399,7 @@
       "passed": true,
       "expected": "sin(30)=0.5, cos(60)=0.5, tan(45)=1.0",
       "actual": "sin(30)=0.500000, cos(60)=0.500000, tan(45)=1.000000",
-      "duration_ms": 0.01,
+      "duration_ms": 0.02,
       "details": null,
       "error": null
     },
@@ -468,8 +468,8 @@
       "test": "Save a memory entry to file",
       "passed": true,
       "expected": "Memory saved",
-      "actual": "[2026-02-24 21:36:29] Overlord11 test completed successfully",
-      "duration_ms": 1.16,
+      "actual": "[2026-02-24 22:04:30] Overlord11 test completed successfully",
+      "duration_ms": 2.15,
       "details": null,
       "error": null
     },
@@ -479,7 +479,7 @@
       "passed": true,
       "expected": "Timestamp present",
       "actual": "Contains 2026-02-24",
-      "duration_ms": 0.53,
+      "duration_ms": 0.97,
       "details": null,
       "error": null
     },
@@ -489,7 +489,7 @@
       "passed": true,
       "expected": "1 file analyzed",
       "actual": "lines=38, code=29, comments=4, functions=4",
-      "duration_ms": 1.41,
+      "duration_ms": 1.26,
       "details": "Language: python",
       "error": null
     },
@@ -499,7 +499,7 @@
       "passed": true,
       "expected": "Found 4/4 functions",
       "actual": "['simple_function', 'complex_function', '__init__', 'process']",
-      "duration_ms": 0.65,
+      "duration_ms": 0.49,
       "details": null,
       "error": null
     },
@@ -509,7 +509,7 @@
       "passed": true,
       "expected": "Found 2 smell(s)",
       "actual": "Types: ['marker_comment']",
-      "duration_ms": 0.56,
+      "duration_ms": 0.33,
       "details": "Has TODO/FIXME markers: True",
       "error": null
     },
@@ -519,7 +519,7 @@
       "passed": true,
       "expected": "Cyclomatic complexity calculated",
       "actual": "total=12, max_nesting=10",
-      "duration_ms": 0.77,
+      "duration_ms": 0.5,
       "details": null,
       "error": null
     },
@@ -529,7 +529,7 @@
       "passed": true,
       "expected": "Found 3 imports",
       "actual": "stdlib=3: ['import os', 'import json', 'from pathlib import Path']",
-      "duration_ms": 0.59,
+      "duration_ms": 0.24,
       "details": null,
       "error": null
     },
@@ -539,7 +539,7 @@
       "passed": true,
       "expected": "Analyzed 1 file(s)",
       "actual": "total_lines=38, functions=4, smells=2",
-      "duration_ms": 1.77,
+      "duration_ms": 0.87,
       "details": null,
       "error": null
     },
@@ -548,8 +548,8 @@
       "test": "Scan Overlord11 project structure",
       "passed": true,
       "expected": "Project scanned successfully",
-      "actual": "name=Overlord11, langs=['Python', 'Markdown', 'JSON'], has_git=True, files=135",
-      "duration_ms": 29.95,
+      "actual": "name=Overlord11, langs=['Python', 'Markdown', 'JSON'], has_git=True, files=139",
+      "duration_ms": 29.38,
       "details": null,
       "error": null
     },
@@ -559,7 +559,7 @@
       "passed": true,
       "expected": "Python detected",
       "actual": "files=24, lines=8202",
-      "duration_ms": 30.76,
+      "duration_ms": 28.29,
       "details": null,
       "error": null
     },
@@ -569,7 +569,7 @@
       "passed": true,
       "expected": "Found 4 config file(s)",
       "actual": "['.env', '.env.example', '.gitignore', 'README.md']",
-      "duration_ms": 29.34,
+      "duration_ms": 27.71,
       "details": null,
       "error": null
     },
@@ -579,7 +579,7 @@
       "passed": true,
       "expected": "Git repo detected",
       "actual": "has_git=True",
-      "duration_ms": 25.89,
+      "duration_ms": 28.07,
       "details": null,
       "error": null
     },
@@ -589,7 +589,7 @@
       "passed": true,
       "expected": "Error for missing path",
       "actual": "Path does not exist: C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\test_w",
-      "duration_ms": 0.23,
+      "duration_ms": 0.18,
       "details": null,
       "error": null
     },
@@ -599,7 +599,7 @@
       "passed": true,
       "expected": "HTML report generated",
       "actual": "theme=techno, sections=4, size=12072B",
-      "duration_ms": 2.9,
+      "duration_ms": 2.73,
       "details": "File: C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\test_workspace\\reports\\test_techno_report.html",
       "error": null
     },
@@ -609,7 +609,7 @@
       "passed": true,
       "expected": "Auto-detected theme: tactical",
       "actual": "theme=tactical",
-      "duration_ms": 1.07,
+      "duration_ms": 0.7,
       "details": "Expected 'tactical' for security content",
       "error": null
     },
@@ -619,7 +619,7 @@
       "passed": true,
       "expected": "Self-contained HTML",
       "actual": "has_style=True, has_doctype=True, no_cdn=True",
-      "duration_ms": 1.75,
+      "duration_ms": 1.23,
       "details": null,
       "error": null
     },
@@ -629,7 +629,7 @@
       "passed": true,
       "expected": "All 9 themes generate valid HTML",
       "actual": "['techno', 'classic', 'informative', 'contemporary', 'abstract', 'modern', 'colorful', 'tactical', 'editorial']",
-      "duration_ms": 7.23,
+      "duration_ms": 7.55,
       "details": null,
       "error": null
     },
@@ -638,8 +638,8 @@
       "test": "Log a tool invocation",
       "passed": true,
       "expected": "Tool invocation logged",
-      "actual": "{\"type\": \"tool_invocation\", \"session_id\": \"20260224_213628_test\", \"tool\": \"test_tool\", \"params\": {\"action\": \"test\", \"target\": \"unit_test\"}, \"result\": {\"status\": \"success\", \"data\": \"test_value\"}, \"dura",
-      "duration_ms": 0.71,
+      "actual": "{\"type\": \"tool_invocation\", \"session_id\": \"20260224_220429_test\", \"tool\": \"test_tool\", \"params\": {\"action\": \"test\", \"target\": \"unit_test\"}, \"result\": {\"status\": \"success\", \"data\": \"test_value\"}, \"dura",
+      "duration_ms": 0.54,
       "details": null,
       "error": null
     },
@@ -648,8 +648,8 @@
       "test": "Log an LLM decision",
       "passed": true,
       "expected": "LLM decision logged",
-      "actual": "{\"type\": \"llm_decision\", \"session_id\": \"20260224_213628_test\", \"agent_id\": \"OVR_DIR_01\", \"decision\": \"Delegate research to OVR_RES_02\", \"reasoning\": \"User query requires web research\", \"context\": {\"qu",
-      "duration_ms": 0.62,
+      "actual": "{\"type\": \"llm_decision\", \"session_id\": \"20260224_220429_test\", \"agent_id\": \"OVR_DIR_01\", \"decision\": \"Delegate research to OVR_RES_02\", \"reasoning\": \"User query requires web research\", \"context\": {\"qu",
+      "duration_ms": 0.82,
       "details": null,
       "error": null
     },
@@ -658,8 +658,8 @@
       "test": "Log an error event",
       "passed": true,
       "expected": "Error logged",
-      "actual": "{\"type\": \"error\", \"session_id\": \"20260224_213628_test\", \"source\": \"test_suite\", \"error\": \"Simulated error for testing\", \"traceback\": \"File test.py, line 1, in <module>\", \"timestamp\": \"2026-02-24T21:36",
-      "duration_ms": 0.8,
+      "actual": "{\"type\": \"error\", \"session_id\": \"20260224_220429_test\", \"source\": \"test_suite\", \"error\": \"Simulated error for testing\", \"traceback\": \"File test.py, line 1, in <module>\", \"timestamp\": \"2026-02-24T22:04",
+      "duration_ms": 0.86,
       "details": null,
       "error": null
     },
@@ -669,7 +669,7 @@
       "passed": true,
       "expected": "Retrieved 4 log entries",
       "actual": "Types: ['tool_invocation', 'tool_invocation', 'llm_decision', 'error']",
-      "duration_ms": 0.34,
+      "duration_ms": 0.26,
       "details": null,
       "error": null
     },
@@ -679,7 +679,7 @@
       "passed": true,
       "expected": "Session summary generated",
       "actual": "entries=4, tool_invocations=2, errors=1",
-      "duration_ms": 0.18,
+      "duration_ms": 0.21,
       "details": null,
       "error": null
     },
@@ -688,8 +688,8 @@
       "test": "Create a new work session",
       "passed": true,
       "expected": "Session created",
-      "actual": "id=20260224_213630, workspace=C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\workspace\\202",
-      "duration_ms": 2.11,
+      "actual": "id=20260224_220430, workspace=C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\workspace\\202",
+      "duration_ms": 2.33,
       "details": null,
       "error": null
     },
@@ -699,7 +699,7 @@
       "passed": true,
       "expected": "Session is active",
       "actual": "description=Overlord11 Test Suite Session",
-      "duration_ms": 0.12,
+      "duration_ms": 0.11,
       "details": null,
       "error": null
     },
@@ -708,8 +708,8 @@
       "test": "Log a file change in session",
       "passed": true,
       "expected": "Change logged",
-      "actual": "{\"status\": \"logged\", \"change\": {\"timestamp\": \"2026-02-24T21:36:30.071179\", \"file\": \"tests/test.py\", \"action\": \"created\", \"summary\": \"Created comprehensive test suite\"}}",
-      "duration_ms": 0.33,
+      "actual": "{\"status\": \"logged\", \"change\": {\"timestamp\": \"2026-02-24T22:04:30.955930\", \"file\": \"tests/test.py\", \"action\": \"created\", \"summary\": \"Created comprehensive test suite\"}}",
+      "duration_ms": 0.34,
       "details": null,
       "error": null
     },
@@ -719,7 +719,7 @@
       "passed": true,
       "expected": "Note added",
       "actual": "{'status': 'noted'}",
-      "duration_ms": 0.36,
+      "duration_ms": 0.35,
       "details": null,
       "error": null
     },
@@ -729,7 +729,7 @@
       "passed": true,
       "expected": "Session closed",
       "actual": "changes=1, notes=1",
-      "duration_ms": 1.54,
+      "duration_ms": 1.31,
       "details": null,
       "error": null
     },
@@ -737,8 +737,8 @@
       "tool": "session_manager",
       "test": "List all sessions",
       "passed": true,
-      "expected": "Listed 14 session(s)",
-      "actual": "['20260224_213630', '20260224_213351', '20260224_213349']",
+      "expected": "Listed 15 session(s)",
+      "actual": "['20260224_220430', '20260224_213630', '20260224_213351']",
       "duration_ms": 0.12,
       "details": null,
       "error": null

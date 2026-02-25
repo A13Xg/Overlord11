@@ -16,7 +16,7 @@ The framework is designed to work with **any LLM provider** — Anthropic Claude
 
 | Property | Value |
 |----------|-------|
-| Framework | Overlord11 v2.0 |
+| Framework | Overlord11 v2.1.0 |
 | Memory file | `Consciousness.md` (shared across all agents) |
 | Config | `config.json` (provider, agent, tool settings) |
 | Tool implementations | `tools/python/` |
@@ -209,8 +209,9 @@ Each log entry should include:
 6. **Cite sources** — every factual claim in Researcher output includes a source URL or file path.
 7. **Test before handoff** — Coder always runs tests and static analysis before flagging work as complete.
 8. **No secrets in code** — Reviewer blocks any output containing hardcoded API keys, passwords, or credentials.
-9. **Stay in scope** — complete the delegated subtask fully; don't expand scope without notifying the Orchestrator.
-10. **Be explicit about uncertainty** — if you don't know something, say so. Don't fabricate data or code.
+9. **Encoding safety is mandatory** — every file opened must use `encoding="utf-8"`, every `json.dumps()` must use `ensure_ascii=False`, and every module that prints must use a `safe_str()` helper. See `agents/coder.md` → **Encoding Safety** for full patterns.
+10. **Stay in scope** — complete the delegated subtask fully; don't expand scope without notifying the Orchestrator.
+11. **Be explicit about uncertainty** — if you don't know something, say so. Don't fabricate data or code.
 
 ---
 

@@ -16,6 +16,8 @@ Overlord11 is a structured multi-agent framework that coordinates **seven specia
 - A **shared memory system** (`Consciousness.md`) for cross-agent, cross-session context
 - **Provider-agnostic design** — no provider-specific code in agent definitions or tool schemas
 - **Three output tiers** — inline text, Markdown documents, or styled self-contained HTML reports
+- **Encoding safety by default** — all agents enforce UTF-8 file I/O, `safe_str()` output guards, and Windows console protection
+- **81-test suite** — covering all 16 modules with encoding, ripgrep/fallback, Unicode, and CI-friendly output modes
 
 ---
 
@@ -78,10 +80,13 @@ Overlord11/
 │   ├── defs/        # Tool JSON schemas (provider-agnostic)
 │   └── python/      # Tool Python implementations
 ├── docs/            # This wiki
-├── tests/           # Test suite
+├── tests/
+│   ├── test.py              # 81-test suite covering all 16 modules
+│   └── test_results.json    # Machine-readable results (auto-generated)
 ├── config.json      # Unified configuration
 ├── Consciousness.md # Shared agent memory
 ├── ONBOARDING.md    # Universal LLM onboarding guide
+├── CHANGELOG.md     # Release history
 └── .env.example     # API key template
 ```
 

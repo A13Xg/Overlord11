@@ -18,7 +18,7 @@ git clone https://github.com/A13Xg/Overlord11.git
 cd Overlord11
 
 # Install required dependencies
-pip install requests beautifulsoup4
+pip install requests beautifulsoup4 ddgs
 
 # Install optional dependencies (for full test coverage)
 pip install pillow selenium
@@ -32,46 +32,122 @@ cp .env.example .env
 
 ## Running Tests
 
-The test suite is in `tests/test.py`. It exercises all 15 tools with real-world scenarios.
+The test suite is in `tests/test.py`. It exercises all 16 modules with real-world scenarios and produces verbose expected-vs-actual output.
 
 ```bash
-# Run all tests
+# Run all tests (includes live web calls)
 python tests/test.py
 
-# Run tests for a specific tool
-python tests/test.py --tool read_file
-python tests/test.py --tool publisher_tool
-
-# Skip tests that require internet access
+# Skip internet-dependent tests (fast, ~1-5s)
 python tests/test.py --skip-web
 
-# Run all tests, verbose output
-python tests/test.py --verbose
+# Single tool
+python tests/test.py --tool calculator
+
+# Multiple tools (comma-separated)
+python tests/test.py --tool calculator,git_tool,web_scraper
+
+# Summary only — ideal for LLM agents or CI pipelines
+python tests/test.py --quiet
+
+# Plain text output — no ANSI codes (also: set NO_COLOR=1)
+python tests/test.py --no-color
+
+# Save JSON results to a custom path
+python tests/test.py --output /path/to/results.json
+
+# List all testable tools and exit
+python tests/test.py --list
+
+# Stop immediately on first failure
+python tests/test.py --fail-fast
+
+# Typical CI invocation
+python tests/test.py --skip-web --quiet --no-color --output ci_results.json
 ```
+
+### All Flags
+
+| Flag | Description |
+|------|-------------|
+| `--skip-web` | Skip internet-dependent tests |
+| `--tool NAME` | Run one tool's tests (e.g. `--tool calculator`) |
+| `--tool A,B,C` | Run multiple tools (comma-separated) |
+| `--quiet` / `-q` | Summary + failures only — LLM/CI friendly |
+| `--no-color` | Disable ANSI colour codes (also: `NO_COLOR=1` env var) |
+| `--output PATH` | Write JSON results to PATH instead of `tests/test_results.json` |
+| `--list` | Print available tool names and exit |
+| `--fail-fast` | Abort on the first test failure |
+
+### Test Matrix
+
+| Mode | Tests | Coverage |
+|------|-------|----------|
+| `--skip-web` | **72** | All local tools, encoding, file I/O, git, shell, analysis |
+| Full (web) | **81** | All of the above + web fetch, DuckDuckGo search, scraper |
 
 ### Test Output Format
 
 ```
-Overlord11 Tool Test Suite
-  Session: 20260225_001608_test
-  Workspace: tests/test_workspace
+  Overlord11 Tool Test Suite
+  Session: 20260224_213345_test
+  Workspace: tests\test_workspace
 
   Running: read_file ... 7/7
   Running: write_file ... 6/6
+  Running: list_directory ... 3/3
+  Running: glob ... 4/4
+  Running: search_file_content ... 7/7
   ...
 
-  OVERLORD11 TOOL TEST SUITE — RESULTS
-  ──────────────────────────────────────
-  [read_file]       7/7 passed
-  [write_file]      6/6 passed
-  [list_directory]  3/3 passed
-  ...
-  Total: 72/75 passed
+  ══════════════════════════════════════════════════════════════════════════════
+    OVERLORD11 TOOL TEST SUITE — RESULTS
+    Session: 20260224_213345_test
+  ══════════════════════════════════════════════════════════════════════════════
+
+    [read_file]             7/7 passed
+    [write_file]            6/6 passed
+    [list_directory]        3/3 passed
+    ...
+
+    SUMMARY:  81/81 tests passed  |  16 tools tested  |  Total time: 4823ms
+  ══════════════════════════════════════════════════════════════════════════════
 ```
+
+### JSON Results (`tests/test_results.json`)
+
+Every run writes a machine-readable JSON file with a full `environment` block so an LLM reading the output can reason about why a test passed or failed:
+
+```json
+{
+  "session_id": "20260224_213345_test",
+  "run_at": "2026-02-24T21:33:45",
+  "total_tests": 81,
+  "passed": 81,
+  "failed": 0,
+  "environment": {
+    "python_version": "3.14.2",
+    "platform": "win32",
+    "ripgrep": true,
+    "packages": {
+      "bs4": true,
+      "requests": true,
+      "ddgs": true,
+      "selenium": true
+    }
+  },
+  "results": [...]
+}
+```
+
+The `environment` block captures:
+- Python version and platform
+- Whether `rg` (ripgrep) is available on PATH — this affects `search_file_content` behavior
+- Whether optional packages are installed — this affects `web_scraper` capabilities
 
 ### Test Workspace
 
-Tests create temporary files in `tests/test_workspace/`. This directory is gitignored. It is automatically created and cleaned up between test runs.
+Tests create temporary files in `tests/test_workspace/`. This directory is gitignored. It is automatically created and deleted between test runs.
 
 ---
 
@@ -117,7 +193,46 @@ The project follows these conventions:
 - **Typing**: Use type hints for function signatures
 - **Error handling**: Catch specific exceptions; return error dicts rather than raising in tool functions
 - **Logging**: Use `log_manager.log_tool_invocation()` in every tool's CLI `main()` function
-- **Encoding**: Always specify `encoding="utf-8"` for file I/O
+
+#### Encoding Safety (required, not optional)
+
+Encoding bugs are invisible until a user hits a non-ASCII character. Follow these rules in every file:
+
+| Rule | Correct | Wrong |
+|------|---------|-------|
+| File reads | `open(p, encoding="utf-8", errors="replace")` | `open(p)` |
+| File writes | `open(p, "w", encoding="utf-8")` | `open(p, "w")` |
+| JSON output | `json.dumps(obj, ensure_ascii=False)` | `json.dumps(obj)` |
+| subprocess output | `.decode("utf-8", errors="replace")` | `.decode()` |
+| Terminal output | route through `safe_str()` | `print(raw_content)` |
+
+Every module that prints or logs must include a `safe_str()` helper:
+
+```python
+def safe_str(val, max_len: int = 200) -> str:
+    """Encoding-safe string conversion. Prevents UnicodeEncodeError on cp1252/cp437 terminals."""
+    if val is None:
+        return "(none)"
+    s = str(val)
+    if len(s) > max_len:
+        s = s[:max_len] + "..."
+    try:
+        s.encode(sys.stdout.encoding or "utf-8")
+        return s
+    except (UnicodeEncodeError, LookupError):
+        return s.encode("ascii", errors="backslashreplace").decode("ascii")
+```
+
+Entry-point scripts must guard stdout/stderr on Windows:
+
+```python
+import io, sys
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+```
+
+See [Agents Reference](Agents-Reference.md) — the Coder agent's **Encoding Safety** section for full patterns and rules.
 
 ### Markdown
 
@@ -194,12 +309,13 @@ Overlord11/
 │   ├── defs/        # JSON Schema tool definitions
 │   └── python/      # Python tool implementations
 ├── docs/            # Wiki documentation
-├── tests/           # Test suite
-│   ├── test.py      # Main test runner
-│   └── test_workspace/  # Ephemeral test artifacts (gitignored)
+├── tests/
+│   ├── test.py              # 81-test suite covering all 16 modules
+│   └── test_results.json    # Machine-readable results (auto-generated)
 ├── config.json      # Unified configuration
 ├── Consciousness.md # Shared agent memory (runtime artifact)
 ├── ONBOARDING.md    # Universal LLM onboarding guide
+├── CHANGELOG.md     # Release history
 ├── .env.example     # API key template
 ├── .env             # Your API keys (gitignored)
 ├── .gitignore

@@ -12,6 +12,7 @@ This guide walks you through installing, configuring, and running Overlord11 for
 | pip | Latest | Required |
 | requests | Any | For `web_fetch`, `web_scraper` |
 | beautifulsoup4 | Any | For HTML parsing in `web_scraper` |
+| ddgs | Any | For DuckDuckGo search in `web_scraper` |
 | Pillow | Any | Optional — for smart image scoring |
 | selenium | 4.x | Optional — for JS-rendered pages |
 
@@ -29,7 +30,8 @@ cd Overlord11
 ## Step 2 — Install Dependencies
 
 ```bash
-pip install requests beautifulsoup4
+# Core dependencies
+pip install requests beautifulsoup4 ddgs
 
 # Optional: for smart image download scoring
 pip install pillow
@@ -91,7 +93,7 @@ To also change the model within a provider, update the `model` field:
 
 ```json
 "anthropic": {
-  "model": "claude-sonnet-4-5"
+  "model": "claude-opus-4-5"
 }
 ```
 
@@ -101,26 +103,53 @@ See [Providers](Providers.md) for a full model list and cost comparison.
 
 ## Step 5 — Verify Your Setup
 
-Run the test suite to make sure all tools are working:
+Run the test suite to confirm all tools are working:
 
 ```bash
+# Full suite (requires internet for web tests)
 python tests/test.py
+
+# Skip internet-dependent tests (fast, offline-safe)
+python tests/test.py --skip-web
+
+# Summary output only — ideal for a quick pass/fail check
+python tests/test.py --skip-web --quiet
 ```
 
-Expected output (all green):
+Expected output when all 81 tests pass:
 
 ```
-Overlord11 Tool Test Suite
-  Session: 20260225_001608_test
+  Overlord11 Tool Test Suite
+  Session: 20260224_213345_test
+  Workspace: tests\test_workspace
+
+  Running: read_file ... 7/7
+  Running: write_file ... 6/6
+  Running: list_directory ... 3/3
+  Running: glob ... 4/4
+  Running: search_file_content ... 7/7
   ...
-  [read_file]       7/7 passed
-  [write_file]      6/6 passed
-  [list_directory]  3/3 passed
-  ...
-  Total: 72/75 passed  (web tests may fail without internet)
+
+  SUMMARY:  81/81 tests passed  |  16 tools tested  |  Total time: 4823ms
 ```
 
-> Skip web tests if you are offline: `python tests/test.py --skip-web`
+| Mode | Tests | Use When |
+|------|-------|----------|
+| Full suite | **81** | Final verification, CI pipelines with internet |
+| `--skip-web` | **72** | Offline development, fast local checks |
+
+### Test CLI Flags
+
+| Flag | Description |
+|------|-------------|
+| `--skip-web` | Skip internet-dependent tests |
+| `--tool NAME` | Run tests for one tool only (e.g. `--tool calculator`) |
+| `--tool A,B,C` | Run tests for multiple tools (comma-separated) |
+| `--quiet` / `-q` | Summary and failures only — LLM/CI friendly |
+| `--no-color` | Disable ANSI colour codes (also: `NO_COLOR=1`) |
+| `--output PATH` | Write JSON results to a custom file path |
+| `--list` | Print all testable tool names and exit |
+| `--fail-fast` | Stop immediately on the first failure |
 
 ---
 
@@ -131,7 +160,7 @@ Each file in `agents/` is a complete system prompt. Load it in your LLM client:
 ```python
 import anthropic
 
-with open("agents/orchestrator.md") as f:
+with open("agents/orchestrator.md", encoding="utf-8") as f:
     system_prompt = f.read()
 
 client = anthropic.Anthropic()
@@ -187,6 +216,12 @@ python tools/python/publisher_tool.py --title "My First Report" --content README
 python tools/python/web_fetch.py --url https://docs.python.org/3/
 ```
 
+### DuckDuckGo web search
+
+```bash
+python tools/python/web_scraper.py --action search --query "Python async patterns" --max_results 5
+```
+
 ---
 
 ## Workspace and Logs
@@ -194,6 +229,18 @@ python tools/python/web_fetch.py --url https://docs.python.org/3/
 - **Workspace**: session files are created under `workspace/` (auto-created, excluded from git)
 - **Logs**: structured JSONL logs are written to `logs/` (auto-created, excluded from git)
 - **Memory**: agents read/write `Consciousness.md` in the project root
+- **Test results**: `tests/test_results.json` is written after every test run with a full environment block (Python version, platform, ripgrep availability, package status)
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ANTHROPIC_API_KEY` | If using Anthropic | API key from console.anthropic.com |
+| `GOOGLE_GEMINI_API_KEY` | If using Gemini | API key from aistudio.google.com |
+| `OPENAI_API_KEY` | If using OpenAI | API key from platform.openai.com |
+| `NO_COLOR` | No | Set to `1` to disable ANSI colour in the test suite |
 
 ---
 
@@ -203,3 +250,4 @@ python tools/python/web_fetch.py --url https://docs.python.org/3/
 - [Agents Reference](Agents-Reference.md) — deep dive into each agent
 - [Tools Reference](Tools-Reference.md) — complete tool parameter reference
 - [Providers](Providers.md) — model selection and provider switching
+- [Development](Development.md) — contributing, testing, and dev setup
