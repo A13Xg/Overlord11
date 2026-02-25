@@ -5,9 +5,18 @@ Exercises all 15 tools with practical, real-world scenarios.
 Produces verbose output with EXPECTED vs ACTUAL results.
 
 Usage:
-    python tests/test.py              (run all tests)
-    python tests/test.py --tool X     (run tests for a specific tool)
-    python tests/test.py --skip-web   (skip tests that require internet)
+    python tests/test.py                          run all tests
+    python tests/test.py --tool X                 tests for one tool
+    python tests/test.py --tool X,Y,Z             tests for multiple tools
+    python tests/test.py --skip-web               skip internet-dependent tests
+    python tests/test.py --quiet  / -q            summary only (LLM-friendly)
+    python tests/test.py --no-color               plain text, no ANSI codes
+    python tests/test.py --output /path/out.json  custom JSON results path
+    python tests/test.py --list                   enumerate available tools
+    python tests/test.py --fail-fast              stop at first failure
+
+Environment:
+    NO_COLOR=1   equivalent to --no-color
 
 Requires: Python 3.8+, all tool implementations in tools/python/
 """
@@ -113,7 +122,9 @@ class TestResult:
 
 # Global collectors
 results: list[TestResult] = []
-SKIP_WEB = False
+SKIP_WEB  = False
+QUIET     = False   # --quiet: suppress per-test detail, show only summary + failures
+FAIL_FAST = False   # --fail-fast: abort on first failed test
 
 
 def run_test(tool_name: str, test_name: str, func):
@@ -131,6 +142,15 @@ def run_test(tool_name: str, test_name: str, func):
         )
     r.duration_ms = (time.perf_counter() - start) * 1000
     results.append(r)
+    if FAIL_FAST and not r.passed:
+        # Print a minimal header so the user knows what failed before aborting
+        c = Colors
+        print(f"\n  {c.FAIL}FAIL-FAST triggered — aborting after first failure:{c.RESET}")
+        print(f"    [{r.tool}] {r.name}")
+        if r.error:
+            for line in r.error.strip().split("\n")[-3:]:
+                print(f"    {c.FAIL}{safe_str(line, 120)}{c.RESET}")
+        sys.exit(1)
 
 
 # ---------------------------------------------------------------------------
@@ -1526,7 +1546,11 @@ def test_session_manager():
 # =========================================================================
 
 def print_report():
-    """Print verbose test results with expected vs actual."""
+    """Print verbose test results with expected vs actual.
+
+    In --quiet mode only the per-tool pass/fail summary and any failing tests
+    are shown, making the output easy for an LLM agent to parse.
+    """
     c = Colors
     total = len(results)
     passed = sum(1 for r in results if r.passed)
@@ -1554,30 +1578,44 @@ def print_report():
 
         print(f"{c.BOLD}{c.INFO}  [{tool_name}]{c.RESET}  "
               f"{status_color}{tool_passed}/{tool_total} passed{c.RESET}")
-        print(f"  {'-' * 70}")
 
-        for r in tool_results:
-            icon = f"{c.PASS}PASS{c.RESET}" if r.passed else f"{c.FAIL}FAIL{c.RESET}"
-            print(f"    {icon}  {safe_str(r.name, 60)}  {c.DIM}({r.duration_ms:.1f}ms){c.RESET}")
+        if QUIET:
+            # In quiet mode: only expand tool section if it has failures
+            failing = [r for r in tool_results if not r.passed]
+            if failing:
+                print(f"  {'-' * 70}")
+                for r in failing:
+                    print(f"    {c.FAIL}FAIL{c.RESET}  {safe_str(r.name, 60)}  {c.DIM}({r.duration_ms:.1f}ms){c.RESET}")
+                    print(f"           {c.DIM}Expected:{c.RESET} {safe_str(r.expected, 100)}")
+                    print(f"           {c.DIM}Actual:  {c.RESET} {c.FAIL}{safe_str(r.actual, 100)}{c.RESET}")
+                    if r.error:
+                        for line in r.error.strip().split("\n")[-3:]:
+                            print(f"           {c.FAIL}{safe_str(line, 100)}{c.RESET}")
+                    print()
+        else:
+            print(f"  {'-' * 70}")
+            for r in tool_results:
+                icon = f"{c.PASS}PASS{c.RESET}" if r.passed else f"{c.FAIL}FAIL{c.RESET}"
+                print(f"    {icon}  {safe_str(r.name, 60)}  {c.DIM}({r.duration_ms:.1f}ms){c.RESET}")
 
-            # Expected
-            exp_str = safe_str(r.expected, 100)
-            print(f"           {c.DIM}Expected:{c.RESET} {exp_str}")
+                # Expected
+                exp_str = safe_str(r.expected, 100)
+                print(f"           {c.DIM}Expected:{c.RESET} {exp_str}")
 
-            # Actual
-            act_str = safe_str(r.actual, 100)
-            act_color = c.PASS if r.passed else c.FAIL
-            print(f"           {c.DIM}Actual:  {c.RESET} {act_color}{act_str}{c.RESET}")
+                # Actual
+                act_str = safe_str(r.actual, 100)
+                act_color = c.PASS if r.passed else c.FAIL
+                print(f"           {c.DIM}Actual:  {c.RESET} {act_color}{act_str}{c.RESET}")
 
-            # Details / Error
-            if r.details:
-                print(f"           {c.DIM}Details: {safe_str(r.details, 100)}{c.RESET}")
-            if r.error and not r.passed:
-                # Show first 3 lines of traceback
-                err_lines = r.error.strip().split("\n")[-3:]
-                for line in err_lines:
-                    print(f"           {c.FAIL}{safe_str(line, 100)}{c.RESET}")
-            print()
+                # Details / Error
+                if r.details:
+                    print(f"           {c.DIM}Details: {safe_str(r.details, 100)}{c.RESET}")
+                if r.error and not r.passed:
+                    # Show first 3 lines of traceback
+                    err_lines = r.error.strip().split("\n")[-3:]
+                    for line in err_lines:
+                        print(f"           {c.FAIL}{safe_str(line, 100)}{c.RESET}")
+                print()
 
     # Summary
     print(f"{c.BOLD}{'=' * 78}{c.RESET}")
@@ -1597,29 +1635,75 @@ def print_report():
     return failed
 
 
-def save_results_json():
-    """Save machine-readable test results as UTF-8 JSON."""
+def save_results_json(output_path: str = None):
+    """Save machine-readable test results as UTF-8 JSON.
+
+    The JSON includes an ``environment`` block so an LLM agent can understand
+    the system state that produced these results.
+
+    Args:
+        output_path: Override the default path (tests/test_results.json).
+    """
+    import platform as _platform
+    import subprocess as _subprocess
+
+    # Detect ripgrep availability (quick probe)
+    try:
+        _subprocess.run(["rg", "--version"], capture_output=True, check=True, timeout=3)
+        rg_available = True
+    except Exception:
+        rg_available = False
+
+    # Detect optional Python package availability
+    def _pkg(name):
+        try:
+            __import__(name)
+            return True
+        except ImportError:
+            return False
+
+    env_block = {
+        "python_version": sys.version.split()[0],
+        "python_full":    sys.version,
+        "platform":       sys.platform,
+        "os_name":        os.name,
+        "machine":        _platform.machine(),
+        "tools_dir":      str(TOOLS_DIR),
+        "skip_web":       SKIP_WEB,
+        "ripgrep":        rg_available,
+        "packages": {
+            "bs4":              _pkg("bs4"),
+            "requests":         _pkg("requests"),
+            "PIL":              _pkg("PIL"),
+            "selenium":         _pkg("selenium"),
+            "ddgs":             _pkg("ddgs"),
+            "duckduckgo_search": _pkg("duckduckgo_search"),
+        },
+    }
+
     output = {
-        "session_id": SESSION_ID,
-        "run_at": datetime.now().isoformat(),
-        "total_tests": len(results),
-        "passed": sum(1 for r in results if r.passed),
-        "failed": sum(1 for r in results if not r.passed),
-        "results": []
+        "session_id":   SESSION_ID,
+        "run_at":       datetime.now().isoformat(),
+        "total_tests":  len(results),
+        "passed":       sum(1 for r in results if r.passed),
+        "failed":       sum(1 for r in results if not r.passed),
+        "environment":  env_block,
+        "results": [],
     }
     for r in results:
         output["results"].append({
-            "tool": r.tool,
-            "test": r.name,
-            "passed": r.passed,
-            "expected": safe_str(r.expected, 300),
-            "actual": safe_str(r.actual, 300),
+            "tool":        r.tool,
+            "test":        r.name,
+            "passed":      r.passed,
+            "expected":    safe_str(r.expected, 300),
+            "actual":      safe_str(r.actual, 300),
             "duration_ms": round(r.duration_ms, 2),
-            "details": safe_str(r.details, 200) if r.details else None,
-            "error": safe_str(r.error, 500) if r.error else None,
+            "details":     safe_str(r.details, 200) if r.details else None,
+            "error":       safe_str(r.error, 500) if r.error else None,
         })
 
-    json_path = SCRIPT_DIR / "test_results.json"
+    json_path = Path(output_path) if output_path else SCRIPT_DIR / "test_results.json"
+    json_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(json.dumps(output, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
     print(f"  Results saved to: {json_path}")
 
@@ -1629,16 +1713,48 @@ def save_results_json():
 # =========================================================================
 
 def main():
-    global SKIP_WEB
+    global SKIP_WEB, QUIET, FAIL_FAST
     import argparse
-    parser = argparse.ArgumentParser(description="Overlord11 Tool Test Suite")
+    parser = argparse.ArgumentParser(
+        description="Overlord11 Tool Test Suite",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=textwrap.dedent("""\
+            Examples:
+              python tests/test.py                          # run all tests
+              python tests/test.py --skip-web               # skip internet tests
+              python tests/test.py --tool calculator        # single tool
+              python tests/test.py --tool calc,git_tool     # comma-separated tools
+              python tests/test.py --quiet                  # summary only
+              python tests/test.py --no-color               # plain text (LLM-friendly)
+              python tests/test.py --output /tmp/res.json   # custom JSON path
+              python tests/test.py --list                   # show available tools
+              python tests/test.py --fail-fast              # stop at first failure
+        """),
+    )
     parser.add_argument("--tool", default=None,
-                        help="Run tests for a specific tool only")
+                        help="Run tests for one or more tools (comma-separated)")
     parser.add_argument("--skip-web", action="store_true",
                         help="Skip tests requiring internet access")
+    parser.add_argument("--quiet", "-q", action="store_true",
+                        help="Suppress per-test detail; show only per-tool summary and failures")
+    parser.add_argument("--no-color", action="store_true",
+                        help="Disable ANSI colour codes (also honoured via NO_COLOR env var)")
+    parser.add_argument("--output", default=None, metavar="PATH",
+                        help="Write JSON results to PATH instead of tests/test_results.json")
+    parser.add_argument("--list", action="store_true",
+                        help="List available tool names and exit")
+    parser.add_argument("--fail-fast", action="store_true",
+                        help="Abort on the first test failure")
     args = parser.parse_args()
 
-    SKIP_WEB = args.skip_web
+    SKIP_WEB  = args.skip_web
+    QUIET     = args.quiet
+    FAIL_FAST = args.fail_fast
+
+    # Disable colours when requested or when stdout is not a TTY (e.g. piped to LLM)
+    if args.no_color or os.environ.get("NO_COLOR") or not sys.stdout.isatty():
+        for attr in ("PASS", "FAIL", "WARN", "INFO", "BOLD", "DIM", "RESET"):
+            setattr(Colors, attr, "")
 
     # All test functions mapped by tool name
     all_tests = {
@@ -1660,38 +1776,58 @@ def main():
         "session_manager":      test_session_manager,
     }
 
+    # --list: enumerate tools and exit
+    if args.list:
+        print("\n  Available tools:")
+        for name in all_tests:
+            print(f"    {name}")
+        print(f"\n  {len(all_tests)} tools total")
+        print()
+        sys.exit(0)
+
     # Prepare workspace
     if TEST_WORKSPACE.exists():
         shutil.rmtree(TEST_WORKSPACE, ignore_errors=True)
     TEST_WORKSPACE.mkdir(parents=True, exist_ok=True)
 
-    print(f"\n  Overlord11 Tool Test Suite")
-    print(f"  Session: {SESSION_ID}")
+    # Startup banner
+    c = Colors
+    print(f"\n  {c.BOLD}Overlord11 Tool Test Suite{c.RESET}")
+    print(f"  Session:   {SESSION_ID}")
     print(f"  Workspace: {TEST_WORKSPACE}")
-    if SKIP_WEB:
-        print(f"  [--skip-web] Web-dependent tests will be skipped")
+    flags = []
+    if SKIP_WEB:   flags.append("--skip-web")
+    if QUIET:      flags.append("--quiet")
+    if FAIL_FAST:  flags.append("--fail-fast")
+    if args.no_color or os.environ.get("NO_COLOR"): flags.append("--no-color")
+    if flags:
+        print(f"  Flags:     {' '.join(flags)}")
     print()
 
-    # Run selected or all tests
+    # Resolve which tools to run (supports comma-separated)
     if args.tool:
-        if args.tool in all_tests:
-            print(f"  Running tests for: {args.tool}")
-            all_tests[args.tool]()
-        else:
-            print(f"  Unknown tool: {args.tool}")
+        requested = [t.strip() for t in args.tool.split(",") if t.strip()]
+        unknown = [t for t in requested if t not in all_tests]
+        if unknown:
+            print(f"  Unknown tool(s): {', '.join(unknown)}")
             print(f"  Available: {', '.join(sorted(all_tests.keys()))}")
             sys.exit(1)
+        tests_to_run = {t: all_tests[t] for t in requested}
     else:
-        for name, test_fn in all_tests.items():
-            print(f"  Running: {name} ...", end="", flush=True)
-            test_fn()
-            tool_results = [r for r in results if r.tool == name]
-            tool_passed = sum(1 for r in tool_results if r.passed)
-            print(f" {tool_passed}/{len(tool_results)}")
+        tests_to_run = all_tests
 
-    # Print results
+    # Run tests
+    for name, test_fn in tests_to_run.items():
+        print(f"  Running: {name} ...", end="", flush=True)
+        prev_count = len(results)
+        test_fn()
+        tool_results = results[prev_count:]
+        tool_passed = sum(1 for r in tool_results if r.passed)
+        print(f" {tool_passed}/{len(tool_results)}")
+
+    # Results
     failed = print_report()
-    save_results_json()
+    save_results_json(args.output)
 
     # Cleanup
     print(f"  Cleaning up test workspace...")

@@ -1,9 +1,27 @@
 {
-  "session_id": "20260225_002829_test",
-  "run_at": "2026-02-25T00:28:29.688628",
+  "session_id": "20260224_213628_test",
+  "run_at": "2026-02-24T21:36:30.370485",
   "total_tests": 72,
-  "passed": 70,
-  "failed": 2,
+  "passed": 72,
+  "failed": 0,
+  "environment": {
+    "python_version": "3.14.2",
+    "python_full": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+    "platform": "win32",
+    "os_name": "nt",
+    "machine": "AMD64",
+    "tools_dir": "C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tools\\python",
+    "skip_web": true,
+    "ripgrep": true,
+    "packages": {
+      "bs4": true,
+      "requests": true,
+      "PIL": true,
+      "selenium": true,
+      "ddgs": true,
+      "duckduckgo_search": true
+    }
+  },
   "results": [
     {
       "tool": "read_file",
@@ -11,7 +29,7 @@
       "passed": true,
       "expected": "File content matches",
       "actual": "Line 1\nLine 2\nLine 3\n",
-      "duration_ms": 0.15,
+      "duration_ms": 0.67,
       "details": "Full file read correctly",
       "error": null
     },
@@ -21,7 +39,7 @@
       "passed": true,
       "expected": "Lines B and C present",
       "actual": "B\nC\n\n(Content truncated. Showing lines 1-2 of 5. Use offset and limit to paginate.)",
-      "duration_ms": 0.12,
+      "duration_ms": 0.53,
       "details": "Pagination works",
       "error": null
     },
@@ -30,8 +48,8 @@
       "test": "Handle missing file gracefully",
       "passed": true,
       "expected": "Error message returned",
-      "actual": "Error: File not found at /home/runner/work/Overlord11/Overlord11/tests/test_work",
-      "duration_ms": 0.04,
+      "actual": "Error: File not found at C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\te",
+      "duration_ms": 0.15,
       "details": "Missing file handled gracefully",
       "error": null
     },
@@ -41,7 +59,7 @@
       "passed": true,
       "expected": "Unicode preserved",
       "actual": "Contains e-acute and em-dash",
-      "duration_ms": 0.1,
+      "duration_ms": 0.44,
       "details": "UTF-8 special characters intact",
       "error": null
     },
@@ -51,7 +69,7 @@
       "passed": true,
       "expected": "CJK preserved",
       "actual": "Contains Chinese and Japanese chars",
-      "duration_ms": 0.11,
+      "duration_ms": 0.62,
       "details": null,
       "error": null
     },
@@ -61,7 +79,7 @@
       "passed": true,
       "expected": "Emoji file readable",
       "actual": "Contains check mark and text",
-      "duration_ms": 0.11,
+      "duration_ms": 0.75,
       "details": null,
       "error": null
     },
@@ -71,7 +89,7 @@
       "passed": true,
       "expected": "Empty string returned",
       "actual": "''",
-      "duration_ms": 0.09,
+      "duration_ms": 0.55,
       "details": null,
       "error": null
     },
@@ -81,8 +99,8 @@
       "passed": true,
       "expected": "File created with correct content",
       "actual": "Hello, Overlord11!",
-      "duration_ms": 0.2,
-      "details": "write_file returned: Successfully wrote to file: /home/runner/work/Overlord11/Overlord11/tests/test_workspace/write/new_file.txt",
+      "duration_ms": 1.03,
+      "details": "write_file returned: Successfully wrote to file: C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\test_workspace\\write\\new_file.txt",
       "error": null
     },
     {
@@ -91,7 +109,7 @@
       "passed": true,
       "expected": "Both lines present",
       "actual": "First line.\nSecond line.",
-      "duration_ms": 0.17,
+      "duration_ms": 1.26,
       "details": "Append mode works",
       "error": null
     },
@@ -100,8 +118,8 @@
       "test": "Auto-create nested directories",
       "passed": true,
       "expected": "File created in nested dirs",
-      "actual": "Successfully wrote to file: /home/runner/work/Overlord11/Overlord11/tests/test_workspace/write/deep/nested/dir/file.txt",
-      "duration_ms": 0.25,
+      "actual": "Successfully wrote to file: C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\test_workspace\\write\\deep\\nested\\dir\\file.txt",
+      "duration_ms": 1.8,
       "details": "Auto-mkdir works",
       "error": null
     },
@@ -111,7 +129,7 @@
       "passed": true,
       "expected": "Rejects invalid mode",
       "actual": "Error: mode must be 'overwrite' or 'append', got 'invalid_mode'",
-      "duration_ms": 0.03,
+      "duration_ms": 0.35,
       "details": "Validation works",
       "error": null
     },
@@ -121,7 +139,7 @@
       "passed": true,
       "expected": "Unicode roundtrip OK",
       "actual": "Written and read back match",
-      "duration_ms": 0.12,
+      "duration_ms": 0.72,
       "details": null,
       "error": null
     },
@@ -131,7 +149,7 @@
       "passed": true,
       "expected": "CJK write roundtrip OK",
       "actual": "Chinese/Japanese/Korean preserved",
-      "duration_ms": 0.12,
+      "duration_ms": 1.18,
       "details": null,
       "error": null
     },
@@ -140,8 +158,8 @@
       "test": "List directory contents",
       "passed": true,
       "expected": "Lists files and directories",
-      "actual": "Directory listing for /home/runner/work/Overlord11/Overlord11/tests/test_workspace/listdir:\n      beta.py\n      alpha.txt\n[DIR] subdir",
-      "duration_ms": 0.05,
+      "actual": "Directory listing for C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\test_workspace\\listdir:\n      alpha.txt\n      beta.py\n[DIR] subdir",
+      "duration_ms": 0.23,
       "details": "Contains expected entries",
       "error": null
     },
@@ -150,8 +168,8 @@
       "test": "Handle non-existent directory",
       "passed": true,
       "expected": "Error for missing dir",
-      "actual": "Error: Directory not found at /home/runner/work/Overlord11/Overlord11/tests/test",
-      "duration_ms": 0.02,
+      "actual": "Error: Directory not found at C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tes",
+      "duration_ms": 0.03,
       "details": "Handled gracefully",
       "error": null
     },
@@ -160,8 +178,8 @@
       "test": "Distinguish files from directories",
       "passed": true,
       "expected": "[DIR] marker present for subdirs",
-      "actual": "Directory listing for /home/runner/work/Overlord11/Overlord11/tests/test_workspace/listdir:\n      beta.py\n      alpha.txt\n[DIR] subdir",
-      "duration_ms": 0.04,
+      "actual": "Directory listing for C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\test_workspace\\listdir:\n      alpha.txt\n      beta.py\n[DIR] subdir",
+      "duration_ms": 0.11,
       "details": null,
       "error": null
     },
@@ -170,8 +188,8 @@
       "test": "Find all *.py files recursively",
       "passed": true,
       "expected": ">=3 .py files found",
-      "actual": "Found 3: ['utils.py', 'app.py', 'deep.py']",
-      "duration_ms": 0.25,
+      "actual": "Found 3: ['deep.py', 'utils.py', 'app.py']",
+      "duration_ms": 0.83,
       "details": null,
       "error": null
     },
@@ -181,7 +199,7 @@
       "passed": true,
       "expected": "Found .md file(s)",
       "actual": "['readme.md']",
-      "duration_ms": 0.13,
+      "duration_ms": 0.17,
       "details": null,
       "error": null
     },
@@ -201,7 +219,7 @@
       "passed": true,
       "expected": "glob_tool.py has glob() function and calls glob.glob()",
       "actual": "Source validated",
-      "duration_ms": 0.03,
+      "duration_ms": 0.11,
       "details": "Note: function shadows stdlib import (known issue)",
       "error": null
     },
@@ -209,9 +227,9 @@
       "tool": "search_file_content",
       "test": "Search for function name",
       "passed": true,
-      "expected": "Found hello_world (1 match(es), engine=python-fallback)",
-      "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"/home/runner/work/Overlord11/Overlord11/tests/test_workspace/search/main.py\"}, \"lines\": {\"text\": \"def hello_world():\\n\"}, \"line_number\": 1, \"submatches\": [",
-      "duration_ms": 0.35,
+      "expected": "Found hello_world (1 match(es), engine=ripgrep)",
+      "actual": "{\"type\":\"begin\",\"data\":{\"path\":{\"text\":\"C:\\\\Users\\\\SnowBlind\\\\Documents\\\\GitHub\\\\Overlord11\\\\tests\\\\test_workspace\\\\search\\\\main.py\"}}}\n{\"type\":\"match\",\"data\":{\"path\":{\"text\":\"C:\\\\Users\\\\SnowBlind\\\\Do",
+      "duration_ms": 54.48,
       "details": null,
       "error": null
     },
@@ -220,8 +238,8 @@
       "test": "Search with file type filter (*.txt only)",
       "passed": true,
       "expected": "Found TODO in notes.txt=True, not in main.py=True",
-      "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"/home/runner/work/Overlord11/Overlord11/tests/test_workspace/search/notes.txt\"}, \"lines\": {\"text\": \"TODO: fix the login bug\\n\"}, \"line_number\": 1, \"submatc",
-      "duration_ms": 0.29,
+      "actual": "{\"type\":\"begin\",\"data\":{\"path\":{\"text\":\"C:\\\\Users\\\\SnowBlind\\\\Documents\\\\GitHub\\\\Overlord11\\\\tests\\\\test_workspace\\\\search\\\\notes.txt\"}}}\n{\"type\":\"match\",\"data\":{\"path\":{\"text\":\"C:\\\\Users\\\\SnowBlind\\\\",
+      "duration_ms": 54.3,
       "details": null,
       "error": null
     },
@@ -230,8 +248,8 @@
       "test": "No false positives for non-existent pattern",
       "passed": true,
       "expected": "Zero matches returned",
-      "actual": "has_summary=True, length=86",
-      "duration_ms": 0.28,
+      "actual": "has_summary=True, length=257",
+      "duration_ms": 53.06,
       "details": "No false positives",
       "error": null
     },
@@ -240,8 +258,8 @@
       "test": "Case-insensitive search",
       "passed": true,
       "expected": "Case-insensitive match found",
-      "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"/home/runner/work/Overlord11/Overlord11/tests/test_workspace/search/notes.txt\"}, \"lines\": {\"text\": \"FIXME: memory leak in parser\\n\"}, \"line_number\": 2, \"su",
-      "duration_ms": 0.22,
+      "actual": "{\"type\":\"begin\",\"data\":{\"path\":{\"text\":\"C:\\\\Users\\\\SnowBlind\\\\Documents\\\\GitHub\\\\Overlord11\\\\tests\\\\test_workspace\\\\search\\\\notes.txt\"}}}\n{\"type\":\"match\",\"data\":{\"path\":{\"text\":\"C:\\\\Users\\\\SnowBlind\\\\",
+      "duration_ms": 54.3,
       "details": null,
       "error": null
     },
@@ -251,7 +269,7 @@
       "passed": true,
       "expected": "Case-sensitive correctly excludes 'FIXME'",
       "actual": "no matches for lowercase 'fixme'",
-      "duration_ms": 0.22,
+      "duration_ms": 54.86,
       "details": null,
       "error": null
     },
@@ -260,8 +278,8 @@
       "test": "Search project source code for function def",
       "passed": true,
       "expected": "Found function def in project tools",
-      "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"/home/runner/work/Overlord11/Overlord11/tools/python/search_file_content.py\"}, \"lines\": {\"text\": \"def search_file_content(\\n\"}, \"line_number\": 153, \"submat",
-      "duration_ms": 3.01,
+      "actual": "{\"type\":\"begin\",\"data\":{\"path\":{\"text\":\"C:\\\\Users\\\\SnowBlind\\\\Documents\\\\GitHub\\\\Overlord11\\\\tools\\\\python\\\\search_file_content.py\"}}}\n{\"type\":\"match\",\"data\":{\"path\":{\"text\":\"C:\\\\Users\\\\SnowBlind\\\\Doc",
+      "duration_ms": 56.22,
       "details": null,
       "error": null
     },
@@ -269,8 +287,8 @@
       "tool": "search_file_content",
       "test": "Report active search engine",
       "passed": true,
-      "expected": "Search engine: python-fallback",
-      "actual": "rg_bin=not found",
+      "expected": "Search engine: ripgrep",
+      "actual": "rg_bin=rg",
       "duration_ms": 0.0,
       "details": "Both engines produce compatible JSON output",
       "error": null
@@ -278,30 +296,30 @@
     {
       "tool": "run_shell_command",
       "test": "Execute echo and capture stdout",
-      "passed": false,
-      "expected": "Overlord11 Test in stdout",
-      "actual": "(empty)",
-      "duration_ms": 0.33,
+      "passed": true,
+      "expected": "Echo captured in stdout",
+      "actual": "Overlord11 Test",
+      "duration_ms": 174.72,
       "details": null,
-      "error": "(empty)"
+      "error": null
     },
     {
       "tool": "run_shell_command",
       "test": "Run inline Python expression",
-      "passed": false,
-      "expected": "4 in stdout",
-      "actual": "(empty)",
-      "duration_ms": 0.31,
+      "passed": true,
+      "expected": "Python expression evaluated",
+      "actual": "4",
+      "duration_ms": 155.06,
       "details": null,
-      "error": "(empty)"
+      "error": null
     },
     {
       "tool": "run_shell_command",
       "test": "Respect working directory parameter",
       "passed": true,
       "expected": "Correct working directory",
-      "actual": "(empty)",
-      "duration_ms": 0.33,
+      "actual": "Path                                                               \n----        ",
+      "duration_ms": 160.65,
       "details": null,
       "error": null
     },
@@ -310,8 +328,8 @@
       "test": "Handle non-existent working directory",
       "passed": true,
       "expected": "Error for bad directory",
-      "actual": "Error: Directory not found: /home/runner/work/Overlord11/Overlord11/tests/test_w",
-      "duration_ms": 0.04,
+      "actual": "Error: Directory not found: C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests",
+      "duration_ms": 0.07,
       "details": null,
       "error": null
     },
@@ -320,8 +338,8 @@
       "test": "Git status in project repo",
       "passed": true,
       "expected": "Git status output",
-      "actual": "On branch copilot/improve-readme-and-wiki\nYour branch is up to date with 'origin/copilot/improve-readme-and-wiki'.\n\nnoth",
-      "duration_ms": 3.14,
+      "actual": "On branch main\nYour branch is up to date with 'origin/main'.\n\nChanges not staged for commit:\n  (use \"git add <file>...\"",
+      "duration_ms": 37.28,
       "details": null,
       "error": null
     },
@@ -330,8 +348,8 @@
       "test": "Git log (last 3 commits)",
       "passed": true,
       "expected": "Git log output",
-      "actual": "6d97003 feat: overhaul README, add 12-page Wiki docs, fix all AgenticToolset branding, pre-commit improvements\n44da2fe chore: initial plan — README overhaul, Wiki creation, code fixes\n093508f Initial",
-      "duration_ms": 2.5,
+      "actual": "7dfe508 Update test.py\n72c6e9c Merge pull request #3 from A13Xg/copilot/improve-readme-and-wiki\n8f2ba42 Overhaul README, add comprehensive Wiki, and fix accumulated code issues",
+      "duration_ms": 33.93,
       "details": null,
       "error": null
     },
@@ -341,7 +359,7 @@
       "passed": true,
       "expected": "Error for invalid command",
       "actual": "Error executing git command: Command 'git totally-invalid-command-12345' returned non-zero exit status 1.\nStdout: \nStder",
-      "duration_ms": 5.26,
+      "duration_ms": 41.94,
       "details": null,
       "error": null
     },
@@ -361,7 +379,7 @@
       "passed": true,
       "expected": "sqrt(144) = 12.0",
       "actual": "12.0",
-      "duration_ms": 0.01,
+      "duration_ms": 0.0,
       "details": null,
       "error": null
     },
@@ -371,7 +389,7 @@
       "passed": true,
       "expected": "2^10 = 1024",
       "actual": "1024.0",
-      "duration_ms": 0.01,
+      "duration_ms": 0.0,
       "details": null,
       "error": null
     },
@@ -450,8 +468,8 @@
       "test": "Save a memory entry to file",
       "passed": true,
       "expected": "Memory saved",
-      "actual": "[2026-02-25 00:28:29] Overlord11 test completed successfully",
-      "duration_ms": 0.19,
+      "actual": "[2026-02-24 21:36:29] Overlord11 test completed successfully",
+      "duration_ms": 1.16,
       "details": null,
       "error": null
     },
@@ -460,8 +478,8 @@
       "test": "Memory entries include timestamp",
       "passed": true,
       "expected": "Timestamp present",
-      "actual": "Contains 2026-02-25",
-      "duration_ms": 0.13,
+      "actual": "Contains 2026-02-24",
+      "duration_ms": 0.53,
       "details": null,
       "error": null
     },
@@ -471,7 +489,7 @@
       "passed": true,
       "expected": "1 file analyzed",
       "actual": "lines=38, code=29, comments=4, functions=4",
-      "duration_ms": 1.53,
+      "duration_ms": 1.41,
       "details": "Language: python",
       "error": null
     },
@@ -481,7 +499,7 @@
       "passed": true,
       "expected": "Found 4/4 functions",
       "actual": "['simple_function', 'complex_function', '__init__', 'process']",
-      "duration_ms": 0.5,
+      "duration_ms": 0.65,
       "details": null,
       "error": null
     },
@@ -491,7 +509,7 @@
       "passed": true,
       "expected": "Found 2 smell(s)",
       "actual": "Types: ['marker_comment']",
-      "duration_ms": 0.27,
+      "duration_ms": 0.56,
       "details": "Has TODO/FIXME markers: True",
       "error": null
     },
@@ -501,7 +519,7 @@
       "passed": true,
       "expected": "Cyclomatic complexity calculated",
       "actual": "total=12, max_nesting=10",
-      "duration_ms": 0.67,
+      "duration_ms": 0.77,
       "details": null,
       "error": null
     },
@@ -511,7 +529,7 @@
       "passed": true,
       "expected": "Found 3 imports",
       "actual": "stdlib=3: ['import os', 'import json', 'from pathlib import Path']",
-      "duration_ms": 0.17,
+      "duration_ms": 0.59,
       "details": null,
       "error": null
     },
@@ -521,7 +539,7 @@
       "passed": true,
       "expected": "Analyzed 1 file(s)",
       "actual": "total_lines=38, functions=4, smells=2",
-      "duration_ms": 1.23,
+      "duration_ms": 1.77,
       "details": null,
       "error": null
     },
@@ -530,8 +548,8 @@
       "test": "Scan Overlord11 project structure",
       "passed": true,
       "expected": "Project scanned successfully",
-      "actual": "name=Overlord11, langs=['Python', 'Markdown', 'JSON'], has_git=True, files=92",
-      "duration_ms": 13.38,
+      "actual": "name=Overlord11, langs=['Python', 'Markdown', 'JSON'], has_git=True, files=135",
+      "duration_ms": 29.95,
       "details": null,
       "error": null
     },
@@ -540,8 +558,8 @@
       "test": "Detect Python as primary language",
       "passed": true,
       "expected": "Python detected",
-      "actual": "files=24, lines=8062",
-      "duration_ms": 12.93,
+      "actual": "files=24, lines=8202",
+      "duration_ms": 30.76,
       "details": null,
       "error": null
     },
@@ -549,9 +567,9 @@
       "tool": "project_scanner",
       "test": "Find config files",
       "passed": true,
-      "expected": "Found 3 config file(s)",
-      "actual": "['.gitignore', 'README.md', '.env.example']",
-      "duration_ms": 12.9,
+      "expected": "Found 4 config file(s)",
+      "actual": "['.env', '.env.example', '.gitignore', 'README.md']",
+      "duration_ms": 29.34,
       "details": null,
       "error": null
     },
@@ -561,7 +579,7 @@
       "passed": true,
       "expected": "Git repo detected",
       "actual": "has_git=True",
-      "duration_ms": 11.02,
+      "duration_ms": 25.89,
       "details": null,
       "error": null
     },
@@ -570,8 +588,8 @@
       "test": "Handle non-existent project path",
       "passed": true,
       "expected": "Error for missing path",
-      "actual": "Path does not exist: /home/runner/work/Overlord11/Overlord11/tests/test_workspac",
-      "duration_ms": 0.09,
+      "actual": "Path does not exist: C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\test_w",
+      "duration_ms": 0.23,
       "details": null,
       "error": null
     },
@@ -580,9 +598,9 @@
       "test": "Generate techno-themed HTML report",
       "passed": true,
       "expected": "HTML report generated",
-      "actual": "theme=techno, sections=4, size=11713B",
-      "duration_ms": 1.81,
-      "details": "File: /home/runner/work/Overlord11/Overlord11/tests/test_workspace/reports/test_techno_report.html",
+      "actual": "theme=techno, sections=4, size=12072B",
+      "duration_ms": 2.9,
+      "details": "File: C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\test_workspace\\reports\\test_techno_report.html",
       "error": null
     },
     {
@@ -591,7 +609,7 @@
       "passed": true,
       "expected": "Auto-detected theme: tactical",
       "actual": "theme=tactical",
-      "duration_ms": 0.3,
+      "duration_ms": 1.07,
       "details": "Expected 'tactical' for security content",
       "error": null
     },
@@ -601,7 +619,7 @@
       "passed": true,
       "expected": "Self-contained HTML",
       "actual": "has_style=True, has_doctype=True, no_cdn=True",
-      "duration_ms": 0.37,
+      "duration_ms": 1.75,
       "details": null,
       "error": null
     },
@@ -611,7 +629,7 @@
       "passed": true,
       "expected": "All 9 themes generate valid HTML",
       "actual": "['techno', 'classic', 'informative', 'contemporary', 'abstract', 'modern', 'colorful', 'tactical', 'editorial']",
-      "duration_ms": 1.67,
+      "duration_ms": 7.23,
       "details": null,
       "error": null
     },
@@ -620,8 +638,8 @@
       "test": "Log a tool invocation",
       "passed": true,
       "expected": "Tool invocation logged",
-      "actual": "{\"type\": \"tool_invocation\", \"session_id\": \"20260225_002829_test\", \"tool\": \"test_tool\", \"params\": {\"action\": \"test\", \"target\": \"unit_test\"}, \"result\": {\"status\": \"success\", \"data\": \"test_value\"}, \"dura",
-      "duration_ms": 0.12,
+      "actual": "{\"type\": \"tool_invocation\", \"session_id\": \"20260224_213628_test\", \"tool\": \"test_tool\", \"params\": {\"action\": \"test\", \"target\": \"unit_test\"}, \"result\": {\"status\": \"success\", \"data\": \"test_value\"}, \"dura",
+      "duration_ms": 0.71,
       "details": null,
       "error": null
     },
@@ -630,8 +648,8 @@
       "test": "Log an LLM decision",
       "passed": true,
       "expected": "LLM decision logged",
-      "actual": "{\"type\": \"llm_decision\", \"session_id\": \"20260225_002829_test\", \"agent_id\": \"OVR_DIR_01\", \"decision\": \"Delegate research to OVR_RES_02\", \"reasoning\": \"User query requires web research\", \"context\": {\"qu",
-      "duration_ms": 0.09,
+      "actual": "{\"type\": \"llm_decision\", \"session_id\": \"20260224_213628_test\", \"agent_id\": \"OVR_DIR_01\", \"decision\": \"Delegate research to OVR_RES_02\", \"reasoning\": \"User query requires web research\", \"context\": {\"qu",
+      "duration_ms": 0.62,
       "details": null,
       "error": null
     },
@@ -640,8 +658,8 @@
       "test": "Log an error event",
       "passed": true,
       "expected": "Error logged",
-      "actual": "{\"type\": \"error\", \"session_id\": \"20260225_002829_test\", \"source\": \"test_suite\", \"error\": \"Simulated error for testing\", \"traceback\": \"File test.py, line 1, in <module>\", \"timestamp\": \"2026-02-25T00:28",
-      "duration_ms": 0.08,
+      "actual": "{\"type\": \"error\", \"session_id\": \"20260224_213628_test\", \"source\": \"test_suite\", \"error\": \"Simulated error for testing\", \"traceback\": \"File test.py, line 1, in <module>\", \"timestamp\": \"2026-02-24T21:36",
+      "duration_ms": 0.8,
       "details": null,
       "error": null
     },
@@ -651,7 +669,7 @@
       "passed": true,
       "expected": "Retrieved 4 log entries",
       "actual": "Types: ['tool_invocation', 'tool_invocation', 'llm_decision', 'error']",
-      "duration_ms": 0.08,
+      "duration_ms": 0.34,
       "details": null,
       "error": null
     },
@@ -661,7 +679,7 @@
       "passed": true,
       "expected": "Session summary generated",
       "actual": "entries=4, tool_invocations=2, errors=1",
-      "duration_ms": 0.07,
+      "duration_ms": 0.18,
       "details": null,
       "error": null
     },
@@ -670,8 +688,8 @@
       "test": "Create a new work session",
       "passed": true,
       "expected": "Session created",
-      "actual": "id=20260225_002829, workspace=/home/runner/work/Overlord11/Overlord11/workspace/20260225_0",
-      "duration_ms": 0.7,
+      "actual": "id=20260224_213630, workspace=C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\workspace\\202",
+      "duration_ms": 2.11,
       "details": null,
       "error": null
     },
@@ -681,7 +699,7 @@
       "passed": true,
       "expected": "Session is active",
       "actual": "description=Overlord11 Test Suite Session",
-      "duration_ms": 0.06,
+      "duration_ms": 0.12,
       "details": null,
       "error": null
     },
@@ -690,8 +708,8 @@
       "test": "Log a file change in session",
       "passed": true,
       "expected": "Change logged",
-      "actual": "{\"status\": \"logged\", \"change\": {\"timestamp\": \"2026-02-25T00:28:29.687340\", \"file\": \"tests/test.py\", \"action\": \"created\", \"summary\": \"Created comprehensive test suite\"}}",
-      "duration_ms": 0.19,
+      "actual": "{\"status\": \"logged\", \"change\": {\"timestamp\": \"2026-02-24T21:36:30.071179\", \"file\": \"tests/test.py\", \"action\": \"created\", \"summary\": \"Created comprehensive test suite\"}}",
+      "duration_ms": 0.33,
       "details": null,
       "error": null
     },
@@ -701,7 +719,7 @@
       "passed": true,
       "expected": "Note added",
       "actual": "{'status': 'noted'}",
-      "duration_ms": 0.19,
+      "duration_ms": 0.36,
       "details": null,
       "error": null
     },
@@ -711,7 +729,7 @@
       "passed": true,
       "expected": "Session closed",
       "actual": "changes=1, notes=1",
-      "duration_ms": 0.48,
+      "duration_ms": 1.54,
       "details": null,
       "error": null
     },
@@ -719,9 +737,9 @@
       "tool": "session_manager",
       "test": "List all sessions",
       "passed": true,
-      "expected": "Listed 4 session(s)",
-      "actual": "['20260225_002829', '20260225_002620', '20260225_002613']",
-      "duration_ms": 0.05,
+      "expected": "Listed 14 session(s)",
+      "actual": "['20260224_213630', '20260224_213351', '20260224_213349']",
+      "duration_ms": 0.12,
       "details": null,
       "error": null
     }

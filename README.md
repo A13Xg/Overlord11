@@ -1,11 +1,15 @@
 # Overlord11
 
-> **Provider-agnostic multi-agent LLM toolset**
+> **Provider-agnostic multi-agent LLM orchestration framework**
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.1.0-green.svg)](config.json)
-[![Providers](https://img.shields.io/badge/providers-Anthropic%20%7C%20Gemini%20%7C%20OpenAI-orange.svg)](docs/Providers.md)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-3776ab?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![Version](https://img.shields.io/badge/version-2.1.0-22c55e)](config.json)
+[![Tests](https://img.shields.io/badge/tests-81%20passing-22c55e?logo=pytest&logoColor=white)](tests/test.py)
+[![Tools](https://img.shields.io/badge/tools-15%20built--in-6366f1)](tools/python/)
+[![Agents](https://img.shields.io/badge/agents-7%20specialists-f59e0b)](agents/)
+[![Providers](https://img.shields.io/badge/providers-Anthropic%20%7C%20Gemini%20%7C%20OpenAI-0ea5e9)](docs/Providers.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-64748b)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-64748b)](https://github.com/A13Xg/Overlord11)
 
 Overlord11 is a structured multi-agent framework that coordinates **seven specialist AI agents** across any LLM provider (Anthropic Claude, Google Gemini, or OpenAI GPT). Every request is routed through an **Orchestrator** that decomposes tasks, delegates to specialists, and synthesizes a reviewed final output — without any provider-specific code in the agent definitions or tool schemas.
 
@@ -22,6 +26,7 @@ Overlord11 is a structured multi-agent framework that coordinates **seven specia
 - [Provider Configuration](#provider-configuration)
 - [Environment Variables](#environment-variables)
 - [How to Use](#how-to-use)
+- [Testing](#testing)
 - [Extension Guide](#extension-guide)
 - [Memory System](#memory-system)
 - [Wiki](#wiki)
@@ -33,10 +38,12 @@ Overlord11 is a structured multi-agent framework that coordinates **seven specia
 - 🔀 **Provider-agnostic** — switch between Anthropic, Gemini, or OpenAI by changing one line in `config.json`
 - 🤖 **7 specialist agents** — Orchestrator, Researcher, Coder, Analyst, Writer, Reviewer, Publisher
 - 🛠️ **15 built-in tools** — file I/O, web fetch/scrape, shell execution, Git, code analysis, project scanning, and more
+- 🔍 **Dual-engine search** — ripgrep when available, pure-Python fallback producing identical JSON output
 - 📊 **3 output tiers** — inline text, Markdown docs, or styled self-contained HTML reports
 - 🎨 **9 HTML themes** — techno, classic, modern, editorial, and more — auto-selected by content type
 - 🧠 **Shared memory** — `Consciousness.md` enables cross-agent, cross-session context
 - 🔒 **Security-first** — Reviewer agent blocks hardcoded secrets; no credentials in agent definitions
+- ✅ **Fully tested** — 81-test suite covering all 16 modules, ripgrep/Python fallback, Unicode, encoding edge-cases
 - 🔌 **Extensible** — add new agents, tools, or LLM providers without touching the framework core
 
 ---
@@ -57,7 +64,7 @@ Overlord11 is a structured multi-agent framework that coordinates **seven specia
 └──────┬───────────────┬──────────────┬──────────────┬────────┘
        │               │              │              │
        ▼               ▼              ▼              ▼
- Researcher        Coder          Analyst        Writer
+ Researcher         Coder          Analyst        Writer
 (OVR_RES_02)   (OVR_COD_03)   (OVR_ANL_04)  (OVR_WRT_05)
        │               │              │              │
        └───────────────┴──────────────┴──────┬───────┘
@@ -89,7 +96,7 @@ cp .env.example .env
 ### 2. Install dependencies
 
 ```bash
-pip install requests beautifulsoup4 pillow
+pip install requests beautifulsoup4 pillow ddgs
 # Optional for JS-rendered pages:
 pip install selenium
 ```
@@ -136,7 +143,7 @@ python tools/python/publisher_tool.py --title "Q1 Analysis" --content report.md 
 ### 6. Verify your setup
 
 ```bash
-python tests/test.py
+python tests/test.py --skip-web --quiet
 ```
 
 ---
@@ -173,11 +180,13 @@ Overlord11/
 │   └── Troubleshooting.md
 │
 ├── tests/
-│   └── test.py              # Comprehensive tool test suite
+│   ├── test.py              # 81-test suite covering all 16 modules
+│   └── test_results.json    # Machine-readable results (auto-generated)
 │
 ├── config.json              # Unified config (providers, agents, tools)
 ├── Consciousness.md         # Shared cross-agent memory
 ├── ONBOARDING.md            # Universal LLM onboarding guide
+├── CHANGELOG.md             # Release history
 ├── .env.example             # Environment variable template
 └── pre_commit_clean.py      # Pre-commit cleanup + test runner
 ```
@@ -206,10 +215,10 @@ Overlord11/
 | Tool | Description |
 |------|-------------|
 | `read_file` | Read any file's contents, with optional line range |
-| `write_file` | Write or append content to a file |
+| `write_file` | Write or append content to a file (auto-creates directories) |
 | `list_directory` | List directory contents with metadata |
 | `glob` | Find files by pattern (`**/*.py`, `src/**/*.ts`) |
-| `search_file_content` | Ripgrep-powered content search with regex support |
+| `search_file_content` | Ripgrep-powered content search with regex support; pure-Python fallback when `rg` is unavailable |
 | `replace` | Precise find-and-replace within files |
 
 ### Execution
@@ -217,22 +226,22 @@ Overlord11/
 |------|-------------|
 | `run_shell_command` | Execute shell commands, run tests, install packages |
 | `git_tool` | Git operations: status, diff, commit, push, branch |
-| `calculator` | Math expressions, statistics, unit conversions |
+| `calculator` | Math expressions: arithmetic, trig, logarithms, sqrt, power |
 | `scaffold_generator` | Generate project scaffolding from templates |
 
 ### Web
 | Tool | Description |
 |------|-------------|
 | `web_fetch` | HTTP GET with HTML-to-Markdown conversion |
-| `web_scraper` | Advanced article extraction, link following, structured data, smart image download |
+| `web_scraper` | Advanced article extraction, page structure analysis, RSS/Atom feed discovery, DuckDuckGo search, smart image download |
 
 ### Analysis & Memory
 | Tool | Description |
 |------|-------------|
-| `code_analyzer` | Static analysis: bugs, security, complexity, style |
-| `project_scanner` | Codebase structure, language detection, entry points |
-| `save_memory` | Persist facts to `Consciousness.md` across sessions |
-| `publisher_tool` | Generate themed self-contained HTML reports (9 visual themes) |
+| `code_analyzer` | Static analysis: function detection, cyclomatic complexity, code smells, import structure |
+| `project_scanner` | Codebase structure, language detection, entry points, git metadata |
+| `save_memory` | Persist facts to `Consciousness.md` with timestamps across sessions |
+| `publisher_tool` | Generate themed self-contained HTML reports (9 visual themes, auto-detection) |
 
 > Full tool documentation: [`docs/Tools-Reference.md`](docs/Tools-Reference.md)
 
@@ -303,6 +312,7 @@ Fallback order (if primary provider fails): configured in `orchestration.fallbac
 | `ANTHROPIC_API_KEY` | If using Anthropic | Claude API key from [console.anthropic.com](https://console.anthropic.com/settings/keys) |
 | `GOOGLE_GEMINI_API_KEY` | If using Gemini | Gemini API key from [aistudio.google.com](https://aistudio.google.com/app/apikey) |
 | `OPENAI_API_KEY` | If using OpenAI | OpenAI API key from [platform.openai.com](https://platform.openai.com/api-keys) |
+| `NO_COLOR` | No | Set to `1` to disable ANSI colour output in the test suite |
 
 Only the key for your active provider is required.
 
@@ -350,17 +360,20 @@ For focused tasks, invoke a specialist directly:
 # Read a file
 python tools/python/read_file.py --path config.json
 
-# Search code
+# Search code (uses ripgrep if available, Python fallback otherwise)
 python tools/python/search_file_content.py --pattern "def run" --path tools/python/
 
 # Fetch a web page as Markdown
 python tools/python/web_fetch.py --url https://docs.python.org/3/
 
 # Scrape and package for LLM analysis
-python tools/python/web_scraper.py --action analyze_content --url https://example.com/article --analysis_goal "Extract key findings"
+python tools/python/web_scraper.py --action analyze_content \
+  --url https://example.com/article \
+  --analysis_goal "Extract key findings"
 
-# Smart image download (content-relevant images only)
-python tools/python/web_scraper.py --action download_images --url https://example.com --smart_images true --min_image_score 0.5
+# DuckDuckGo web search
+python tools/python/web_scraper.py --action search \
+  --query "Python async patterns" --max_results 5
 
 # Run static analysis
 python tools/python/code_analyzer.py --path tools/python/
@@ -369,14 +382,88 @@ python tools/python/code_analyzer.py --path tools/python/
 python tools/python/project_scanner.py --path .
 
 # Generate a styled HTML report
-python tools/python/publisher_tool.py --title "Q1 Analysis" --content report.md --theme modern
-
-# Generate a report with auto theme detection
-python tools/python/publisher_tool.py --title "Security Audit Results" --content audit.txt --output workspace/reports/audit.html
+python tools/python/publisher_tool.py \
+  --title "Q1 Analysis" --content report.md --theme modern
 
 # Save a memory entry
-python tools/python/save_memory_tool.py --key "project_goal" --value "Build provider-agnostic toolset"
+python tools/python/save_memory_tool.py \
+  --key "project_goal" --value "Build provider-agnostic toolset"
 ```
+
+---
+
+## Testing
+
+The test suite at `tests/test.py` covers all **16 modules** across **81 tests** — including encoding edge-cases (UTF-8, CJK, emoji), ripgrep/Python-fallback compatibility, live web calls, and all 9 publisher themes.
+
+### Run the tests
+
+```bash
+# Full suite (includes live web calls)
+python tests/test.py
+
+# Skip internet-dependent tests (fast, ~1s)
+python tests/test.py --skip-web
+
+# Single tool
+python tests/test.py --tool calculator
+
+# Multiple tools (comma-separated)
+python tests/test.py --tool calculator,git_tool,web_scraper
+
+# Summary only — ideal for LLM agents or CI pipelines
+python tests/test.py --quiet
+
+# Plain text output — no ANSI codes (also: set NO_COLOR=1)
+python tests/test.py --no-color
+
+# Save JSON results to a custom path
+python tests/test.py --output /path/to/results.json
+
+# List all testable tools and exit
+python tests/test.py --list
+
+# Stop immediately on first failure
+python tests/test.py --fail-fast
+
+# Combined (typical CI invocation)
+python tests/test.py --skip-web --quiet --no-color --output ci_results.json
+```
+
+### Test matrix
+
+| Mode | Tests | Coverage |
+|------|-------|----------|
+| `--skip-web` | 72 | All local tools, encoding, file I/O, git, shell, analysis |
+| Full (web) | **81** | All of the above + web fetch, DuckDuckGo search, scraper |
+
+### JSON results
+
+Every run writes `tests/test_results.json`. It includes an `environment` block with Python version, platform, ripgrep availability, and optional package status — so an LLM reading the output can reason about why a test passed or failed:
+
+```json
+{
+  "session_id": "20260224_213345_test",
+  "run_at": "2026-02-24T21:33:45",
+  "total_tests": 81,
+  "passed": 81,
+  "failed": 0,
+  "environment": {
+    "python_version": "3.14.2",
+    "platform": "win32",
+    "ripgrep": true,
+    "packages": {
+      "bs4": true,
+      "requests": true,
+      "ddgs": true,
+      "selenium": true
+    }
+  },
+  "results": [...]
+}
+```
+
+> See [`tests/test.py`](tests/test.py) for the full test implementation.
 
 ---
 
