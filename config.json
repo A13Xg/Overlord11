@@ -179,6 +179,10 @@
     "publisher_tool": {
       "def": "tools/defs/publisher_tool.json",
       "impl": "tools/python/publisher_tool.py"
+    },
+    "scaffold_generator": {
+      "def": null,
+      "impl": "tools/python/scaffold_generator.py"
     }
   },
 

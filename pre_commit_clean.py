@@ -162,12 +162,14 @@ class PreCommitCleaner:
                 deleted_count += 1
                 deleted_size += size
 
-            except (OSError, PermissionError) as e:
-                print(f"  Error deleting {path}: {e}")
+        except (OSError, PermissionError) as e:
+            print(f"  Error deleting {path}: {e}")
 
         action = "Would delete" if self.dry_run else "Deleted"
         print(f"{action} {deleted_count} files/directories ({self._format_size(deleted_size)})")
 
+        self.deleted_count += deleted_count
+        self.deleted_size += deleted_size
         return deleted_count, deleted_size
 
     def clean_tmpclaude_files(self) -> Tuple[int, int]:
@@ -194,15 +196,23 @@ class PreCommitCleaner:
         return f"{size_bytes:.1f} TB"
 
     def run_checks(self) -> bool:
-        """Run pre-commit checks.
+        """Run pre-commit checks (linting / static analysis).
 
         Returns:
             True if all checks pass
-
-        TODO: Implement actual checks
         """
-        print("\n[TODO] Running checks...")
-        # Future: Add linting, type checking, etc.
+        import subprocess
+        print("\nRunning checks...")
+        result = subprocess.run(
+            [sys.executable, "-m", "py_compile"] +
+            [str(p) for p in self.root_dir.rglob("*.py")
+             if not any(skip in p.parts for skip in SKIP_DIRS)],
+            capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            print(f"  Syntax errors found:\n{result.stderr}")
+            return False
+        print("  All Python files pass syntax check.")
         return True
 
     def run_tests(self) -> bool:
@@ -210,20 +220,33 @@ class PreCommitCleaner:
 
         Returns:
             True if all tests pass
-
-        TODO: Implement actual test running
         """
-        print("\n[TODO] Running tests...")
-        # Future: Add pytest execution
+        import subprocess
+        test_script = self.root_dir / "tests" / "test.py"
+        if not test_script.exists():
+            print("\nNo test suite found — skipping tests.")
+            return True
+        print("\nRunning tests...")
+        result = subprocess.run(
+            [sys.executable, str(test_script)],
+            capture_output=True, text=True, cwd=str(self.root_dir)
+        )
+        if self.verbose:
+            print(result.stdout[-3000:] if len(result.stdout) > 3000 else result.stdout)
+        if result.returncode != 0:
+            print(f"  Tests FAILED.\n{result.stderr[-1000:]}")
+            return False
+        # Print the summary line(s) from the test output
+        for line in result.stdout.splitlines():
+            if "passed" in line or "failed" in line or "RESULTS" in line:
+                print(f"  {line.strip()}")
+        print("  Tests passed.")
         return True
 
     def generate_report(self) -> None:
-        """Generate pre-commit report.
-
-        TODO: Implement actual reporting
-        """
-        print("\n[TODO] Generating report...")
-        # Future: Add report generation
+        """Print a brief summary of what was cleaned."""
+        print(f"\nReport: {self.deleted_count} item(s) removed, "
+              f"{self._format_size(self.deleted_size)} freed.")
 
     def run_all(self) -> bool:
         """Run all pre-commit tasks.

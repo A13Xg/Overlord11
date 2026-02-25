@@ -1,5 +1,5 @@
 """
-AgenticToolset - Master Log Manager
+Overlord11 - Master Log Manager
 ===================================
 Central logging system for all tool invocations, LLM decisions, and agent activity.
 All logs written as structured JSONL to the master log and per-session log files.
@@ -220,7 +220,7 @@ def list_sessions() -> list:
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="AgenticToolset Log Manager")
+    parser = argparse.ArgumentParser(description="Overlord11 Log Manager")
     parser.add_argument("--action", required=True,
                         choices=["log_tool", "log_decision", "log_agent_switch",
                                  "log_error", "log_event", "query", "summary",

@@ -156,6 +156,7 @@ _No active errors._
 | OVR_ANL_04 | Analyst | Data analysis, summarization, pattern recognition | `agents/analyst.md` | Available |
 | OVR_WRT_05 | Writer | Documentation, reports, content creation | `agents/writer.md` | Available |
 | OVR_REV_06 | Reviewer | QA, code review, proofreading, validation | `agents/reviewer.md` | Available |
+| OVR_PUB_07 | Publisher | Styled self-contained HTML report generation (Tier 2) | `agents/publisher.md` | Available |
 
 ---
 

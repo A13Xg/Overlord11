@@ -1,5 +1,5 @@
 """
-AgenticToolset - Code Analyzer
+Overlord11 - Code Analyzer
 ===============================
 Static analysis tool for code quality metrics. Measures complexity, detects
 code smells, finds dead code patterns, and analyzes import structure.
@@ -530,7 +530,7 @@ _PYTHON_STDLIB = {
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="AgenticToolset Code Analyzer")
+    parser = argparse.ArgumentParser(description="Overlord11 Code Analyzer")
     parser.add_argument("--path", default=None, help="Project root to analyze")
     parser.add_argument("--file", default=None, help="Single file to analyze")
     parser.add_argument("--language", default=None, help="Filter by language")
