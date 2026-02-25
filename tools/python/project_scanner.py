@@ -1,5 +1,5 @@
 """
-AgenticToolset - Project Scanner
+Overlord11 - Project Scanner
 ================================
 Deep project analysis tool. Scans a directory to detect framework, language,
 structure, dependencies, entry points, config files, and produces a comprehensive
@@ -368,7 +368,7 @@ def _build_tree(root: Path, max_depth: int = 2, current_depth: int = 0) -> dict:
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="AgenticToolset Project Scanner")
+    parser = argparse.ArgumentParser(description="Overlord11 Project Scanner")
     parser.add_argument("--path", default=".", help="Project root path to scan")
     parser.add_argument("--depth", type=int, default=5, help="Max directory depth")
     parser.add_argument("--output", default=None, help="Write result to JSON file")

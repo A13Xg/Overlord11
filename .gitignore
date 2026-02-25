@@ -51,5 +51,8 @@ logs/
 working-output/
 workshop/
 
+# Test artifacts
+tests/test_workspace/
+
 # Temporary files
 *.tmp

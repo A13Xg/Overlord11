@@ -1,5 +1,5 @@
 """
-AgenticToolset - Session Manager
+Overlord11 - Session Manager
 ================================
 Manages work sessions with unique IDs, tracks changes, and enables session
 continuity. Each session gets a dedicated workspace for intermediate files.
@@ -224,7 +224,7 @@ def get_active_session() -> dict:
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="AgenticToolset Session Manager")
+    parser = argparse.ArgumentParser(description="Overlord11 Session Manager")
     parser.add_argument("--action", required=True,
                         choices=["create", "status", "log_change", "log_agent",
                                  "log_tool", "add_note", "close", "list", "active"],

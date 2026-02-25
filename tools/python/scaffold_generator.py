@@ -1,5 +1,5 @@
 """
-AgenticToolset - Scaffold Generator
+Overlord11 - Scaffold Generator
 ====================================
 Generates project scaffolding from templates. Creates directory structures,
 boilerplate files, configuration, and starter code for various project types.
@@ -578,7 +578,7 @@ def generate_scaffold(template_name: str, project_name: str,
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="AgenticToolset Scaffold Generator")
+    parser = argparse.ArgumentParser(description="Overlord11 Scaffold Generator")
     parser.add_argument("--template", default=None, help="Template name")
     parser.add_argument("--name", default=None, help="Project name")
     parser.add_argument("--output", default=None, help="Output directory")

@@ -1,5 +1,5 @@
 """
-AgenticToolset - Advanced Web Scraper v2.0
+Overlord11 - Advanced Web Scraper v2.0
 ==========================================
 Comprehensive web scraping tool with intelligent content detection, cascading
 fetch pipeline, reader-mode extraction, and robust fallback chains.
