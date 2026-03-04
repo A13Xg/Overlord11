@@ -58,9 +58,9 @@ Overlord11 is a structured multi-agent framework that coordinates **seven specia
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │               Orchestrator  (OVR_DIR_01)                    │
-│  ┌───────────┐  ┌───────┐  ┌──────────┐  ┌──────────────┐  │
-│  │ 1. Intake │→ │2.Tier │→ │3.Delegate│→ │ 4.Synthesize │  │
-│  └───────────┘  └───────┘  └──────────┘  └──────────────┘  │
+│  1.Intake → 2.Classify → 3.Tier → 4.Decompose → 5.Plan     │
+│  6.Delegate → 7.Monitor → 8.Retry (loop) → 9.Synthesize    │
+│  10.Review → 11.Publish [Tier 2 only] → 12.Log             │
 └──────┬───────────────┬──────────────┬──────────────┬────────┘
        │               │              │              │
        ▼               ▼              ▼              ▼
@@ -71,11 +71,13 @@ Overlord11 is a structured multi-agent framework that coordinates **seven specia
                                              │
                                              ▼
                                     Reviewer (OVR_REV_06)
+                                    (step 10 — always)
                                              │
+                                    Publisher (OVR_PUB_07)
+                                    (step 11 — Tier 2 only)
                                     ┌────────┴────────┐
                                     │  Tier 1: .md    │
                                     │  Tier 2: .html  │
-                                    │  (Publisher)    │
                                     └─────────────────┘
 ```
 
