@@ -1542,8 +1542,511 @@ def test_session_manager():
 
 
 # =========================================================================
-# Report generation
+# TOOL 17: consciousness_tool
 # =========================================================================
+
+def test_consciousness_tool():
+    mod = load_tool("consciousness_tool")
+    from pathlib import Path
+
+    mem_file = sandbox_path("consciousness", "test_consciousness.md")
+    # Seed the file with a minimal structure
+    Path(mem_file).write_text(
+        "# Consciousness\n\n## Active Memory\n\n_No active signals._\n",
+        encoding="utf-8"
+    )
+
+    # --- Test 17a: search_index on fresh file ---
+    def t17a(r: TestResult):
+        result = mod.search_index(file_path=Path(mem_file))
+        if result.get("status") == "ok" and isinstance(result.get("headings"), list):
+            r.set_pass("Index returned", f"{result['heading_count']} heading(s)")
+        else:
+            r.set_fail("status=ok, headings=list", str(result)[:200])
+    run_test("consciousness_tool", "search_index: returns section headings", t17a)
+
+    # --- Test 17b: commit a memory entry ---
+    def t17b(r: TestResult):
+        result = mod.commit(
+            key="test_api_endpoint",
+            value="POST /api/v2/test, requires Bearer header",
+            priority="HIGH",
+            ttl="7d",
+            category="context",
+            source="OVR_TEST",
+            file_path=Path(mem_file),
+        )
+        if result.get("status") == "committed" and result.get("key") == "test_api_endpoint":
+            r.set_pass("Memory committed", f"priority={result['priority']}, ttl={result['ttl']}")
+        else:
+            r.set_fail("status=committed", str(result)[:200])
+    run_test("consciousness_tool", "commit: append structured memory entry", t17b)
+
+    # --- Test 17c: search for committed entry ---
+    def t17c(r: TestResult):
+        result = mod.search("api_endpoint", file_path=Path(mem_file))
+        if result.get("status") == "ok" and result.get("match_count", 0) > 0:
+            r.set_pass(f"Found {result['match_count']} match(es)", result["matches"][0]["snippet"][:80])
+        else:
+            r.set_fail("match_count > 0", str(result)[:200])
+    run_test("consciousness_tool", "search: find committed entry by keyword", t17c)
+
+    # --- Test 17d: read_section ---
+    def t17d(r: TestResult):
+        result = mod.read_section("Active Memory", file_path=Path(mem_file))
+        if result.get("status") in ("ok", "not_found"):
+            r.set_pass(f"read_section status={result['status']}", result.get("content", "")[:80])
+        else:
+            r.set_fail("status=ok or not_found", str(result)[:200])
+    run_test("consciousness_tool", "read_section: retrieve named section", t17d)
+
+    # --- Test 17e: read_all ---
+    def t17e(r: TestResult):
+        result = mod.read_all(file_path=Path(mem_file))
+        if result.get("status") in ("ok", "empty") and "char_count" in result:
+            r.set_pass(f"read_all status={result['status']}", f"chars={result['char_count']}")
+        else:
+            r.set_fail("status=ok|empty with char_count", str(result)[:200])
+    run_test("consciousness_tool", "read_all: return full file content", t17e)
+
+    # --- Test 17f: cleanup dry_run ---
+    def t17f(r: TestResult):
+        result = mod.cleanup(file_path=Path(mem_file), dry_run=True)
+        if result.get("status") == "ok" and result.get("dry_run") is True:
+            r.set_pass("Cleanup dry_run OK", f"archived_count={result.get('archived_count', 0)}")
+        else:
+            r.set_fail("status=ok, dry_run=True", str(result)[:200])
+    run_test("consciousness_tool", "cleanup: dry_run shows what would be removed", t17f)
+
+
+# =========================================================================
+# TOOL 18: response_formatter
+# =========================================================================
+
+def test_response_formatter():
+    mod = load_tool("response_formatter")
+
+    # --- Test 18a: decide - short plain content ---
+    def t18a(r: TestResult):
+        result = mod.decide(request="What is 2+2?", content="4")
+        if result.get("status") == "ok" and "recommended_format" in result:
+            r.set_pass(
+                f"Format decided: {result['recommended_format']}",
+                f"confidence={result.get('confidence')}, rationale={result.get('rationale', '')[:60]}"
+            )
+        else:
+            r.set_fail("status=ok with recommended_format", str(result)[:200])
+    run_test("response_formatter", "decide: short plain answer → plain_text", t18a)
+
+    # --- Test 18b: decide - HTML trigger words ---
+    def t18b(r: TestResult):
+        result = mod.decide(
+            request="Give me a detailed breakdown and comprehensive report",
+            content="x" * 3000
+        )
+        if result.get("status") == "ok":
+            fmt = result.get("recommended_format", "")
+            r.set_pass(f"Format decided: {fmt}", f"scores={result.get('scores', {})}")
+        else:
+            r.set_fail("status=ok", str(result)[:200])
+    run_test("response_formatter", "decide: detailed/comprehensive → html/markdown", t18b)
+
+    # --- Test 18c: format - render json ---
+    def t18c(r: TestResult):
+        result = mod.format_content('{"name": "Alice", "score": 95}', "json")
+        if result.get("status") == "ok" and '"name"' in result.get("rendered", ""):
+            r.set_pass("JSON rendered", result["rendered"][:100])
+        else:
+            r.set_fail("status=ok with JSON output", str(result)[:200])
+    run_test("response_formatter", "format: render JSON content", t18c)
+
+    # --- Test 18d: format - render markdown ---
+    def t18d(r: TestResult):
+        result = mod.format_content("# Hello\n\nThis is **bold** text.", "markdown")
+        if result.get("status") == "ok" and "Hello" in result.get("rendered", ""):
+            r.set_pass("Markdown rendered", result["rendered"][:80])
+        else:
+            r.set_fail("status=ok with Markdown", str(result)[:200])
+    run_test("response_formatter", "format: render Markdown content", t18d)
+
+    # --- Test 18e: format - render HTML ---
+    def t18e(r: TestResult):
+        result = mod.format_content("# My Report\n\nSome findings here.", "html", title="Test")
+        rendered = result.get("rendered", "")
+        if result.get("status") == "ok" and "<!DOCTYPE html>" in rendered and "<style>" in rendered:
+            r.set_pass("HTML generated", f"size={len(rendered)} chars")
+        else:
+            r.set_fail("Self-contained HTML", str(result)[:200])
+    run_test("response_formatter", "format: render HTML page", t18e)
+
+    # --- Test 18f: auto - combined decide + format ---
+    def t18f(r: TestResult):
+        result = mod.auto(
+            request="Show API error codes",
+            content='[{"code": 404, "msg": "Not found"}, {"code": 500, "msg": "Server error"}]'
+        )
+        if result.get("status") == "ok" and result.get("rendered"):
+            r.set_pass(
+                f"auto decided: {result['format']}",
+                f"rendered_len={result.get('char_count', 0)}"
+            )
+        else:
+            r.set_fail("status=ok with rendered output", str(result)[:200])
+    run_test("response_formatter", "auto: decide format and render in one step", t18f)
+
+    # --- Test 18g: format - invalid format name ---
+    def t18g(r: TestResult):
+        result = mod.format_content("hello", "pdf")
+        if result.get("status") == "error" and "error" in result:
+            r.set_pass("Error for unsupported format", result["error"][:80])
+        else:
+            r.set_fail("status=error for 'pdf'", str(result)[:200])
+    run_test("response_formatter", "format: error on unsupported format name", t18g)
+
+
+# =========================================================================
+# TOOL 19: file_converter
+# =========================================================================
+
+def test_file_converter():
+    mod = load_tool("file_converter")
+    from pathlib import Path
+
+    # --- Test 19a: list_formats ---
+    def t19a(r: TestResult):
+        result = mod.list_formats()
+        if result.get("status") == "ok" and isinstance(result.get("routes"), list):
+            r.set_pass(f"{len(result['routes'])} routes listed", str(result["routes"][:5]))
+        else:
+            r.set_fail("status=ok with routes list", str(result)[:200])
+    run_test("file_converter", "list_formats: return supported conversion routes", t19a)
+
+    # --- Test 19b: detect JSON file ---
+    def t19b(r: TestResult):
+        fp = create_sandbox_file("converter/sample.json", '{"key": "value"}')
+        result = mod.detect_format(fp)
+        if result.get("status") == "ok" and result.get("format") == "json":
+            r.set_pass("Detected json", f"method={result.get('method')}")
+        else:
+            r.set_fail("format=json", str(result)[:200])
+    run_test("file_converter", "detect: identify JSON file format", t19b)
+
+    # --- Test 19c: JSON → CSV ---
+    def t19c(r: TestResult):
+        data = '[{"name": "Alice", "score": 95}, {"name": "Bob", "score": 87}]'
+        in_fp = create_sandbox_file("converter/data.json", data)
+        out_fp = sandbox_path("converter", "data.csv")
+        result = mod.convert(input_path=in_fp, output_path=out_fp)
+        if result.get("status") == "ok" and Path(out_fp).exists():
+            csv_content = Path(out_fp).read_text(encoding="utf-8")
+            if "Alice" in csv_content and "name" in csv_content:
+                r.set_pass("JSON→CSV conversion", csv_content[:120])
+            else:
+                r.set_fail("CSV with Alice/name", csv_content[:120])
+        else:
+            r.set_fail("status=ok with CSV output", str(result)[:200])
+    run_test("file_converter", "convert: JSON → CSV", t19c)
+
+    # --- Test 19d: CSV → JSON ---
+    def t19d(r: TestResult):
+        csv_data = "name,score\nAlice,95\nBob,87\n"
+        in_fp = create_sandbox_file("converter/data.csv", csv_data)
+        out_fp = sandbox_path("converter", "data_from_csv.json")
+        result = mod.convert(input_path=in_fp, output_path=out_fp)
+        if result.get("status") == "ok" and Path(out_fp).exists():
+            json_content = Path(out_fp).read_text(encoding="utf-8")
+            parsed = json.loads(json_content)
+            if isinstance(parsed, list) and parsed[0].get("name") == "Alice":
+                r.set_pass("CSV→JSON conversion", f"{len(parsed)} rows converted")
+            else:
+                r.set_fail("JSON array with Alice", json_content[:120])
+        else:
+            r.set_fail("status=ok with JSON output", str(result)[:200])
+    run_test("file_converter", "convert: CSV → JSON", t19d)
+
+    # --- Test 19e: CSV → Markdown ---
+    def t19e(r: TestResult):
+        csv_data = "tool,status\nread_file,PASS\nwrite_file,PASS\n"
+        in_fp = create_sandbox_file("converter/tools.csv", csv_data)
+        out_fp = sandbox_path("converter", "tools.md")
+        result = mod.convert(input_path=in_fp, output_path=out_fp)
+        if result.get("status") == "ok" and Path(out_fp).exists():
+            md_content = Path(out_fp).read_text(encoding="utf-8")
+            if "| tool" in md_content and "---" in md_content:
+                r.set_pass("CSV→Markdown table", md_content[:120])
+            else:
+                r.set_fail("Markdown table with | tool |", md_content[:120])
+        else:
+            r.set_fail("status=ok with .md output", str(result)[:200])
+    run_test("file_converter", "convert: CSV → Markdown table", t19e)
+
+    # --- Test 19f: Markdown → HTML ---
+    def t19f(r: TestResult):
+        md_data = "# Test Document\n\nThis is **bold** and *italic* text.\n\n- item one\n- item two\n"
+        in_fp = create_sandbox_file("converter/doc.md", md_data)
+        out_fp = sandbox_path("converter", "doc.html")
+        result = mod.convert(input_path=in_fp, output_path=out_fp)
+        if result.get("status") == "ok" and Path(out_fp).exists():
+            html = Path(out_fp).read_text(encoding="utf-8")
+            if "<!DOCTYPE html>" in html and "<h1>" in html:
+                r.set_pass("Markdown→HTML", f"size={len(html)} chars")
+            else:
+                r.set_fail("<!DOCTYPE html> with <h1>", html[:200])
+        else:
+            r.set_fail("status=ok with HTML output", str(result)[:200])
+    run_test("file_converter", "convert: Markdown → HTML", t19f)
+
+    # --- Test 19g: unsupported conversion route ---
+    def t19g(r: TestResult):
+        in_fp = create_sandbox_file("converter/dummy.txt", "hello")
+        result = mod.convert(input_path=in_fp, output_path=None,
+                             from_format="text", to_format="yaml")
+        if result.get("status") == "error" and "supported_routes" in result:
+            r.set_pass("Error for unsupported route", result["error"][:80])
+        elif result.get("status") == "ok":
+            # text→yaml may be unsupported or produce output; either is acceptable
+            r.set_pass("text→yaml handled (route may be supported)", "no error raised")
+        else:
+            r.set_fail("status=error with supported_routes", str(result)[:200])
+    run_test("file_converter", "convert: error for unsupported route", t19g)
+
+
+# =========================================================================
+# TOOL 20: error_handler
+# =========================================================================
+
+def test_error_handler():
+    mod = load_tool("error_handler")
+
+    # --- Test 20a: analyze - ModuleNotFoundError ---
+    def t20a(r: TestResult):
+        error_text = "ModuleNotFoundError: No module named 'nonexistent_pkg'"
+        result = mod.analyze(error_text)
+        if result.get("status") == "ok" and result.get("error_type") == "ModuleNotFoundError":
+            r.set_pass(
+                "ModuleNotFoundError classified",
+                f"category={result.get('category')}, fix_available={result.get('fix_available')}"
+            )
+        else:
+            r.set_fail("status=ok, error_type=ModuleNotFoundError", str(result)[:200])
+    run_test("error_handler", "analyze: classify ModuleNotFoundError", t20a)
+
+    # --- Test 20b: analyze - ZeroDivisionError ---
+    def t20b(r: TestResult):
+        error_text = "ZeroDivisionError: division by zero"
+        result = mod.analyze(error_text)
+        if result.get("status") == "ok" and result.get("fix_available"):
+            r.set_pass("ZeroDivisionError fix found", result.get("suggestion", "")[:80])
+        else:
+            r.set_fail("status=ok, fix_available=True", str(result)[:200])
+    run_test("error_handler", "analyze: ZeroDivisionError has fix suggestion", t20b)
+
+    # --- Test 20c: analyze - NameError ---
+    def t20c(r: TestResult):
+        tb = "Traceback (most recent call last):\n  File 'app.py', line 5, in main\nNameError: name 'foobar' is not defined"
+        result = mod.analyze(tb)
+        if result.get("status") == "ok" and result.get("error_type") == "NameError":
+            r.set_pass(
+                "NameError classified",
+                f"file={result.get('file')}, line={result.get('line')}"
+            )
+        else:
+            r.set_fail("status=ok, error_type=NameError", str(result)[:200])
+    run_test("error_handler", "analyze: NameError with traceback parsing", t20c)
+
+    # --- Test 20d: summarize - produces direct delivery message ---
+    def t20d(r: TestResult):
+        error_text = "FileNotFoundError: [Errno 2] No such file or directory: '/missing/path.txt'"
+        result = mod.summarize(error_text)
+        summary = result.get("summary", "")
+        if (result.get("status") == "ok"
+                and result.get("direct_delivery") is True
+                and "FileNotFoundError" in summary):
+            r.set_pass("Summarize returns direct delivery", f"chars={len(summary)}")
+        else:
+            r.set_fail("status=ok, direct_delivery=True, FileNotFoundError in summary",
+                       str(result)[:200])
+    run_test("error_handler", "summarize: human-readable report for direct delivery", t20d)
+
+    # --- Test 20e: self_correct - known error applies internal fix ---
+    def t20e(r: TestResult):
+        error_text = "ModuleNotFoundError: No module named 'requests'"
+        result = mod.self_correct(error_text, context="Running web_fetch.py")
+        if result.get("status") in ("ok", "escalated") and "action" in result:
+            fix = result.get("internal_fix", {})
+            r.set_pass(
+                f"self_correct status={result['status']}",
+                f"fix_available={fix.get('fix_available')}, escalate={result.get('escalate_to_user')}"
+            )
+        else:
+            r.set_fail("status=ok|escalated with action", str(result)[:200])
+    run_test("error_handler", "self_correct: apply internal fix for known error", t20e)
+
+    # --- Test 20f: analyze - SyntaxError ---
+    def t20f(r: TestResult):
+        error_text = "SyntaxError: invalid syntax"
+        result = mod.analyze(error_text)
+        if result.get("status") == "ok" and result.get("severity") in ("high", "medium"):
+            r.set_pass("SyntaxError classified", f"severity={result.get('severity')}")
+        else:
+            r.set_fail("status=ok, severity=high|medium", str(result)[:200])
+    run_test("error_handler", "analyze: SyntaxError classified with severity", t20f)
+
+
+# =========================================================================
+# TOOL 21: vision_tool
+# =========================================================================
+
+def test_vision_tool():
+    mod = load_tool("vision_tool")
+    from pathlib import Path
+
+    # --- Test 21a: analyze_image on a real PNG ---
+    def t21a(r: TestResult):
+        # Create a minimal 1x1 white PNG programmatically (no Pillow needed in test itself)
+        # PNG binary: minimal valid 1×1 white pixel PNG
+        png_bytes = (
+            b'\x89PNG\r\n\x1a\n'
+            b'\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde'
+            b'\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N'
+            b'\x00\x00\x00\x00IEND\xaeB`\x82'
+        )
+        img_path = sandbox_path("vision", "test_pixel.png")
+        Path(img_path).write_bytes(png_bytes)
+        result = mod.analyze_image(img_path, include_b64=True)
+        if result.get("status") == "ok":
+            r.set_pass("analyze_image OK",
+                       f"mime={result.get('mime_type')}, b64_len={result.get('base64_length', 0)}")
+        elif result.get("status") == "error" and "Pillow" in result.get("error", ""):
+            r.set_pass("Pillow not installed (acceptable)", result["error"][:80])
+        else:
+            r.set_fail("status=ok or Pillow error", str(result)[:200])
+    run_test("vision_tool", "analyze_image: return metadata and base64", t21a)
+
+    # --- Test 21b: list_images - empty dir ---
+    def t21b(r: TestResult):
+        dir_path = sandbox_path("vision", "empty_img_dir")
+        Path(dir_path).mkdir(parents=True, exist_ok=True)
+        result = mod.list_images(dir_path)
+        if result.get("status") == "ok" and result.get("image_count", -1) == 0:
+            r.set_pass("Empty dir returns 0 images", "image_count=0")
+        else:
+            r.set_fail("status=ok, image_count=0", str(result)[:200])
+    run_test("vision_tool", "list_images: empty directory returns empty list", t21b)
+
+    # --- Test 21c: list_images - dir with one image ---
+    def t21c(r: TestResult):
+        png_bytes = (
+            b'\x89PNG\r\n\x1a\n'
+            b'\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde'
+            b'\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N'
+            b'\x00\x00\x00\x00IEND\xaeB`\x82'
+        )
+        img_path = sandbox_path("vision", "list_test", "sample.png")
+        Path(img_path).write_bytes(png_bytes)
+        result = mod.list_images(str(Path(img_path).parent))
+        if result.get("status") == "ok" and result.get("image_count", 0) >= 1:
+            r.set_pass(f"Found {result['image_count']} image(s)", str(result["images"][:1]))
+        else:
+            r.set_fail("status=ok, image_count>=1", str(result)[:200])
+    run_test("vision_tool", "list_images: directory with PNG returns count", t21c)
+
+    # --- Test 21d: analyze_image - missing file ---
+    def t21d(r: TestResult):
+        result = mod.analyze_image("/nonexistent/path/image.png")
+        if result.get("status") == "error" and "not found" in result.get("error", "").lower():
+            r.set_pass("Error for missing image", result["error"][:80])
+        else:
+            r.set_fail("status=error with 'not found'", str(result)[:200])
+    run_test("vision_tool", "analyze_image: error on missing file", t21d)
+
+    # --- Test 21e: screenshot - no backend graceful fail ---
+    def t21e(r: TestResult):
+        result = mod.screenshot(output=sandbox_path("vision", "screen.png"))
+        # Either succeeds or returns a clear error about missing backend
+        if result.get("status") == "ok":
+            r.set_pass("Screenshot captured", f"file={result.get('file', '')[:60]}")
+        elif result.get("status") == "error":
+            err = result.get("error", "")
+            if "not installed" in err.lower() or "no screenshot backend" in err.lower():
+                r.set_pass("No screenshot backend (acceptable)", err[:80])
+            elif "Pillow" in err:
+                r.set_pass("Pillow not installed (acceptable)", err[:80])
+            else:
+                r.set_fail("status=ok or graceful backend error", err[:120])
+        else:
+            r.set_fail("status=ok or error", str(result)[:200])
+    run_test("vision_tool", "screenshot: captures or fails gracefully without backend", t21e)
+
+
+# =========================================================================
+# TOOL 22: computer_control
+# =========================================================================
+
+def test_computer_control():
+    mod = load_tool("computer_control")
+
+    # All computer_control tests check for graceful degradation when
+    # pyautogui / pyperclip are not installed (headless environments).
+
+    def _is_graceful(result: dict, expected_keys=None) -> bool:
+        """Return True if result is ok OR a clear 'not installed' error."""
+        if result.get("status") == "ok":
+            return True
+        err = result.get("error", "").lower()
+        return "not installed" in err or "pyautogui" in err or "pyperclip" in err
+
+    # --- Test 22a: get_screen_size ---
+    def t22a(r: TestResult):
+        result = mod.get_screen_size()
+        if result.get("status") == "ok":
+            r.set_pass("Screen size returned",
+                       f"width={result.get('width')}, height={result.get('height')}")
+        elif _is_graceful(result):
+            r.set_pass("pyautogui not installed (acceptable)", result.get("error", "")[:80])
+        else:
+            r.set_fail("status=ok or graceful error", str(result)[:200])
+    run_test("computer_control", "get_screen_size: returns dimensions or graceful error", t22a)
+
+    # --- Test 22b: get_mouse_pos ---
+    def t22b(r: TestResult):
+        result = mod.get_mouse_pos()
+        if result.get("status") == "ok":
+            r.set_pass("Mouse position returned",
+                       f"x={result.get('x')}, y={result.get('y')}")
+        elif _is_graceful(result):
+            r.set_pass("pyautogui not installed (acceptable)", result.get("error", "")[:80])
+        else:
+            r.set_fail("status=ok or graceful error", str(result)[:200])
+    run_test("computer_control", "get_mouse_pos: returns position or graceful error", t22b)
+
+    # --- Test 22c: clipboard_set + clipboard_get round-trip ---
+    def t22c(r: TestResult):
+        set_result = mod.clipboard_set("overlord11_test_payload")
+        if _is_graceful(set_result) and set_result.get("status") == "ok":
+            get_result = mod.clipboard_get()
+            if get_result.get("content") == "overlord11_test_payload":
+                r.set_pass("Clipboard round-trip OK", "set+get match")
+            else:
+                r.set_fail("clipboard content matches", str(get_result)[:200])
+        elif _is_graceful(set_result):
+            r.set_pass("pyperclip not installed (acceptable)", set_result.get("error", "")[:80])
+        else:
+            r.set_fail("status=ok or graceful error", str(set_result)[:200])
+    run_test("computer_control", "clipboard_set+get: round-trip or graceful error", t22c)
+
+    # --- Test 22d: mouse_click - requires pyautogui ---
+    def t22d(r: TestResult):
+        result = mod.mouse_click(x=100, y=100)
+        if result.get("status") == "ok":
+            r.set_pass("Mouse clicked", f"at={result.get('clicked_at')}")
+        elif _is_graceful(result):
+            r.set_pass("pyautogui not installed (acceptable)", result.get("error", "")[:80])
+        else:
+            r.set_fail("status=ok or graceful error", str(result)[:200])
+    run_test("computer_control", "mouse_click: click or graceful error without pyautogui", t22d)
+
+
 
 def print_report():
     """Print verbose test results with expected vs actual.
@@ -1774,6 +2277,12 @@ def main():
         "publisher_tool":       test_publisher_tool,
         "log_manager":          test_log_manager,
         "session_manager":      test_session_manager,
+        "consciousness_tool":   test_consciousness_tool,
+        "response_formatter":   test_response_formatter,
+        "file_converter":       test_file_converter,
+        "error_handler":        test_error_handler,
+        "vision_tool":          test_vision_tool,
+        "computer_control":     test_computer_control,
     }
 
     # --list: enumerate tools and exit

@@ -75,7 +75,7 @@
       "file": "agents/researcher.md",
       "description": "Web research, information gathering, source verification",
       "entry_point": false,
-      "tools": ["web_fetch", "web_scraper", "read_file", "list_directory", "glob", "search_file_content", "save_memory", "project_scanner"]
+      "tools": ["web_fetch", "web_scraper", "read_file", "list_directory", "glob", "search_file_content", "save_memory", "project_scanner", "consciousness_tool", "error_handler"]
     },
     "coder": {
       "id": "OVR_COD_03",
@@ -83,7 +83,7 @@
       "file": "agents/coder.md",
       "description": "Code generation, debugging, testing, refactoring",
       "entry_point": false,
-      "tools": ["read_file", "write_file", "replace", "run_shell_command", "code_analyzer", "project_scanner", "scaffold_generator", "git_tool", "search_file_content", "glob"]
+      "tools": ["read_file", "write_file", "replace", "run_shell_command", "code_analyzer", "project_scanner", "scaffold_generator", "git_tool", "search_file_content", "glob", "consciousness_tool", "error_handler", "file_converter"]
     },
     "analyst": {
       "id": "OVR_ANL_04",
@@ -91,7 +91,7 @@
       "file": "agents/analyst.md",
       "description": "Data analysis, summarization, pattern recognition",
       "entry_point": false,
-      "tools": ["read_file", "calculator", "code_analyzer", "project_scanner", "search_file_content", "glob", "save_memory"]
+      "tools": ["read_file", "calculator", "code_analyzer", "project_scanner", "search_file_content", "glob", "save_memory", "consciousness_tool", "response_formatter", "file_converter"]
     },
     "writer": {
       "id": "OVR_WRT_05",
@@ -99,7 +99,7 @@
       "file": "agents/writer.md",
       "description": "Documentation, reports, content creation",
       "entry_point": false,
-      "tools": ["read_file", "write_file", "replace", "list_directory", "glob"]
+      "tools": ["read_file", "write_file", "replace", "list_directory", "glob", "consciousness_tool", "response_formatter", "file_converter"]
     },
     "reviewer": {
       "id": "OVR_REV_06",
@@ -107,7 +107,7 @@
       "file": "agents/reviewer.md",
       "description": "QA, code review, proofreading, validation",
       "entry_point": false,
-      "tools": ["read_file", "code_analyzer", "run_shell_command", "search_file_content", "glob"]
+      "tools": ["read_file", "code_analyzer", "run_shell_command", "search_file_content", "glob", "consciousness_tool", "error_handler"]
     },
     "publisher": {
       "id": "OVR_PUB_07",
@@ -115,7 +115,7 @@
       "file": "agents/publisher.md",
       "description": "Tiered output formatter — markdown for mid-complexity, styled self-contained HTML for detailed/visual requests",
       "entry_point": false,
-      "tools": ["read_file", "write_file", "replace", "publisher_tool"]
+      "tools": ["read_file", "write_file", "replace", "publisher_tool", "response_formatter"]
     }
   },
 
@@ -183,6 +183,30 @@
     "scaffold_generator": {
       "def": null,
       "impl": "tools/python/scaffold_generator.py"
+    },
+    "consciousness_tool": {
+      "def": "tools/defs/consciousness_tool.json",
+      "impl": "tools/python/consciousness_tool.py"
+    },
+    "vision_tool": {
+      "def": "tools/defs/vision_tool.json",
+      "impl": "tools/python/vision_tool.py"
+    },
+    "computer_control": {
+      "def": "tools/defs/computer_control.json",
+      "impl": "tools/python/computer_control.py"
+    },
+    "response_formatter": {
+      "def": "tools/defs/response_formatter.json",
+      "impl": "tools/python/response_formatter.py"
+    },
+    "file_converter": {
+      "def": "tools/defs/file_converter.json",
+      "impl": "tools/python/file_converter.py"
+    },
+    "error_handler": {
+      "def": "tools/defs/error_handler.json",
+      "impl": "tools/python/error_handler.py"
     }
   },
 

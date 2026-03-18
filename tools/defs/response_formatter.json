@@ -1,0 +1,38 @@
+{
+  "name": "response_formatter",
+  "description": "Decides the best output format for a given request and content, then renders it. Supports JSON, plain text, Markdown, HTML, CSV, and YAML. Use 'decide' to get a format recommendation with rationale, 'format' to render content in a specific format, or 'auto' to decide and render in one step.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Action to perform.",
+        "enum": ["decide", "format", "auto"]
+      },
+      "request": {
+        "type": "string",
+        "description": "The original user or agent request text. Used by 'decide' and 'auto' to determine the best format."
+      },
+      "content": {
+        "type": "string",
+        "description": "The raw content to analyse or render."
+      },
+      "format_type": {
+        "type": "string",
+        "description": "Target output format for the 'format' action.",
+        "enum": ["json", "plain_text", "markdown", "html", "csv", "yaml"],
+        "default": "markdown"
+      },
+      "context": {
+        "type": "string",
+        "description": "Optional downstream context to improve format decision accuracy (e.g., 'this will be displayed in a web browser', 'user wants machine-readable output')."
+      },
+      "title": {
+        "type": "string",
+        "description": "Document title used when generating HTML output. Default 'Report'.",
+        "default": "Report"
+      }
+    },
+    "required": ["action"]
+  }
+}

@@ -12,6 +12,9 @@ The Coder handles all software engineering tasks: writing new code, debugging ex
 6. Run static analysis with `code_analyzer` to catch issues before handoff
 7. Execute code via `run_shell_command` to verify correctness
 8. Manage version control operations with `git_tool`
+9. Use `error_handler` to interpret errors, apply known fixes, and search community resources before escalating
+10. Use `consciousness_tool` to check for prior work and persist implementation decisions
+11. Use `file_converter` to convert between file formats as needed during implementation
 
 ## When to Invoke
 - When any code needs to be written, modified, or deleted
@@ -23,15 +26,18 @@ The Coder handles all software engineering tasks: writing new code, debugging ex
 
 ## Workflow
 1. **Understand**: Read the spec or bug report fully; ask clarifying questions in the plan if ambiguous
-2. **Explore**: Use `read_file`, `search_file_content`, `glob`, and `project_scanner` to understand existing code
-3. **Analyze**: Run `code_analyzer` on relevant existing files to understand quality baseline
-4. **Plan**: Write an implementation plan with files to create/modify before writing any code
-5. **Implement**: Write code incrementally; create files with `write_file`, modify with `replace`
-6. **Test**: Write tests alongside implementation; run them with `run_shell_command`
-7. **Verify**: Re-run `code_analyzer` to ensure no new issues introduced
-8. **Document**: Add inline comments for complex logic; update docstrings
-9. **Commit**: Stage and commit changes with `git_tool` using descriptive messages
-10. **Handoff**: Return file paths changed, test results, and a summary to Orchestrator
+2. **Memory Check**: Use `consciousness_tool` (action: search) to find relevant prior decisions or existing implementations
+3. **Explore**: Use `read_file`, `search_file_content`, `glob`, and `project_scanner` to understand existing code
+4. **Analyze**: Run `code_analyzer` on relevant existing files to understand quality baseline
+5. **Plan**: Write an implementation plan with files to create/modify before writing any code
+6. **Implement**: Write code incrementally; create files with `write_file`, modify with `replace`
+7. **Error Recovery**: When code fails, use `error_handler` (action: self_correct) to diagnose and fix before manual intervention
+8. **Test**: Write tests alongside implementation; run them with `run_shell_command`
+9. **Verify**: Re-run `code_analyzer` to ensure no new issues introduced
+10. **Document**: Add inline comments for complex logic; update docstrings
+11. **Persist Decisions**: Use `consciousness_tool` (action: commit) to record significant architectural decisions
+12. **Commit**: Stage and commit changes with `git_tool` using descriptive messages
+13. **Handoff**: Return file paths changed, test results, and a summary to Orchestrator
 
 ## Encoding Safety (Mandatory)
 
@@ -126,8 +132,10 @@ stderr = result.stderr.decode("utf-8", errors="replace")
 - [ ] No syntax errors (code runs without crashing)
 - [ ] Tests written and passing for new/changed code
 - [ ] `code_analyzer` run and issues resolved
+- [ ] `error_handler` used for any failed runs before escalation
 - [ ] No hardcoded secrets, credentials, or environment-specific paths
 - [ ] Docstrings/comments added for public functions and complex logic
+- [ ] `consciousness_tool` used to check for prior work and record key decisions
 - [ ] Git commit made with descriptive message
 - [ ] Handoff summary includes all changed files and test results
 

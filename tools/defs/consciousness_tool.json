@@ -1,0 +1,67 @@
+{
+  "name": "consciousness_tool",
+  "description": "Read, search, and write to Consciousness.md — the shared cross-agent memory file. Use this tool to persist insights across sessions, query existing memories by keyword or index, commit new entries with structured metadata, and clean up expired or resolved entries.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Operation to perform on the Consciousness file.",
+        "enum": ["read_all", "read_section", "search", "search_index", "commit", "cleanup"]
+      },
+      "section": {
+        "type": "string",
+        "description": "Section heading name for 'read_section'. Case-insensitive substring match. Example: 'Cross-Agent Signals', 'Error States'."
+      },
+      "query": {
+        "type": "string",
+        "description": "Keyword or phrase to search for in the Consciousness file. Used by the 'search' action."
+      },
+      "max_results": {
+        "type": "integer",
+        "description": "Maximum number of search results to return. Default 20.",
+        "default": 20
+      },
+      "key": {
+        "type": "string",
+        "description": "Short, descriptive key for the memory entry being committed. Example: 'database_schema_version', 'active_sprint_goal'."
+      },
+      "value": {
+        "type": "string",
+        "description": "Content of the memory entry. Keep under 200 words for effective sharing."
+      },
+      "priority": {
+        "type": "string",
+        "description": "Priority level for the memory entry.",
+        "enum": ["CRITICAL", "HIGH", "NORMAL", "LOW", "PERSISTENT"],
+        "default": "NORMAL"
+      },
+      "ttl": {
+        "type": "string",
+        "description": "Time-to-live for this entry. Options: '24h', '7d', '30d', 'persistent'. Default '7d'.",
+        "default": "7d"
+      },
+      "category": {
+        "type": "string",
+        "description": "Memory category for organizational grouping.",
+        "enum": ["context", "finding", "decision", "error", "config", "wip", "handoff"],
+        "default": "context"
+      },
+      "source": {
+        "type": "string",
+        "description": "Agent ID or system name that is committing the entry. Example: 'OVR_RES_02'.",
+        "default": "AGENT"
+      },
+      "dry_run": {
+        "type": "boolean",
+        "description": "For 'cleanup' action: show what would be removed without making changes. Default false.",
+        "default": false
+      },
+      "file": {
+        "type": "string",
+        "description": "Path to the Consciousness file. Defaults to project root Consciousness.md."
+      }
+    },
+    "required": ["action"]
+  }
+}
