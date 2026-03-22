@@ -148,6 +148,14 @@ build/
 
 {{description}}
 
+## Quick Start
+
+Double-click `run.bat` (Windows) or `run.command` (macOS), or:
+
+```bash
+python run.py
+```
+
 ## Installation
 
 ```bash
@@ -166,6 +174,81 @@ pip install -e ".[dev]"
 pytest
 ruff check .
 ```
+''',
+            "run.py": '''#!/usr/bin/env python3
+"""{{name}} — Launcher. Run this file to start the application."""
+import io, os, subprocess, sys, time
+from datetime import datetime
+
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+    os.system("")
+
+TITLE = """
+  +======================================+
+  |            {{NAME}}            |
+  +======================================+
+"""
+
+C = {
+    "cyan": "\\033[36m", "yellow": "\\033[33m", "green": "\\033[32m",
+    "red": "\\033[31m", "magenta": "\\033[35m", "dim": "\\033[90m",
+    "white": "\\033[97m", "reset": "\\033[0m",
+} if sys.stdout.isatty() else {k: "" for k in ["cyan","yellow","green","red","magenta","dim","white","reset"]}
+
+def log(msg, level="info"):
+    ts = datetime.now().strftime("%H:%M:%S")
+    color = {"info": C["cyan"], "success": C["green"], "error": C["red"], "dim": C["dim"]}.get(level, C["cyan"])
+    print(f"  {C['dim']}[{ts}]{C['reset']} {color}{level.upper().ljust(7)}{C['reset']} {msg}")
+
+def run_cmd(cmd, label=""):
+    log(f"Running: {label or cmd}", "info")
+    try:
+        p = subprocess.Popen(cmd, shell=True, stdout=sys.stdout, stderr=sys.stderr)
+        p.wait()
+        if p.returncode == 0:
+            log(f"{label or 'Command'} completed.", "success")
+        else:
+            log(f"{label or 'Command'} exited with code {p.returncode}.", "error")
+    except KeyboardInterrupt:
+        log("Interrupted.", "info")
+
+def main():
+    print(f"{C['cyan']}{TITLE}{C['reset']}")
+    print(f"  {C['magenta']}{{description}}{C['reset']}")
+    print(f"  {C['dim']}Python {sys.version.split()[0]}{C['reset']}")
+    print(f"  {C['dim']}{'─' * 40}{C['reset']}\\n")
+    print(f"  {C['white']}Select a run mode:{C['reset']}\\n")
+    print(f"  {C['yellow']}[1]{C['reset']}  {C['white']}CLI Mode{C['reset']}")
+    print(f"  {C['yellow']}[Q]{C['reset']}  {C['dim']}Quit{C['reset']}\\n")
+    while True:
+        try:
+            choice = input(f"  {C['magenta']}> {C['reset']}").strip()
+        except (KeyboardInterrupt, EOFError):
+            print(); log("Goodbye!", "info"); return
+        if choice.upper() == "Q":
+            log("Goodbye!", "info"); return
+        elif choice == "1":
+            run_cmd("python -m {{name}}.cli", "CLI Mode"); print()
+        else:
+            log(f"Unknown option: '{choice}'", "error"); print()
+
+if __name__ == "__main__":
+    main()
+''',
+            "run.bat": '''@echo off
+title {{name}}
+setlocal enabledelayedexpansion
+where python >nul 2>&1
+if %ERRORLEVEL% equ 0 (set "PY=python" & goto :run)
+where python3 >nul 2>&1
+if %ERRORLEVEL% equ 0 (set "PY=python3" & goto :run)
+echo  ERROR: Python not found. & pause & exit /b 1
+:run
+cd /d "%~dp0"
+%PY% run.py
+if %ERRORLEVEL% neq 0 pause
 ''',
         },
     },
@@ -278,7 +361,15 @@ dist/
 
 {{description}}
 
-## Run
+## Quick Start
+
+Double-click `run.bat` (Windows) or `run.command` (macOS), or:
+
+```bash
+python run.py
+```
+
+## Run Manually
 
 ```bash
 uvicorn {{name}}.main:app --reload
@@ -289,6 +380,82 @@ uvicorn {{name}}.main:app --reload
 ```bash
 pytest
 ```
+''',
+            "run.py": '''#!/usr/bin/env python3
+"""{{name}} — Launcher. Run this file to start the application."""
+import io, os, subprocess, sys, time
+from datetime import datetime
+
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+    os.system("")
+
+TITLE = """
+  +======================================+
+  |            {{NAME}}            |
+  +======================================+
+"""
+
+C = {
+    "cyan": "\\033[36m", "yellow": "\\033[33m", "green": "\\033[32m",
+    "red": "\\033[31m", "magenta": "\\033[35m", "dim": "\\033[90m",
+    "white": "\\033[97m", "reset": "\\033[0m",
+} if sys.stdout.isatty() else {k: "" for k in ["cyan","yellow","green","red","magenta","dim","white","reset"]}
+
+def log(msg, level="info"):
+    ts = datetime.now().strftime("%H:%M:%S")
+    color = {"info": C["cyan"], "success": C["green"], "error": C["red"], "dim": C["dim"]}.get(level, C["cyan"])
+    print(f"  {C['dim']}[{ts}]{C['reset']} {color}{level.upper().ljust(7)}{C['reset']} {msg}")
+
+def run_cmd(cmd, label=""):
+    log(f"Running: {label or cmd}", "info")
+    try:
+        p = subprocess.Popen(cmd, shell=True, stdout=sys.stdout, stderr=sys.stderr)
+        p.wait()
+        if p.returncode == 0:
+            log(f"{label or 'Command'} completed.", "success")
+        else:
+            log(f"{label or 'Command'} exited with code {p.returncode}.", "error")
+    except KeyboardInterrupt:
+        log("Interrupted.", "info")
+
+def main():
+    print(f"{C['cyan']}{TITLE}{C['reset']}")
+    print(f"  {C['magenta']}{{description}}{C['reset']}")
+    print(f"  {C['dim']}Python {sys.version.split()[0]}{C['reset']}")
+    print(f"  {C['dim']}{'─' * 40}{C['reset']}\\n")
+    print(f"  {C['white']}Select a run mode:{C['reset']}\\n")
+    print(f"  {C['yellow']}[1]{C['reset']}  {C['white']}API Server{C['reset']}")
+    print(f"       {C['dim']}uvicorn on http://127.0.0.1:8000{C['reset']}")
+    print(f"  {C['yellow']}[Q]{C['reset']}  {C['dim']}Quit{C['reset']}\\n")
+    while True:
+        try:
+            choice = input(f"  {C['magenta']}> {C['reset']}").strip()
+        except (KeyboardInterrupt, EOFError):
+            print(); log("Goodbye!", "info"); return
+        if choice.upper() == "Q":
+            log("Goodbye!", "info"); return
+        elif choice == "1":
+            run_cmd("uvicorn {{name}}.main:app --reload --host 127.0.0.1 --port 8000", "API Server"); print()
+        else:
+            log(f"Unknown option: '{choice}'", "error"); print()
+
+if __name__ == "__main__":
+    main()
+''',
+            "run.bat": '''@echo off
+title {{name}}
+setlocal enabledelayedexpansion
+where python >nul 2>&1
+if %ERRORLEVEL% equ 0 (set "PY=python" & goto :run)
+where python3 >nul 2>&1
+if %ERRORLEVEL% equ 0 (set "PY=python3" & goto :run)
+echo  ERROR: Python not found. & pause & exit /b 1
+:run
+cd /d "%~dp0"
+%PY% run.py
+if %ERRORLEVEL% neq 0 pause
 ''',
         },
     },

@@ -20,17 +20,19 @@ The Reviewer is the quality gate for all Overlord11 output. It performs code rev
 - When security-sensitive code or content is involved
 
 ## Workflow
-1. **Scope**: Understand what is being reviewed and the acceptance criteria
-2. **Read**: Fully read all files and content under review before commenting
-3. **Static Analysis**: Run `code_analyzer` on all changed code files
-4. **Test Execution**: Run existing tests via `run_shell_command`; check for failures
-5. **Correctness Check**: Verify logic, algorithms, and outputs are correct
-6. **Security Audit**: Check for hardcoded secrets, injection risks, unsafe shell calls, path traversal
-7. **Encoding Audit**: Scan every `open()`, `json.dumps()`, `subprocess`, and `print()` call against the Encoding Safety Checklist — encoding defects are cross-platform bugs, not style issues
-8. **Requirements Trace**: Map each requirement to the implementation; flag gaps
-9. **Style & Consistency**: Check formatting, naming conventions, and consistency with existing code/docs
-10. **Verdict**: Issue APPROVED, APPROVED_WITH_NOTES, or CHANGES_REQUIRED
-11. **Feedback**: If changes required, provide specific line-level feedback with suggested fixes
+1. **Onboard**: Read `Settings.md` for verification level and behavior settings. Read `AInotes.md` for critical context.
+2. **Scope**: Understand what is being reviewed and the acceptance criteria
+3. **Read**: Fully read all files and content under review before commenting
+4. **Static Analysis**: Run `code_analyzer` on all changed code files
+5. **Test Execution**: Run existing tests via `run_shell_command`; check for failures
+6. **Correctness Check**: Verify logic, algorithms, and outputs are correct
+7. **Security Audit**: Check for hardcoded secrets, injection risks, unsafe shell calls, path traversal. Run `cleanup_tool --action scan_secrets` on the project directory.
+8. **Encoding Audit**: Scan every `open()`, `json.dumps()`, `subprocess`, and `print()` call against the Encoding Safety Checklist — encoding defects are cross-platform bugs, not style issues
+9. **Project Docs Check**: Verify that `ProjectOverview.md` accurately reflects the current state. Verify `TaskingLog.md` tasks are properly updated. Check `ErrorLog.md` for open errors.
+10. **Requirements Trace**: Map each requirement to the implementation; flag gaps
+11. **Style & Consistency**: Check formatting, naming conventions, and consistency with existing code/docs
+12. **Verdict**: Issue APPROVED, APPROVED_WITH_NOTES, or CHANGES_REQUIRED
+13. **Feedback**: If changes required, provide specific line-level feedback with suggested fixes. Log any critical issues to `AInotes.md`.
 
 ## Review Categories
 

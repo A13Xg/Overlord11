@@ -1,0 +1,33 @@
+{
+  "name": "scaffold_generator",
+  "description": "Generate project scaffolding from templates. Creates directory structures, boilerplate files, configuration, and starter code for various project types (Python CLI, Python API, Node API, static site, etc.). Use --list-templates to see available templates.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "template": {
+        "type": "string",
+        "description": "Template to use for scaffolding. Available: python_cli, python_api, python_lib, node_api, static_site, overlord_agent, overlord_tool.",
+        "enum": ["python_cli", "python_api", "python_lib", "node_api", "static_site", "overlord_agent", "overlord_tool"]
+      },
+      "name": {
+        "type": "string",
+        "description": "Project or module name (used for directories and imports)."
+      },
+      "output": {
+        "type": "string",
+        "description": "Output directory for the scaffold. Defaults to current directory."
+      },
+      "description": {
+        "type": "string",
+        "description": "Short description of the project (used in generated files).",
+        "default": ""
+      },
+      "list_templates": {
+        "type": "boolean",
+        "description": "If true, list available templates and exit.",
+        "default": false
+      }
+    },
+    "required": ["template", "name"]
+  }
+}

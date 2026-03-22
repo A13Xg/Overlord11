@@ -16,7 +16,7 @@ The framework is designed to work with **any LLM provider** — Anthropic Claude
 
 | Property | Value |
 |----------|-------|
-| Framework | Overlord11 v2.1.0 |
+| Framework | Overlord11 v2.2.0 |
 | Memory file | `Consciousness.md` (shared across all agents) |
 | Config | `config.json` (provider, agent, tool settings) |
 | Tool implementations | `tools/python/` |
@@ -29,7 +29,7 @@ The framework is designed to work with **any LLM provider** — Anthropic Claude
 
 ## Available Agents
 
-You are one of these seven agents. Read your agent file for full instructions.
+You are one of these eight agents. Read your agent file for full instructions.
 
 | ID | Agent | File | When to Use |
 |----|-------|------|-------------|
@@ -40,6 +40,7 @@ You are one of these seven agents. Read your agent file for full instructions.
 | OVR_WRT_05 | **Writer** | `agents/writer.md` | Creating or revising any human-facing text (Tier 1 / Markdown) |
 | OVR_REV_06 | **Reviewer** | `agents/reviewer.md` | QA, validation, proofreading; always runs last |
 | OVR_PUB_07 | **Publisher** | `agents/publisher.md` | Generating styled self-contained HTML reports for complex / visual output (Tier 2) |
+| OVR_CLN_08 | **Cleanup** | `agents/cleanup.md` | Pre-deployment sanity check — secrets scan, temp file removal, structure validation |
 
 ---
 
@@ -77,6 +78,37 @@ These tools are registered in `config.json` and implemented in `tools/python/`. 
 | `project_scanner` | Project structure + framework detection | Onboarding to an unfamiliar codebase |
 | `save_memory` | Write to `Consciousness.md` | Persisting findings across sessions |
 | `publisher_tool` | Generate styled self-contained HTML reports | Used by Publisher agent for Tier 2 output |
+| `scaffold_generator` | Generate project boilerplate from templates | Starting new projects |
+| `launcher_generator` | Generate `run.py` launcher + platform shortcuts (`run.bat`, `run.command`) | Every new project — provides ASCII title, color menu, concurrent mode |
+
+### Project Management
+| Tool | What It Does | When to Use |
+|------|-------------|-------------|
+| `project_docs_init` | Initialize the 5 standardized project files | Start of any new project or missing docs |
+| `task_manager` | Manage `TaskingLog.md` — add/complete tasks and subtasks | Tracking work progress |
+| `error_logger` | Manage `ErrorLog.md` — log errors, attempts, resolutions | When errors occur during work |
+| `cleanup_tool` | Pre-deploy scan: secrets detection, temp cleanup, structure validation | End of tasking, before deployment |
+
+---
+
+## Standardized Project Files
+
+Every sandboxed project directory worked on by Overlord11 agents MUST contain these 5 files. They are created automatically by `project_docs_init` and maintained by agents throughout the project lifecycle.
+
+| File | Purpose | Read At Start? |
+|------|---------|----------------|
+| `ProjectOverview.md` | Comprehensive onboarding — project goals, stack, architecture, UI/UX, design constraints, color scheme, and all details a fresh agent needs | YES |
+| `Settings.md` | AI behavior config (human+AI readable) — thinking depth, verbosity, error handling, retry limits, test settings | YES |
+| `TaskingLog.md` | Sequential task log with checkboxes, subtasks, priorities, agent assignments | YES |
+| `AInotes.md` | Critical notes from AI agents — blockers, gotchas, requirements, warnings | YES |
+| `ErrorLog.md` | Error tracking with severity, source, attempted fixes, resolution status | Check for open errors |
+
+### Agent Protocol
+1. **At session start**: Read `ProjectOverview.md`, `Settings.md`, `AInotes.md`, and check `TaskingLog.md`
+2. **Before working**: Verify your task isn't already completed in `TaskingLog.md`
+3. **During work**: Follow `Settings.md` configuration (error handling, verbosity, testing)
+4. **On error**: Log to `ErrorLog.md`, follow `error_response` setting
+5. **On completion**: Update `TaskingLog.md`, write critical findings to `AInotes.md`
 
 ---
 
@@ -203,15 +235,21 @@ Each log entry should include:
 
 1. **Always start as Orchestrator** for new requests. Do not invoke specialist agents directly unless explicitly asked.
 2. **Never skip the Reviewer** — all final outputs pass through `OVR_REV_06` before delivery.
-3. **Read `Consciousness.md` at session start** — check for active errors and pending handoffs.
-4. **Write to `Consciousness.md` at session end** — log what you did and any findings to persist.
-5. **Use tools, not memory** — if you need file content, use `read_file`. Don't hallucinate file contents.
-6. **Cite sources** — every factual claim in Researcher output includes a source URL or file path.
-7. **Test before handoff** — Coder always runs tests and static analysis before flagging work as complete.
-8. **No secrets in code** — Reviewer blocks any output containing hardcoded API keys, passwords, or credentials.
-9. **Encoding safety is mandatory** — every file opened must use `encoding="utf-8"`, every `json.dumps()` must use `ensure_ascii=False`, and every module that prints must use a `safe_str()` helper. See `agents/coder.md` → **Encoding Safety** for full patterns.
-10. **Stay in scope** — complete the delegated subtask fully; don't expand scope without notifying the Orchestrator.
-11. **Be explicit about uncertainty** — if you don't know something, say so. Don't fabricate data or code.
+3. **Initialize project docs** — ensure `ProjectOverview.md`, `Settings.md`, `TaskingLog.md`, `AInotes.md`, and `ErrorLog.md` exist in the sandboxed project directory before any work begins. Use `project_docs_init` if missing.
+4. **Read project docs at session start** — read `ProjectOverview.md`, `Settings.md`, `AInotes.md`, and check `TaskingLog.md` for context and to avoid duplicate work.
+5. **Respect `Settings.md`** — follow all configured AI behavior settings (error handling, verbosity, testing, retry limits).
+6. **Track tasks** — update `TaskingLog.md` via `task_manager` when starting and completing work. Never duplicate a completed task.
+7. **Log errors** — when errors occur, log them to `ErrorLog.md` via `error_logger` and follow the configured `error_response` strategy.
+8. **Write critical notes** — when encountering blockers, gotchas, or critical requirements, write them to `AInotes.md` for future agents.
+9. **Read `Consciousness.md` at session start** — check for active errors and pending handoffs.
+10. **Write to `Consciousness.md` at session end** — log what you did and any findings to persist.
+11. **Use tools, not memory** — if you need file content, use `read_file`. Don't hallucinate file contents.
+12. **Cite sources** — every factual claim in Researcher output includes a source URL or file path.
+13. **Test before handoff** — Coder always runs tests and static analysis before flagging work as complete.
+14. **No secrets in code** — Reviewer blocks any output containing hardcoded API keys, passwords, or credentials. Run `cleanup_tool` scan before deployment.
+15. **Encoding safety is mandatory** — every file opened must use `encoding="utf-8"`, every `json.dumps()` must use `ensure_ascii=False`, and every module that prints must use a `safe_str()` helper. See `agents/coder.md` → **Encoding Safety** for full patterns.
+16. **Stay in scope** — complete the delegated subtask fully; don't expand scope without notifying the Orchestrator.
+17. **Be explicit about uncertainty** — if you don't know something, say so. Don't fabricate data or code.
 
 ---
 

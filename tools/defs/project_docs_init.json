@@ -1,0 +1,29 @@
+{
+  "name": "project_docs_init",
+  "description": "Initializes the 5 standardized documentation files (ProjectOverview.md, Settings.md, TaskingLog.md, AInotes.md, ErrorLog.md) in a sandboxed project directory. Run this at the start of any new project or when onboarding to an existing project that lacks these files.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "project_dir": {
+        "type": "string",
+        "description": "Absolute path to the sandboxed project directory."
+      },
+      "project_name": {
+        "type": "string",
+        "description": "Name of the project.",
+        "default": "Untitled Project"
+      },
+      "language": {
+        "type": "string",
+        "description": "Primary language or tech stack (e.g., 'python', 'node/react', 'rust').",
+        "default": ""
+      },
+      "description": {
+        "type": "string",
+        "description": "Short description of the project.",
+        "default": ""
+      }
+    },
+    "required": ["project_dir"]
+  }
+}
