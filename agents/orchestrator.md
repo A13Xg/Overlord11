@@ -80,6 +80,15 @@ Orchestrator → project_docs_init (ensure project files exist)
              → Writer (update docs)  [Tier 1]
 ```
 
+### UI/UX Feature Request
+```
+Orchestrator → project_docs_init (ensure project files exist)
+             → Coder (call ui_design_system to generate/load design spec; implement UI)
+             → Reviewer (validate UI against design-system/MASTER.md tokens and rules)
+             → Cleanup (pre-deploy scan)
+             → Writer (update docs)  [Tier 1]
+```
+
 ### Bug Fix
 ```
 Orchestrator → Analyst (diagnose root cause)
@@ -147,6 +156,7 @@ Orchestrator → Researcher (use analyze_content action on target URLs)
 - [ ] `TaskingLog.md` checked for duplicate/completed tasks before starting
 - [ ] Request fully understood before delegation begins
 - [ ] Output tier assessed and documented in the plan
+- [ ] For UI/UX tasks: Coder instructed to call `ui_design_system` first (or read `design-system/MASTER.md` if it exists)
 - [ ] All required agents identified and invoked
 - [ ] Agent outputs verified against subtask contracts
 - [ ] Reviewer agent always invoked before final delivery

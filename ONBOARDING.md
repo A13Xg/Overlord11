@@ -80,6 +80,7 @@ These tools are registered in `config.json` and implemented in `tools/python/`. 
 | `publisher_tool` | Generate styled self-contained HTML reports | Used by Publisher agent for Tier 2 output |
 | `scaffold_generator` | Generate project boilerplate from templates | Starting new projects |
 | `launcher_generator` | Generate `run.py` launcher + platform shortcuts (`run.bat`, `run.command`) | Every new project — provides ASCII title, color menu, concurrent mode |
+| `ui_design_system` | Generate a complete UI/UX design system (style + palette + tokens + rules). Persists to `design-system/MASTER.md`. | Before any UI implementation — generates or loads the design spec |
 
 ### Project Management
 | Tool | What It Does | When to Use |
@@ -130,6 +131,15 @@ Orchestrator
   → Coder        — implement the feature with tests
   → Reviewer     — code review + security audit
   → Writer       — update docs and changelog  [Tier 1]
+```
+
+### UI/UX Feature Request
+```
+Orchestrator
+  → Coder        — check design-system/MASTER.md (or call ui_design_system with persist=true if missing)
+                   implement UI strictly following the design system tokens and rules
+  → Reviewer     — validate UI against design-system/MASTER.md (tokens, shapes, contrast, Do/Don't list)
+  → Writer       — update docs  [Tier 1]
 ```
 
 ### Bug Fix
@@ -231,6 +241,50 @@ Each log entry should include:
 
 ---
 
+## UI/UX Design System Skill
+
+The `ui_design_system` tool provides a consistent, reusable UI spec for every project. Before writing any front-end code, the Coder checks for — or generates — a design system.
+
+### How it works
+
+1. **Coder checks** whether `design-system/MASTER.md` exists in the project.
+2. If yes → reads it as the binding UI specification.
+3. If no → calls `ui_design_system` with `persist=true` to generate and save it.
+4. **All UI code** follows the design system: tokens for color (no raw hex), typography rules, border-radius, interaction patterns, and the Do/Don't list.
+5. **Reviewer validates** every UI output against `design-system/MASTER.md`.
+
+### Quick reference — generating a design system
+
+```bash
+# Auto-select style and palette from project name (deterministic)
+python tools/python/ui_design_system.py --project_name "My App" --persist
+
+# Explicit selection
+python tools/python/ui_design_system.py \
+  --style_id minimal-zen \
+  --palette_id nordic-frost \
+  --stack nextjs \
+  --project_name "My App" \
+  --persist
+```
+
+### Available styles (10)
+`brutalist` · `glassmorphism` · `neobrutalism` · `editorial` · `minimal-zen` · `data-dense` · `soft-ui` · `retro-terminal` · `biomimetic` · `aurora-gradient`
+
+### Available palettes (10)
+`midnight-ink` · `chalk-board` · `neon-city` · `nordic-frost` · `terracotta-sun` · `deep-forest` · `sakura-bloom` · `volcanic-night` · `arctic-monochrome` · `ultraviolet`
+
+### Files written when persist=true
+```
+design-system/
+  MASTER.md            ← Always — the canonical project design spec
+  pages/<name>.md      ← Only when --page is specified
+```
+
+> Full documentation: `docs/UI-UX-Design-System.md`
+
+---
+
 ## Rules
 
 1. **Always start as Orchestrator** for new requests. Do not invoke specialist agents directly unless explicitly asked.
@@ -247,9 +301,10 @@ Each log entry should include:
 12. **Cite sources** — every factual claim in Researcher output includes a source URL or file path.
 13. **Test before handoff** — Coder always runs tests and static analysis before flagging work as complete.
 14. **No secrets in code** — Reviewer blocks any output containing hardcoded API keys, passwords, or credentials. Run `cleanup_tool` scan before deployment.
-15. **Encoding safety is mandatory** — every file opened must use `encoding="utf-8"`, every `json.dumps()` must use `ensure_ascii=False`, and every module that prints must use a `safe_str()` helper. See `agents/coder.md` → **Encoding Safety** for full patterns.
-16. **Stay in scope** — complete the delegated subtask fully; don't expand scope without notifying the Orchestrator.
-17. **Be explicit about uncertainty** — if you don't know something, say so. Don't fabricate data or code.
+15. **Use the design system for UI** — before writing any UI code, check for `design-system/MASTER.md`. If missing, run `ui_design_system` with `persist=true`. Never hardcode hex colors or invent styles — use the design system tokens.
+16. **Encoding safety is mandatory** — every file opened must use `encoding="utf-8"`, every `json.dumps()` must use `ensure_ascii=False`, and every module that prints must use a `safe_str()` helper. See `agents/coder.md` → **Encoding Safety** for full patterns.
+17. **Stay in scope** — complete the delegated subtask fully; don't expand scope without notifying the Orchestrator.
+18. **Be explicit about uncertainty** — if you don't know something, say so. Don't fabricate data or code.
 
 ---
 
