@@ -7,6 +7,63 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added — UI/UX Design System Skill
+
+A native Overlord11 UI/UX design system skill that gives agents a consistent,
+reusable visual specification before any UI implementation begins.
+
+#### Datasets (`skills/uiux/`)
+- `skills/uiux/styles.json` — 10 vastly different UI styles with full layout,
+  typography, shape, interaction, and Do/Don't guidance:
+  `brutalist`, `glassmorphism`, `neobrutalism`, `editorial`, `minimal-zen`,
+  `data-dense`, `soft-ui`, `retro-terminal`, `biomimetic`, `aurora-gradient`
+- `skills/uiux/palettes.json` — 10 color palettes (light + dark modes) with
+  14 semantic token hex values each and WCAG contrast notes:
+  `midnight-ink`, `chalk-board`, `neon-city`, `nordic-frost`, `terracotta-sun`,
+  `deep-forest`, `sakura-bloom`, `volcanic-night`, `arctic-monochrome`, `ultraviolet`
+
+#### New Tool (`ui_design_system`)
+- `tools/defs/ui_design_system.json` — provider-agnostic tool schema
+- `tools/python/ui_design_system.py` — Python implementation
+- Accepts: `style_id`, `palette_id`, `stack` (html-tailwind/html-css/react/nextjs/vue/svelte),
+  `page`, `project_name`, `output_format` (md/json), `persist` (bool)
+- Outputs: complete design spec (tokens, layout rules, typography, shapes, motion, Do/Don't,
+  stack implementation code, Reviewer checklist)
+- When `persist=true`: writes `design-system/MASTER.md` and optional per-page override
+- Deterministic default selection: same project name always produces the same style+palette
+- Style-palette affinity tables guide sensible default pairings
+
+#### Agent Updates
+- **Orchestrator** (`agents/orchestrator.md`): Added "UI/UX Feature Request" delegation
+  pattern; Coder is instructed to generate/consult design system before UI work
+- **Coder** (`agents/coder.md`): Added step 3 "UI/UX Check" — read `design-system/MASTER.md`
+  or call `ui_design_system` with `persist=true` if missing; added UI token compliance to
+  quality checklist; `ui_design_system` added to tool list
+- **Reviewer** (`agents/reviewer.md`): Added "UI Design System Audit" workflow step;
+  added full "UI Design System Checklist" section; added `ui_design_system` to tool list
+
+#### Config Updates
+- `config.json`: `ui_design_system` registered in `tools` section; added to Coder and
+  Reviewer agent tool lists
+
+#### Documentation
+- `docs/UI-UX-Design-System.md` — comprehensive documentation: what the skill is,
+  dataset structure, tool reference, CLI usage, persist/reuse patterns, style+palette
+  combination guide, extending the skill, and troubleshooting
+- `ONBOARDING.md`: Added "UI/UX Design System Skill" section with quick-start CLI
+  examples and tool reference; added `ui_design_system` to tool table; added rule 15
+  ("Use the design system for UI"); updated delegation patterns
+- `README.md`: Added `🎨 UI/UX design system skill` feature bullet; updated tool count
+  badge to 16; added `skills/uiux/` to directory structure; added `ui_design_system`
+  to Analysis & Memory tools table; added `docs/UI-UX-Design-System.md` to docs listing
+
+#### Tests
+- `tests/test.py`: Added `test_ui_design_system` function with 6 tests covering:
+  Markdown output, JSON output, default selection, persist to disk, invalid IDs,
+  and error handling for missing data
+
+---
+
 ### Added — Test Suite (`tests/test.py`)
 
 A comprehensive test suite for all 16 Overlord11 modules was built and

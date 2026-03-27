@@ -25,14 +25,15 @@ The Reviewer is the quality gate for all Overlord11 output. It performs code rev
 3. **Read**: Fully read all files and content under review before commenting
 4. **Static Analysis**: Run `code_analyzer` on all changed code files
 5. **Test Execution**: Run existing tests via `run_shell_command`; check for failures
-6. **Correctness Check**: Verify logic, algorithms, and outputs are correct
-7. **Security Audit**: Check for hardcoded secrets, injection risks, unsafe shell calls, path traversal. Run `cleanup_tool --action scan_secrets` on the project directory.
-8. **Encoding Audit**: Scan every `open()`, `json.dumps()`, `subprocess`, and `print()` call against the Encoding Safety Checklist — encoding defects are cross-platform bugs, not style issues
-9. **Project Docs Check**: Verify that `ProjectOverview.md` accurately reflects the current state. Verify `TaskingLog.md` tasks are properly updated. Check `ErrorLog.md` for open errors.
-10. **Requirements Trace**: Map each requirement to the implementation; flag gaps
-11. **Style & Consistency**: Check formatting, naming conventions, and consistency with existing code/docs
-12. **Verdict**: Issue APPROVED, APPROVED_WITH_NOTES, or CHANGES_REQUIRED
-13. **Feedback**: If changes required, provide specific line-level feedback with suggested fixes. Log any critical issues to `AInotes.md`.
+6. **UI Design System Audit**: If any UI files are being reviewed, check whether `design-system/MASTER.md` exists. If it does, read it and cross-reference the implementation against: color tokens (no raw hex values allowed), typography rules, border-radius rules, hover/focus states, and the Do/Don't checklist. If `design-system/MASTER.md` does not exist, flag this as a MAJOR issue and recommend the Coder run `ui_design_system` with `persist=true` before proceeding. For a quick reference without reading the file, call `ui_design_system` with the same `style_id`/`palette_id` to retrieve the spec.
+7. **Correctness Check**: Verify logic, algorithms, and outputs are correct
+8. **Security Audit**: Check for hardcoded secrets, injection risks, unsafe shell calls, path traversal. Run `cleanup_tool --action scan_secrets` on the project directory.
+9. **Encoding Audit**: Scan every `open()`, `json.dumps()`, `subprocess`, and `print()` call against the Encoding Safety Checklist — encoding defects are cross-platform bugs, not style issues
+10. **Project Docs Check**: Verify that `ProjectOverview.md` accurately reflects the current state. Verify `TaskingLog.md` tasks are properly updated. Check `ErrorLog.md` for open errors.
+11. **Requirements Trace**: Map each requirement to the implementation; flag gaps
+12. **Style & Consistency**: Check formatting, naming conventions, and consistency with existing code/docs
+13. **Verdict**: Issue APPROVED, APPROVED_WITH_NOTES, or CHANGES_REQUIRED
+14. **Feedback**: If changes required, provide specific line-level feedback with suggested fixes. Log any critical issues to `AInotes.md`.
 
 ## Review Categories
 
@@ -45,6 +46,17 @@ The Reviewer is the quality gate for all Overlord11 output. It performs code rev
 - [ ] Test coverage for all new/changed code paths
 - [ ] Functions and classes properly documented
 - [ ] Consistent with existing codebase style
+
+### UI Design System Checklist (when reviewing UI code)
+- [ ] `design-system/MASTER.md` exists; if not, flag as MAJOR — Coder must run `ui_design_system` first
+- [ ] All colors reference design system tokens — no raw hex literals in component code
+- [ ] Font families and weights match the typography spec in `MASTER.md`
+- [ ] Border-radius values match the component shape rules
+- [ ] Hover and focus states implemented per interaction guidance; keyboard-accessible
+- [ ] Color contrast meets the palette's contrast notes (≥ 4.5:1 for normal text)
+- [ ] `danger`, `success`, `warning` tokens used for their intended semantic states
+- [ ] None of the style's anti-patterns (Don't list) are present in the implementation
+- [ ] Transitions/animations follow the motion guidance from `MASTER.md`
 
 ### Encoding Safety Checklist (CRITICAL — flag any violation as MAJOR or CRITICAL)
 - [ ] Every `open()` call specifies `encoding="utf-8"` — bare `open(path)` is a defect
@@ -100,5 +112,6 @@ The Reviewer is the quality gate for all Overlord11 output. It performs code rev
 - [ ] Tests executed and results recorded
 - [ ] Every requirement traced to implementation
 - [ ] Security audit performed
+- [ ] UI design system audit performed for any UI files (tokens, shapes, motion, contrast, Do/Don't)
 - [ ] Verdict clearly stated with justification
 - [ ] All CRITICAL and MAJOR issues documented with specific fixes
