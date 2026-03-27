@@ -1,0 +1,46 @@
+{
+  "name": "ui_design_system",
+  "description": "Generate or retrieve a consolidated UI/UX design system for a project. Combines a UI style (layout, typography, shape, motion rules) with a color palette (semantic tokens) and produces a complete design specification. Optionally persists the spec to design-system/MASTER.md and per-page override files. Use this tool before implementing any UI code to ensure consistent styling across the project.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "style_id": {
+        "type": "string",
+        "description": "ID of the UI style to use. Must match an 'id' field in skills/uiux/styles.json. Available styles: brutalist, glassmorphism, neobrutalism, editorial, minimal-zen, data-dense, soft-ui, retro-terminal, biomimetic, aurora-gradient. If omitted, a style is selected deterministically based on the project_name hash.",
+        "enum": ["brutalist", "glassmorphism", "neobrutalism", "editorial", "minimal-zen", "data-dense", "soft-ui", "retro-terminal", "biomimetic", "aurora-gradient"]
+      },
+      "palette_id": {
+        "type": "string",
+        "description": "ID of the color palette to use. Must match an 'id' field in skills/uiux/palettes.json. Available palettes: midnight-ink, chalk-board, neon-city, nordic-frost, terracotta-sun, deep-forest, sakura-bloom, volcanic-night, arctic-monochrome, ultraviolet. If omitted, selected deterministically based on the style and project_name.",
+        "enum": ["midnight-ink", "chalk-board", "neon-city", "nordic-frost", "terracotta-sun", "deep-forest", "sakura-bloom", "volcanic-night", "arctic-monochrome", "ultraviolet"]
+      },
+      "stack": {
+        "type": "string",
+        "description": "The front-end stack for which to generate implementation guidance. Affects which CSS/class/token format is used in the output.",
+        "enum": ["html-tailwind", "html-css", "react", "nextjs", "vue", "svelte"],
+        "default": "html-tailwind"
+      },
+      "page": {
+        "type": "string",
+        "description": "Optional page name for a per-page override spec (e.g., 'landing', 'dashboard', 'checkout'). When provided along with persist=true, writes design-system/pages/<page>.md in addition to MASTER.md."
+      },
+      "project_name": {
+        "type": "string",
+        "description": "Name of the project. Used in the generated document header and for deterministic default selection when style_id/palette_id are omitted.",
+        "default": "My Project"
+      },
+      "output_format": {
+        "type": "string",
+        "description": "Format for the returned design system content.",
+        "enum": ["md", "json"],
+        "default": "md"
+      },
+      "persist": {
+        "type": "boolean",
+        "description": "If true, write the generated design system to design-system/MASTER.md (always) and design-system/pages/<page>.md (when page is set). Files are created if missing; overwritten if they exist.",
+        "default": false
+      }
+    },
+    "required": []
+  }
+}

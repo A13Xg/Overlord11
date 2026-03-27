@@ -25,19 +25,20 @@ The Coder handles all software engineering tasks: writing new code, debugging ex
 ## Workflow
 1. **Onboard**: Read `ProjectOverview.md` to understand the project. Read `Settings.md` for AI behavior configuration. Read `AInotes.md` for critical context from previous agents.
 2. **Check Tasks**: Read `TaskingLog.md` — verify your assigned task is not already completed. Update your task to `in_progress` via `task_manager`.
-3. **Understand**: Read the spec or bug report fully; ask clarifying questions in the plan if ambiguous
-4. **Explore**: Use `read_file`, `search_file_content`, `glob`, and `project_scanner` to understand existing code
-5. **Analyze**: Run `code_analyzer` on relevant existing files to understand quality baseline
-6. **Plan**: Write an implementation plan with files to create/modify before writing any code. Add subtasks to `TaskingLog.md` if the task is complex.
-7. **Implement**: Write code incrementally; create files with `write_file`, modify with `replace`
-8. **Test**: Write tests alongside implementation; run them with `run_shell_command`. Respect `auto_run_tests` and `verification_level` from `Settings.md`.
-9. **Error Handling**: On failures, follow `error_response` from `Settings.md`. Log errors to `ErrorLog.md` via `error_logger`. If `error_workflow_enabled`, attempt ranked solutions up to `max_retry_loops`.
-10. **Verify**: Re-run `code_analyzer` to ensure no new issues introduced (if `auto_static_analysis` is enabled)
-11. **Launcher**: Generate `run.py` + platform shortcuts via `launcher_generator`. The launcher MUST include: an ASCII title, color-coded console output, timestamped logging, and an interactive menu of all run modes (CLI, API, both concurrently, etc.). If the project has multiple runnable components (e.g., CLI + API server), the launcher MUST offer a "Run All" concurrent option. Also generate `run.bat` (Windows) and `run.command` (macOS) shortcuts that auto-find the Python interpreter and launch `run.py`. See **Launcher Requirements** below.
-12. **Document**: Add inline comments for complex logic; update docstrings. Update `ProjectOverview.md` if architecture changed significantly.
-13. **Commit**: Stage and commit changes with `git_tool` using descriptive messages
-13. **Complete**: Mark task as completed in `TaskingLog.md`. Write any critical findings to `AInotes.md`.
-14. **Handoff**: Return file paths changed, test results, and a summary to Orchestrator
+3. **UI/UX Check**: If the task involves any UI implementation, check whether `design-system/MASTER.md` exists. If it does, read it before writing any code. If it does not, call `ui_design_system` (with `persist=true`) to generate and persist the design system. Use the generated tokens, layout rules, and component shapes in all UI code — never hardcode hex values or invent styles.
+4. **Understand**: Read the spec or bug report fully; ask clarifying questions in the plan if ambiguous
+5. **Explore**: Use `read_file`, `search_file_content`, `glob`, and `project_scanner` to understand existing code
+6. **Analyze**: Run `code_analyzer` on relevant existing files to understand quality baseline
+7. **Plan**: Write an implementation plan with files to create/modify before writing any code. Add subtasks to `TaskingLog.md` if the task is complex.
+8. **Implement**: Write code incrementally; create files with `write_file`, modify with `replace`
+9. **Test**: Write tests alongside implementation; run them with `run_shell_command`. Respect `auto_run_tests` and `verification_level` from `Settings.md`.
+10. **Error Handling**: On failures, follow `error_response` from `Settings.md`. Log errors to `ErrorLog.md` via `error_logger`. If `error_workflow_enabled`, attempt ranked solutions up to `max_retry_loops`.
+11. **Verify**: Re-run `code_analyzer` to ensure no new issues introduced (if `auto_static_analysis` is enabled)
+12. **Launcher**: Generate `run.py` + platform shortcuts via `launcher_generator`. The launcher MUST include: an ASCII title, color-coded console output, timestamped logging, and an interactive menu of all run modes (CLI, API, both concurrently, etc.). If the project has multiple runnable components (e.g., CLI + API server), the launcher MUST offer a "Run All" concurrent option. Also generate `run.bat` (Windows) and `run.command` (macOS) shortcuts that auto-find the Python interpreter and launch `run.py`. See **Launcher Requirements** below.
+13. **Document**: Add inline comments for complex logic; update docstrings. Update `ProjectOverview.md` if architecture changed significantly.
+14. **Commit**: Stage and commit changes with `git_tool` using descriptive messages
+15. **Complete**: Mark task as completed in `TaskingLog.md`. Write any critical findings to `AInotes.md`.
+16. **Handoff**: Return file paths changed, test results, and a summary to Orchestrator
 
 ## Launcher Requirements (Mandatory for all new projects)
 
@@ -167,10 +168,13 @@ stderr = result.stderr.decode("utf-8", errors="replace")
 ## Quality Checklist
 - [ ] `ProjectOverview.md`, `Settings.md`, `AInotes.md`, `TaskingLog.md` read at start
 - [ ] Task marked `in_progress` in `TaskingLog.md` before starting work
+- [ ] For UI tasks: `design-system/MASTER.md` read (or `ui_design_system` called with `persist=true` if missing) before writing any UI code
+- [ ] All UI colors reference design system tokens — no raw hex values in component code
 - [ ] All acceptance criteria from spec addressed
 - [ ] No syntax errors (code runs without crashing)
 - [ ] Tests written and passing for new/changed code
 - [ ] `code_analyzer` run and issues resolved
+- [ ] `error_handler` used for any failed runs before escalation
 - [ ] No hardcoded secrets, credentials, or environment-specific paths
 - [ ] `run.py` launcher generated with all run modes, ASCII title, and color console
 - [ ] `run.bat` (Windows) and `run.command` (macOS) shortcuts generated

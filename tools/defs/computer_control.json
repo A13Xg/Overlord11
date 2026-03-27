@@ -1,0 +1,84 @@
+{
+  "name": "computer_control",
+  "description": "Control the mouse, keyboard, and clipboard programmatically. Supports mouse movement, clicking, scrolling, keyboard key presses and hotkeys, typing text, and clipboard read/write. Requires pyautogui and pyperclip. FAILSAFE is enabled: moving the mouse to the top-left corner (0,0) aborts any operation.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Computer control action to perform.",
+        "enum": [
+          "mouse_move",
+          "mouse_click",
+          "mouse_scroll",
+          "key_press",
+          "type_text",
+          "get_mouse_pos",
+          "get_screen_size",
+          "clipboard_get",
+          "clipboard_set",
+          "hotkey"
+        ]
+      },
+      "x": {
+        "type": "integer",
+        "description": "X coordinate for mouse actions."
+      },
+      "y": {
+        "type": "integer",
+        "description": "Y coordinate for mouse actions."
+      },
+      "button": {
+        "type": "string",
+        "description": "Mouse button to click.",
+        "enum": ["left", "right", "middle"],
+        "default": "left"
+      },
+      "clicks": {
+        "type": "integer",
+        "description": "Number of mouse clicks. Default 1.",
+        "default": 1
+      },
+      "amount": {
+        "type": "integer",
+        "description": "Number of scroll ticks for mouse_scroll. Default 3.",
+        "default": 3
+      },
+      "direction": {
+        "type": "string",
+        "description": "Scroll direction.",
+        "enum": ["up", "down"],
+        "default": "up"
+      },
+      "keys": {
+        "type": "string",
+        "description": "Key(s) to press. Use '+' for simultaneous keys (e.g., 'ctrl+c'). For hotkey, use comma-separated keys (e.g., 'ctrl,alt,delete')."
+      },
+      "text": {
+        "type": "string",
+        "description": "Text to type (type_text) or write to clipboard (clipboard_set)."
+      },
+      "duration": {
+        "type": "number",
+        "description": "Mouse movement animation duration in seconds. Default 0.2.",
+        "default": 0.2
+      },
+      "interval": {
+        "type": "number",
+        "description": "Delay between key presses or typed characters in seconds. Default 0.05.",
+        "default": 0.05
+      },
+      "relative": {
+        "type": "boolean",
+        "description": "If true, mouse_move uses relative offset from current position. Default false.",
+        "default": false
+      },
+      "presses": {
+        "type": "integer",
+        "description": "Number of times to repeat a key_press. Default 1.",
+        "default": 1
+      }
+    },
+    "required": ["action"]
+  }
+}

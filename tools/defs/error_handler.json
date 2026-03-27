@@ -1,0 +1,32 @@
+{
+  "name": "error_handler",
+  "description": "Self-correcting error analysis and resolution tool. Interprets Python errors and tracebacks, applies known fix patterns from an internal knowledge base, searches Stack Overflow for community solutions, and escalates unresolvable errors directly to the user with a plain-language summary (bypassing the response formatter). Use self_correct for the full automated loop, analyze for lightweight classification, search_error for online lookups, or summarize for human-readable error reports.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Error handling action to perform.",
+        "enum": ["analyze", "self_correct", "search_error", "summarize"]
+      },
+      "error": {
+        "type": "string",
+        "description": "The raw error message or Python traceback to process. Required for all actions."
+      },
+      "context": {
+        "type": "string",
+        "description": "Context about the operation that produced the error. Example: 'Running web_fetch.py against https://example.com', 'Unit test for save_memory'."
+      },
+      "command": {
+        "type": "string",
+        "description": "The command or code snippet that produced the error (optional, used in self_correct)."
+      },
+      "max_results": {
+        "type": "integer",
+        "description": "Maximum number of Stack Overflow / web search results to retrieve. Default 3.",
+        "default": 3
+      }
+    },
+    "required": ["action", "error"]
+  }
+}

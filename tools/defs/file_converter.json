@@ -1,0 +1,38 @@
+{
+  "name": "file_converter",
+  "description": "Convert files between common formats: JSON ↔ YAML, JSON ↔ CSV, JSON → Markdown, CSV → Markdown, CSV → YAML, Markdown → HTML, HTML → plain text, and more. Detects source format automatically from file extension or content. Use list_formats to see all supported conversion routes.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Action to perform.",
+        "enum": ["convert", "detect", "list_formats"]
+      },
+      "input": {
+        "type": "string",
+        "description": "Path to the source file to convert or detect. Required for 'convert' and 'detect'."
+      },
+      "output": {
+        "type": "string",
+        "description": "Path for the converted output file. If omitted for 'convert', the output file is placed in the same directory as the input with an appropriate extension."
+      },
+      "from_format": {
+        "type": "string",
+        "description": "Source format override. Auto-detected from extension if omitted.",
+        "enum": ["json", "yaml", "csv", "markdown", "html", "text"]
+      },
+      "to_format": {
+        "type": "string",
+        "description": "Target format for conversion. Derived from output file extension if omitted.",
+        "enum": ["json", "yaml", "csv", "markdown", "html", "text"]
+      },
+      "title": {
+        "type": "string",
+        "description": "Document title used when generating HTML output. Default 'Document'.",
+        "default": "Document"
+      }
+    },
+    "required": ["action"]
+  }
+}

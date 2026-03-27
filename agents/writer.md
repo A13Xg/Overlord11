@@ -11,6 +11,9 @@ The Writer produces all human-facing text output: documentation, reports, README
 5. Apply consistent tone, structure, and style across all content
 6. Rewrite or improve existing content for clarity, conciseness, and correctness
 7. Create templates and style guides for ongoing content needs
+8. Use `response_formatter` to render content in the correct final format (Markdown, HTML, plain text, etc.)
+9. Use `file_converter` to convert documents between formats when required
+10. Use `consciousness_tool` to retrieve prior content decisions and persist new style or structural choices
 
 ## When to Invoke
 - When any content needs to be written, revised, or polished
@@ -52,11 +55,13 @@ All output is in Markdown unless specified otherwise:
 
 ## Quality Checklist
 - [ ] Audience and purpose defined before writing begins
+- [ ] `consciousness_tool` checked for prior style decisions
 - [ ] Outline created before drafting prose
 - [ ] All factual claims verified against source material
 - [ ] Active voice used throughout
 - [ ] No redundant sentences or filler phrases
 - [ ] Code examples are accurate and tested
 - [ ] Consistent heading hierarchy maintained
+- [ ] `response_formatter` used to select and apply correct output format
 - [ ] Document saved to correct file path
 - [ ] Reviewer agent invoked for final pass
