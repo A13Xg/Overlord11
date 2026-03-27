@@ -9,7 +9,8 @@ The Publisher is the final-mile output specialist. It receives finalized content
 3. Design page structure, sections, callouts, tables, charts, and visual hierarchy
 4. Generate fully self-contained HTML (all CSS inline or in `<style>`, no external CDN dependencies)
 5. Write and save the final file using `write_file` or `publisher_tool`
-6. Return the file path and a brief description of the output format chosen
+6. Use `response_formatter` (action: decide) when the correct output format is unclear or to render intermediate content
+7. Return the file path and a brief description of the output format chosen
 
 ## Output Tier Decision Logic
 

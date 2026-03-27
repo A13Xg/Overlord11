@@ -1,0 +1,51 @@
+{
+  "name": "vision_tool",
+  "description": "Screenshot capture, image analysis, and OCR. Captures screen regions as image files, extracts metadata from existing images, runs OCR text extraction (requires pytesseract), and compares two images for similarity. Use analyze_image to get an LLM-ready base64 payload from any local image file.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Vision action to perform.",
+        "enum": ["screenshot", "analyze_image", "ocr", "list_images", "compare_images"]
+      },
+      "image": {
+        "type": "string",
+        "description": "Path to an image file. Required for analyze_image, ocr, and compare_images."
+      },
+      "image2": {
+        "type": "string",
+        "description": "Path to the second image file. Required for compare_images."
+      },
+      "output": {
+        "type": "string",
+        "description": "File path to save the captured screenshot. Auto-generated if omitted."
+      },
+      "region": {
+        "type": "string",
+        "description": "Screen region to capture: 'left,top,width,height'. Captures full screen if omitted."
+      },
+      "format": {
+        "type": "string",
+        "description": "Image format for screenshot output.",
+        "enum": ["png", "jpeg"],
+        "default": "png"
+      },
+      "directory": {
+        "type": "string",
+        "description": "Directory path for list_images action."
+      },
+      "recursive": {
+        "type": "boolean",
+        "description": "Search subdirectories in list_images. Default false.",
+        "default": false
+      },
+      "no_b64": {
+        "type": "boolean",
+        "description": "Set to true to omit the base64 payload from analyze_image (saves tokens). Default false.",
+        "default": false
+      }
+    },
+    "required": ["action"]
+  }
+}

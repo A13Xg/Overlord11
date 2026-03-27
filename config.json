@@ -75,7 +75,7 @@
       "file": "agents/researcher.md",
       "description": "Web research, information gathering, source verification",
       "entry_point": false,
-      "tools": ["web_fetch", "web_scraper", "read_file", "list_directory", "glob", "search_file_content", "save_memory", "project_scanner"]
+      "tools": ["web_fetch", "web_scraper", "read_file", "list_directory", "glob", "search_file_content", "save_memory", "project_scanner", "consciousness_tool", "error_handler"]
     },
     "coder": {
       "id": "OVR_COD_03",
@@ -91,7 +91,7 @@
       "file": "agents/analyst.md",
       "description": "Data analysis, summarization, pattern recognition",
       "entry_point": false,
-      "tools": ["read_file", "calculator", "code_analyzer", "project_scanner", "search_file_content", "glob", "save_memory"]
+      "tools": ["read_file", "calculator", "code_analyzer", "project_scanner", "search_file_content", "glob", "save_memory", "consciousness_tool", "response_formatter", "file_converter"]
     },
     "writer": {
       "id": "OVR_WRT_05",

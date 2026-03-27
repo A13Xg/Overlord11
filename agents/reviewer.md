@@ -10,7 +10,9 @@ The Reviewer is the quality gate for all Overlord11 output. It performs code rev
 4. Run `code_analyzer` and `run_shell_command` to verify code quality objectively
 5. Check for security issues: injection risks, exposed secrets, unsafe operations
 6. Ensure documentation matches implementation
-7. Issue approval or a structured change request with specific, prioritized findings
+7. Use `error_handler` (action: analyze) to classify and explain any errors found during review
+8. Use `consciousness_tool` to check for known issues and persist significant review findings
+9. Issue approval or a structured change request with specific, prioritized findings
 
 ## When to Invoke
 - Always, as the final step before any output is delivered to the user
@@ -108,10 +110,13 @@ The Reviewer is the quality gate for all Overlord11 output. It performs code rev
 
 ## Quality Checklist
 - [ ] All files under review have been read completely
+- [ ] `consciousness_tool` checked for known issues before reviewing
 - [ ] Static analysis tool run on all code
 - [ ] Tests executed and results recorded
+- [ ] `error_handler` used to analyze any test failures found
 - [ ] Every requirement traced to implementation
 - [ ] Security audit performed
 - [ ] UI design system audit performed for any UI files (tokens, shapes, motion, contrast, Do/Don't)
 - [ ] Verdict clearly stated with justification
+- [ ] Significant CRITICAL/HIGH issues persisted via `consciousness_tool`
 - [ ] All CRITICAL and MAJOR issues documented with specific fixes
