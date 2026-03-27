@@ -37,13 +37,14 @@ Overlord11 is a structured multi-agent framework that coordinates **seven specia
 
 - 🔀 **Provider-agnostic** — switch between Anthropic, Gemini, or OpenAI by changing one line in `config.json`
 - 🤖 **7 specialist agents** — Orchestrator, Researcher, Coder, Analyst, Writer, Reviewer, Publisher
-- 🛠️ **15 built-in tools** — file I/O, web fetch/scrape, shell execution, Git, code analysis, project scanning, and more
+- 🛠️ **16 built-in tools** — file I/O, web fetch/scrape, shell execution, Git, code analysis, project scanning, UI design system, and more
+- 🎨 **UI/UX design system skill** — 10 curated styles × 10 color palettes; Coder generates a persistent spec before any UI work; Reviewer validates against it
 - 🔍 **Dual-engine search** — ripgrep when available, pure-Python fallback producing identical JSON output
 - 📊 **3 output tiers** — inline text, Markdown docs, or styled self-contained HTML reports
-- 🎨 **9 HTML themes** — techno, classic, modern, editorial, and more — auto-selected by content type
+- 🖼️ **9 HTML themes** — techno, classic, modern, editorial, and more — auto-selected by content type
 - 🧠 **Shared memory** — `Consciousness.md` enables cross-agent, cross-session context
 - 🔒 **Security-first** — Reviewer agent blocks hardcoded secrets; no credentials in agent definitions
-- ✅ **Fully tested** — 81-test suite covering all 16 modules, ripgrep/Python fallback, Unicode, encoding edge-cases
+- ✅ **Fully tested** — test suite covering all tool modules, ripgrep/Python fallback, Unicode, encoding edge-cases
 - 🔌 **Extensible** — add new agents, tools, or LLM providers without touching the framework core
 
 ---
@@ -164,8 +165,13 @@ Overlord11/
 │   └── publisher.md         # OVR_PUB_07 — styled HTML reports (Tier 2)
 │
 ├── tools/
-│   ├── defs/                # 15 provider-agnostic tool JSON schemas
+│   ├── defs/                # 16 provider-agnostic tool JSON schemas
 │   └── python/              # Python implementations of all tools
+│
+├── skills/
+│   └── uiux/                # UI/UX design system datasets
+│       ├── styles.json      # 10 curated UI styles
+│       └── palettes.json    # 10 color palettes with semantic tokens
 │
 ├── docs/                    # Full Wiki documentation
 │   ├── Home.md
@@ -179,7 +185,8 @@ Overlord11/
 │   ├── Output-Tiers.md
 │   ├── Extension-Guide.md
 │   ├── Development.md
-│   └── Troubleshooting.md
+│   ├── Troubleshooting.md
+│   └── UI-UX-Design-System.md  # Design system skill documentation
 │
 ├── tests/
 │   ├── test.py              # 81-test suite covering all 16 modules
@@ -244,6 +251,7 @@ Overlord11/
 | `project_scanner` | Codebase structure, language detection, entry points, git metadata |
 | `save_memory` | Persist facts to `Consciousness.md` with timestamps across sessions |
 | `publisher_tool` | Generate themed self-contained HTML reports (9 visual themes, auto-detection) |
+| `ui_design_system` | Generate a complete UI/UX design system (style + palette + tokens + rules). Persists to `design-system/MASTER.md`. 10 styles × 10 palettes — 100 possible combinations. |
 
 > Full tool documentation: [`docs/Tools-Reference.md`](docs/Tools-Reference.md)
 

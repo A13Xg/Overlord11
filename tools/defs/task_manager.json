@@ -1,0 +1,58 @@
+{
+  "name": "task_manager",
+  "description": "Manages the standardized TaskingLog.md file within the sandboxed project directory. Supports adding tasks, subtasks, marking complete, updating status, and querying the current task list. Ensures no duplicate work across agent sessions.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Action to perform on the task log.",
+        "enum": ["add_task", "add_subtask", "complete_task", "complete_subtask", "update_status", "query", "init"]
+      },
+      "project_dir": {
+        "type": "string",
+        "description": "Absolute path to the sandboxed project directory containing TaskingLog.md."
+      },
+      "task_id": {
+        "type": "string",
+        "description": "Task identifier (e.g., T-001). Required for add_subtask, complete_task, complete_subtask, update_status."
+      },
+      "subtask_id": {
+        "type": "string",
+        "description": "Subtask identifier (e.g., T-001.1). Required for complete_subtask."
+      },
+      "title": {
+        "type": "string",
+        "description": "Task or subtask title. Required for add_task and add_subtask."
+      },
+      "description": {
+        "type": "string",
+        "description": "Detailed description of the task.",
+        "default": ""
+      },
+      "priority": {
+        "type": "string",
+        "description": "Task priority level.",
+        "enum": ["critical", "high", "medium", "low"],
+        "default": "medium"
+      },
+      "assigned_agent": {
+        "type": "string",
+        "description": "Agent ID assigned to this task (e.g., OVR_COD_03).",
+        "default": ""
+      },
+      "status": {
+        "type": "string",
+        "description": "Status for update_status action.",
+        "enum": ["pending", "in_progress", "blocked", "completed", "skipped"],
+        "default": "pending"
+      },
+      "note": {
+        "type": "string",
+        "description": "Optional note to attach to the status update.",
+        "default": ""
+      }
+    },
+    "required": ["action", "project_dir"]
+  }
+}

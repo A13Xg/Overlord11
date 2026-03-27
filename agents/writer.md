@@ -23,18 +23,18 @@ The Writer produces all human-facing text output: documentation, reports, README
 - When existing content needs to be rewritten for a new audience or purpose
 
 ## Workflow
-1. **Audience**: Identify who will read this content and their technical level
-2. **Purpose**: Clarify the goal (inform, instruct, persuade, document)
-3. **Memory Check**: Use `consciousness_tool` (action: search) to retrieve any prior style decisions or related content
-4. **Gather**: Read source material using `read_file` and inputs from other agents
-5. **Format Decision**: Use `response_formatter` (action: decide) when the best output format is unclear
+1. **Onboard**: Read `ProjectOverview.md` for project context. Read `Settings.md` for response verbosity settings. Read `AInotes.md` for critical context.
+2. **Check Tasks**: Read `TaskingLog.md` to verify assignment and avoid duplicates. Update task to `in_progress` via `task_manager`.
+3. **Audience**: Identify who will read this content and their technical level
+4. **Purpose**: Clarify the goal (inform, instruct, persuade, document)
+5. **Gather**: Read source material using `read_file` and inputs from other agents
 6. **Outline**: Create a structural outline before writing prose
 7. **Draft**: Write the full content in the appropriate voice and format
 8. **Calibrate**: Adjust technical depth, jargon, and detail level for audience
-9. **Format**: Apply consistent Markdown formatting, headings, and code blocks; use `response_formatter` to render final output
-10. **Convert**: Use `file_converter` if the output must be in a different format (HTML, CSV, etc.)
-11. **Polish**: Revise for concision—cut every word that adds no value
-12. **Save**: Write output using `write_file` or update existing files with `replace`
+9. **Format**: Apply consistent Markdown formatting, headings, and code blocks
+10. **Polish**: Revise for concision—cut every word that adds no value
+11. **Save**: Write output using `write_file` or update existing files with `replace`. When writing relates to project docs, update `ProjectOverview.md` as needed.
+12. **Complete**: Mark task as completed in `TaskingLog.md`.
 13. **Handoff**: Pass content to Reviewer before final delivery
 
 ## Tone & Style Guidelines

@@ -1,0 +1,47 @@
+{
+  "name": "launcher_generator",
+  "description": "Generates a standardized run.py launcher with ASCII title art, color-coded console output, in-terminal logging, and an interactive run-mode menu. Also generates platform shortcuts (run.bat for Windows, run.command for macOS). The launcher is zero-dependency (stdlib ANSI codes only). When a project has multiple run modes (CLI + API), the launcher offers a 'Run All' concurrent option.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "project_dir": {
+        "type": "string",
+        "description": "Absolute path to the project directory where run.py will be created."
+      },
+      "project_name": {
+        "type": "string",
+        "description": "Project name displayed in the ASCII title and header."
+      },
+      "version": {
+        "type": "string",
+        "description": "Project version displayed in the header.",
+        "default": "0.1.0"
+      },
+      "description": {
+        "type": "string",
+        "description": "Short project description shown below the title.",
+        "default": ""
+      },
+      "modes": {
+        "type": "array",
+        "description": "List of run modes. Each mode has: key (menu number), label (display name), cmd (shell command to run), desc (optional description).",
+        "items": {
+          "type": "object",
+          "properties": {
+            "key": { "type": "string", "description": "Menu key (e.g., '1', '2')" },
+            "label": { "type": "string", "description": "Display label (e.g., 'CLI Mode')" },
+            "cmd": { "type": "string", "description": "Shell command to execute (e.g., 'python -m myapp.cli')" },
+            "desc": { "type": "string", "description": "Optional description shown below the label", "default": "" }
+          },
+          "required": ["key", "label", "cmd"]
+        }
+      },
+      "color_scheme": {
+        "type": "object",
+        "description": "Override default ANSI color codes. Keys: title, menu_key, menu_label, success, error, info, dim, accent. Values: ANSI code strings (e.g., '36' for cyan).",
+        "default": {}
+      }
+    },
+    "required": ["project_dir", "project_name"]
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "name": "error_logger",
+  "description": "Manages the ErrorLog.md file within the sandboxed project directory. Logs errors with severity, context, attempted solutions, and resolution status. Supports adding errors, updating resolution status, and querying the error history.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Action to perform on the error log.",
+        "enum": ["log_error", "resolve_error", "add_attempt", "query", "init"]
+      },
+      "project_dir": {
+        "type": "string",
+        "description": "Absolute path to the sandboxed project directory containing ErrorLog.md."
+      },
+      "error_id": {
+        "type": "string",
+        "description": "Error identifier (e.g., E-001). Required for resolve_error and add_attempt."
+      },
+      "title": {
+        "type": "string",
+        "description": "Short error title. Required for log_error."
+      },
+      "severity": {
+        "type": "string",
+        "description": "Error severity level.",
+        "enum": ["critical", "major", "minor", "warning"],
+        "default": "major"
+      },
+      "source": {
+        "type": "string",
+        "description": "Where the error originated (file path, agent ID, tool name).",
+        "default": ""
+      },
+      "details": {
+        "type": "string",
+        "description": "Full error details, stack trace, or description.",
+        "default": ""
+      },
+      "attempted_fix": {
+        "type": "string",
+        "description": "Description of an attempted fix (for add_attempt action).",
+        "default": ""
+      },
+      "resolution": {
+        "type": "string",
+        "description": "How the error was resolved (for resolve_error action).",
+        "default": ""
+      }
+    },
+    "required": ["action", "project_dir"]
+  }
+}

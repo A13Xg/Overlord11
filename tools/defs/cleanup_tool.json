@@ -1,0 +1,35 @@
+{
+  "name": "cleanup_tool",
+  "description": "Pre-deployment sanity checker and cleanup tool. Scans directories for sensitive information (API keys, passwords, secrets, credentials), removes temporary files (.claude, __pycache__, .tmp, etc.), validates directory structure, and produces a readiness report. Intended to run manually or at the end of a tasking session.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Action to perform.",
+        "enum": ["full_scan", "scan_secrets", "clean_temp", "validate_structure", "report"]
+      },
+      "target_dir": {
+        "type": "string",
+        "description": "Absolute path to the directory to scan/clean."
+      },
+      "dry_run": {
+        "type": "boolean",
+        "description": "If true, report what would be done without actually deleting files.",
+        "default": true
+      },
+      "output_report": {
+        "type": "string",
+        "description": "Path to write the cleanup report to. If omitted, prints to stdout.",
+        "default": ""
+      },
+      "extra_patterns": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Additional glob patterns to treat as temporary/deletable files.",
+        "default": []
+      }
+    },
+    "required": ["action", "target_dir"]
+  }
+}
