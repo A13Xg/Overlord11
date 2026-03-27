@@ -174,7 +174,7 @@ stderr = result.stderr.decode("utf-8", errors="replace")
 - [ ] No syntax errors (code runs without crashing)
 - [ ] Tests written and passing for new/changed code
 - [ ] `code_analyzer` run and issues resolved
-- [ ] `error_handler` used for any failed runs before escalation
+- [ ] `error_logger` used for any failed runs before escalation
 - [ ] No hardcoded secrets, credentials, or environment-specific paths
 - [ ] `run.py` launcher generated with all run modes, ASCII title, and color console
 - [ ] `run.bat` (Windows) and `run.command` (macOS) shortcuts generated

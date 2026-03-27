@@ -11,7 +11,7 @@ How to add new agents, tools, and LLM providers to Overlord11 without breaking e
 Create `agents/my_agent.md` using the standard template:
 
 ```markdown
-# My Agent (OVR_XXX_08)
+# My Agent (OVR_XXX_09)
 
 ## Identity
 [One paragraph describing the agent's role and purpose]
@@ -45,7 +45,7 @@ Add the agent entry under `"agents"`:
 
 ```json
 "my_agent": {
-  "id": "OVR_XXX_08",
+  "id": "OVR_XXX_09",
   "name": "My Agent",
   "file": "agents/my_agent.md",
   "description": "One-line description of what this agent does",
@@ -54,7 +54,7 @@ Add the agent entry under `"agents"`:
 }
 ```
 
-Choose an ID in the format `OVR_XXX_NN` where `NN` is the next available number (currently 8+).
+Choose an ID in the format `OVR_XXX_NN` where `NN` is the next available number (currently 9+).
 
 ### Step 3 — Update the Orchestrator
 
@@ -73,7 +73,7 @@ Also add a delegation pattern in the Orchestrator's agent file so it knows when 
 Add a row to the Agent Registry table in `Consciousness.md`:
 
 ```markdown
-| OVR_XXX_08 | My Agent | Brief role description | `agents/my_agent.md` | Available |
+| OVR_XXX_09 | My Agent | Brief role description | `agents/my_agent.md` | Available |
 ```
 
 ### Step 5 — Update Documentation

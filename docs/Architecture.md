@@ -44,6 +44,10 @@ All three components are **provider-agnostic**: none of them contain Anthropic, 
 │                                                    ▼                 │
 │                                               Publisher              │
 │                                               (PUB_07)               │
+│                                                    │                 │
+│                                                    ▼                 │
+│                                               Cleanup                │
+│                                               (CLN_08)               │
 └──────────────────────────────────────────────────────────────────────┘
                                │  tool calls
                                ▼
@@ -56,8 +60,17 @@ All three components are **provider-agnostic**: none of them contain Anthropic, 
 │  write_file      web_scraper  git_tool       project_scanner         │
 │  list_directory               calculator     save_memory             │
 │  glob                         scaffold_gen   publisher_tool          │
-│  search_file                                                         │
-│  replace                                                             │
+│  search_file                                 consciousness_tool      │
+│  replace                                     response_formatter      │
+│                                              file_converter          │
+│                                                                      │
+│  Project Mgmt    Automation                                          │
+│  ────────────    ──────────                                          │
+│  task_manager    error_handler    computer_control                   │
+│  error_logger    vision_tool                                         │
+│  cleanup_tool    ui_design_system                                    │
+│  project_docs                                                        │
+│  launcher_gen                                                        │
 │                                                                      │
 │  ┌──────────────────────────────────────────────────────────────┐    │
 │  │  tools/defs/*.json   ←  JSON Schema (provider-agnostic)      │    │

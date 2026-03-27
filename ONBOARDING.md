@@ -6,7 +6,7 @@
 
 ## What This Framework Is
 
-Overlord11 is a **provider-agnostic multi-agent LLM toolset**. You are operating as one of six specialist agents in a coordinated system. Every task flows through an Orchestrator, which decomposes it into subtasks and delegates each one to the right specialist.
+Overlord11 is a **provider-agnostic multi-agent LLM toolset**. You are operating as one of eight specialist agents in a coordinated system. Every task flows through an Orchestrator, which decomposes it into subtasks and delegates each one to the right specialist.
 
 The framework is designed to work with **any LLM provider** — Anthropic Claude, Google Gemini, or OpenAI GPT — without changes to agent definitions or tool schemas.
 

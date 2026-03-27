@@ -1,6 +1,6 @@
 # Agents Reference
 
-Complete reference for all seven Overlord11 agents.
+Complete reference for all eight Overlord11 agents.
 
 ---
 
@@ -219,8 +219,8 @@ Orchestrator → Analyst → Writer [Tier 1] → Reviewer
 
 ## OVR_WRT_05 — Writer
 
-**File:** `agents/writer.md`  
-**Tools:** `read_file`, `write_file`, `replace`, `list_directory`, `glob`
+**File:** `agents/writer.md`
+**Tools:** `read_file`, `write_file`, `replace`, `list_directory`, `glob`, `task_manager`, `consciousness_tool`, `response_formatter`, `file_converter`
 
 ### Responsibilities
 
@@ -256,7 +256,7 @@ Orchestrator → Analyst → Writer [Tier 1] → Reviewer
 ## OVR_REV_06 — Reviewer
 
 **File:** `agents/reviewer.md`  
-**Tools:** `read_file`, `code_analyzer`, `run_shell_command`, `search_file_content`, `glob`
+**Tools:** `read_file`, `code_analyzer`, `run_shell_command`, `search_file_content`, `glob`, `cleanup_tool`, `ui_design_system`, `consciousness_tool`, `error_handler`
 
 ### Responsibilities
 
@@ -333,3 +333,40 @@ Orchestrator → Analyst → Writer [Tier 1] → Reviewer
 - [ ] No raw Markdown syntax visible in rendered output
 - [ ] File size reasonable (< 5 MB for typical reports)
 - [ ] Output file saved to correct path
+
+---
+
+## OVR_CLN_08 — Cleanup
+
+**File:** `agents/cleanup.md`
+**Tools:** `cleanup_tool`, `read_file`, `glob`, `search_file_content`, `run_shell_command`
+
+### Responsibilities
+
+1. Scan project for hardcoded secrets, API keys, and credentials
+2. Remove temporary files (`.tmp`, `__pycache__`, `tmpclaude-*`, etc.)
+3. Validate project structure against expected layout
+4. Check for orphaned files (unreferenced assets, dead code)
+5. Report findings with severity levels
+
+### When to Invoke
+
+- Before any delivery to the user (pre-deployment sanity check)
+- Before committing to version control
+- When the Orchestrator adds a cleanup phase to the delegation plan
+- On explicit user request ("clean up", "check for secrets", "validate structure")
+
+### Workflow
+
+1. **Scan** — Run `cleanup_tool` with `full_scan` action on project root
+2. **Classify** — Group findings by severity (CRITICAL / WARNING / INFO)
+3. **Remediate** — Auto-fix safe issues (temp file deletion); flag unsafe issues for human review
+4. **Report** — Return structured findings with file paths, line numbers, and recommendations
+
+### Quality Checklist
+
+- [ ] No hardcoded secrets remain in any tracked file
+- [ ] All temporary files removed
+- [ ] Project structure matches expected layout from `config.json`
+- [ ] No orphaned tool definitions (JSON without Python impl or vice versa)
+- [ ] Findings report is clear, actionable, and severity-sorted

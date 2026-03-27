@@ -3,15 +3,15 @@
 > **Provider-agnostic multi-agent LLM orchestration framework**
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-3776ab?logo=python&logoColor=white)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-2.1.0-22c55e)](config.json)
+[![Version](https://img.shields.io/badge/version-2.2.0-22c55e)](config.json)
 [![Tests](https://img.shields.io/badge/tests-81%20passing-22c55e?logo=pytest&logoColor=white)](tests/test.py)
-[![Tools](https://img.shields.io/badge/tools-15%20built--in-6366f1)](tools/python/)
-[![Agents](https://img.shields.io/badge/agents-7%20specialists-f59e0b)](agents/)
+[![Tools](https://img.shields.io/badge/tools-28%20built--in-6366f1)](tools/python/)
+[![Agents](https://img.shields.io/badge/agents-8%20specialists-f59e0b)](agents/)
 [![Providers](https://img.shields.io/badge/providers-Anthropic%20%7C%20Gemini%20%7C%20OpenAI-0ea5e9)](docs/Providers.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-64748b)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-64748b)](https://github.com/A13Xg/Overlord11)
 
-Overlord11 is a structured multi-agent framework that coordinates **seven specialist AI agents** across any LLM provider (Anthropic Claude, Google Gemini, or OpenAI GPT). Every request is routed through an **Orchestrator** that decomposes tasks, delegates to specialists, and synthesizes a reviewed final output — without any provider-specific code in the agent definitions or tool schemas.
+Overlord11 is a structured multi-agent framework that coordinates **eight specialist AI agents** across any LLM provider (Anthropic Claude, Google Gemini, or OpenAI GPT). Every request is routed through an **Orchestrator** that decomposes tasks, delegates to specialists, and synthesizes a reviewed final output — without any provider-specific code in the agent definitions or tool schemas.
 
 ---
 
@@ -36,8 +36,8 @@ Overlord11 is a structured multi-agent framework that coordinates **seven specia
 ## Features
 
 - 🔀 **Provider-agnostic** — switch between Anthropic, Gemini, or OpenAI by changing one line in `config.json`
-- 🤖 **7 specialist agents** — Orchestrator, Researcher, Coder, Analyst, Writer, Reviewer, Publisher
-- 🛠️ **16 built-in tools** — file I/O, web fetch/scrape, shell execution, Git, code analysis, project scanning, UI design system, and more
+- 🤖 **8 specialist agents** — Orchestrator, Researcher, Coder, Analyst, Writer, Reviewer, Publisher, Cleanup
+- 🛠️ **28 built-in tools** — file I/O, web fetch/scrape, shell execution, Git, code analysis, project scanning, UI design system, scaffolding, task management, error logging, and more
 - 🎨 **UI/UX design system skill** — 10 curated styles × 10 color palettes; Coder generates a persistent spec before any UI work; Reviewer validates against it
 - 🔍 **Dual-engine search** — ripgrep when available, pure-Python fallback producing identical JSON output
 - 📊 **3 output tiers** — inline text, Markdown docs, or styled self-contained HTML reports
@@ -76,6 +76,9 @@ Overlord11 is a structured multi-agent framework that coordinates **seven specia
                                              │
                                     Publisher (OVR_PUB_07)
                                     (step 11 — Tier 2 only)
+                                             │
+                                    Cleanup (OVR_CLN_08)
+                                    (pre-delivery sanity check)
                                     ┌────────┴────────┐
                                     │  Tier 1: .md    │
                                     │  Tier 2: .html  │
@@ -155,17 +158,18 @@ python tests/test.py --skip-web --quiet
 
 ```
 Overlord11/
-├── agents/                  # 7 agent definitions (system prompts)
+├── agents/                  # 8 agent definitions (system prompts)
 │   ├── orchestrator.md      # OVR_DIR_01 — master coordinator
 │   ├── researcher.md        # OVR_RES_02 — web & local research
 │   ├── coder.md             # OVR_COD_03 — code generation & debugging
 │   ├── analyst.md           # OVR_ANL_04 — data analysis & summarization
 │   ├── writer.md            # OVR_WRT_05 — Markdown output (Tier 1)
 │   ├── reviewer.md          # OVR_REV_06 — QA, review & validation
-│   └── publisher.md         # OVR_PUB_07 — styled HTML reports (Tier 2)
+│   ├── publisher.md         # OVR_PUB_07 — styled HTML reports (Tier 2)
+│   └── cleanup.md           # OVR_CLN_08 — pre-deployment sanity check
 │
 ├── tools/
-│   ├── defs/                # 16 provider-agnostic tool JSON schemas
+│   ├── defs/                # 28 provider-agnostic tool JSON schemas
 │   └── python/              # Python implementations of all tools
 │
 ├── skills/
@@ -192,12 +196,20 @@ Overlord11/
 │   ├── test.py              # 81-test suite covering all 16 modules
 │   └── test_results.json    # Machine-readable results (auto-generated)
 │
+├── directives/              # Behavioral instruction files for AI sessions
+│   ├── Personality.md       # Tone, voice, personality types
+│   ├── CustomBehavior.md    # Decision-making, autonomy, transparency mode
+│   ├── OutputFormat.md      # Response structure, verbosity rules
+│   ├── CodingBehavior.md    # Coding workflow, .ai/ directory, testing
+│   ├── WritingBehavior.md   # Writing rules, templates, revision cycles
+│   ├── GeneralBehavior.md   # Research, analysis, multi-part requests
+│   └── README.md            # Directive layering guide
+│
 ├── config.json              # Unified config (providers, agents, tools)
 ├── Consciousness.md         # Shared cross-agent memory
 ├── ONBOARDING.md            # Universal LLM onboarding guide
 ├── CHANGELOG.md             # Release history
-├── .env.example             # Environment variable template
-└── pre_commit_clean.py      # Pre-commit cleanup + test runner
+└── .env.example             # Environment variable template
 ```
 
 ---
@@ -213,6 +225,7 @@ Overlord11/
 | OVR_WRT_05 | **Writer** | Produces all Markdown output: READMEs, reports, docs, changelogs, and technical specs. Used for Tier 1 output. |
 | OVR_REV_06 | **Reviewer** | Final quality gate. Reviews code and documents for correctness, security, style, and completeness before delivery. |
 | OVR_PUB_07 | **Publisher** | Generates fully self-contained styled HTML reports (Tier 2). Chooses a visual theme based on content type and produces a single `.html` file with all CSS inline. |
+| OVR_CLN_08 | **Cleanup** | Pre-deployment sanity check. Scans for hardcoded secrets, removes temp files, validates project structure before delivery. |
 
 > Full agent documentation: [`docs/Agents-Reference.md`](docs/Agents-Reference.md)
 
@@ -252,6 +265,25 @@ Overlord11/
 | `save_memory` | Persist facts to `Consciousness.md` with timestamps across sessions |
 | `publisher_tool` | Generate themed self-contained HTML reports (9 visual themes, auto-detection) |
 | `ui_design_system` | Generate a complete UI/UX design system (style + palette + tokens + rules). Persists to `design-system/MASTER.md`. 10 styles × 10 palettes — 100 possible combinations. |
+| `consciousness_tool` | Read, query, and manage entries in `Consciousness.md` programmatically |
+| `response_formatter` | Format agent responses into structured output (sections, tables, summaries) |
+| `file_converter` | Convert files between formats (JSON, CSV, YAML, Markdown) |
+
+### Project Management
+| Tool | Description |
+|------|-------------|
+| `task_manager` | Manage `TaskingLog.md` — create, update, and track tasks with T-NNN IDs |
+| `error_logger` | Log errors to `ErrorLog.md` with severity, attempts, and resolution tracking |
+| `project_docs_init` | Initialize the 5 standardized project files (ProjectOverview, Settings, TaskingLog, AInotes, ErrorLog) |
+| `cleanup_tool` | Pre-deployment scan: detect hardcoded secrets, remove temp files, validate structure |
+| `launcher_generator` | Generate `run.py` (ASCII title, color menu, concurrent mode) + `run.bat` + `run.command` |
+
+### Automation & Vision
+| Tool | Description |
+|------|-------------|
+| `error_handler` | Catch, classify, and recover from tool execution errors with retry logic |
+| `computer_control` | Desktop automation: mouse, keyboard, window management, screenshots |
+| `vision_tool` | Image analysis: OCR, object detection, screenshot interpretation |
 
 > Full tool documentation: [`docs/Tools-Reference.md`](docs/Tools-Reference.md)
 
@@ -404,7 +436,7 @@ python tools/python/save_memory_tool.py \
 
 ## Testing
 
-The test suite at `tests/test.py` covers all **16 modules** across **81 tests** — including encoding edge-cases (UTF-8, CJK, emoji), ripgrep/Python-fallback compatibility, live web calls, and all 9 publisher themes.
+The test suite at `tests/test.py` covers all **28 modules** across **81 tests** — including encoding edge-cases (UTF-8, CJK, emoji), ripgrep/Python-fallback compatibility, live web calls, and all 9 publisher themes.
 
 ### Run the tests
 
@@ -482,7 +514,7 @@ Every run writes `tests/test_results.json`. It includes an `environment` block w
 ### Add a new agent
 
 1. Create `agents/my_agent.md` following the template in existing agent files
-2. Add an entry to `agents` in `config.json` with a unique ID (e.g., `OVR_NEW_08`)
+2. Add an entry to `agents` in `config.json` with a unique ID (e.g., `OVR_NEW_09`)
 3. List the tools the agent needs in its `tools` array
 4. Update the Orchestrator's `can_delegate_to` list
 
@@ -525,8 +557,8 @@ Complete documentation is available in the [`docs/`](docs/) directory:
 | [Home](docs/Home.md) | Overview, index, and quick navigation |
 | [Getting Started](docs/Getting-Started.md) | Installation, setup, and first run |
 | [Architecture](docs/Architecture.md) | System design, data flow, and component interactions |
-| [Agents Reference](docs/Agents-Reference.md) | All 7 agents — identities, workflows, and quality checklists |
-| [Tools Reference](docs/Tools-Reference.md) | All 15 tools — parameters, examples, and return values |
+| [Agents Reference](docs/Agents-Reference.md) | All 8 agents — identities, workflows, and quality checklists |
+| [Tools Reference](docs/Tools-Reference.md) | All 28 tools — parameters, examples, and return values |
 | [Configuration Reference](docs/Configuration-Reference.md) | Complete `config.json` field reference |
 | [Providers](docs/Providers.md) | LLM provider guide: models, costs, switching, and fallbacks |
 | [Memory System](docs/Memory-System.md) | `Consciousness.md` format, rules, and best practices |

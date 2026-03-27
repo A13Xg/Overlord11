@@ -5,7 +5,51 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased]
+## [2.2.0] — 2026-03-22
+
+### Added — Cleanup Agent (OVR_CLN_08)
+
+- `agents/cleanup.md` — Pre-deployment sanity check agent
+- Scans for hardcoded secrets, removes temp files, validates project structure
+- Added to Orchestrator's `can_delegate_to` list in `config.json`
+
+### Added — Project Management Tools
+
+- `cleanup_tool` — secrets scan, temp cleanup, structure validation (`tools/defs/cleanup_tool.json` + `tools/python/cleanup_tool.py`)
+- `task_manager` — manage `TaskingLog.md` with T-NNN IDs and subtasks
+- `error_logger` — log errors to `ErrorLog.md` with severity and resolution tracking
+- `project_docs_init` — initialize 5 standardized project files (ProjectOverview, Settings, TaskingLog, AInotes, ErrorLog)
+- `launcher_generator` — generate `run.py` (ASCII title, color menu, concurrent mode) + `run.bat` + `run.command`
+- `replace` tool now has a Python implementation (`tools/python/replace_tool.py`)
+- `scaffold_generator` now has a JSON schema definition
+
+### Added — Utility Tools (registered in config.json)
+
+- `consciousness_tool` — programmatic read/query/manage of `Consciousness.md`
+- `error_handler` — catch, classify, and recover from tool execution errors
+- `response_formatter` — format agent responses into structured output
+- `file_converter` — convert files between JSON, CSV, YAML, and Markdown
+- `computer_control` — desktop automation (mouse, keyboard, screenshots)
+- `vision_tool` — image analysis, OCR, screenshot interpretation
+
+### Added — Behavioral Directives (`directives/`)
+
+- `Personality.md` — tone, voice, 5 personality types (ChildFriendly, Assistant, Cautious, Quick, Mentor)
+- `CustomBehavior.md` — decision-making, autonomy, transparency mode, contradiction resolution
+- `OutputFormat.md` — 5-section standard response structure, verbosity rules
+- `CodingBehavior.md` — CheckMode/GoMode, `.ai/` context directory, implementation cycle, testing
+- `WritingBehavior.md` — writing rules, document templates, revision cycles
+- `GeneralBehavior.md` — research, analysis, multi-part requests, when to push back
+- `README.md` — directive layering guide and quick-start combos
+
+### Added — Standardized Project Files
+
+- Every sandboxed project directory gets 5 files via `project_docs_init`: `ProjectOverview.md`, `Settings.md`, `TaskingLog.md`, `AInotes.md`, `ErrorLog.md`
+
+### Added — Launcher System
+
+- Every Python project gets `run.py`, `run.bat`, `run.command` via `launcher_generator`
+- Scaffold templates include basic launchers; `launcher_generator` creates full-featured ones
 
 ### Added — UI/UX Design System Skill
 
@@ -71,7 +115,7 @@ hardened across multiple iterations. It is designed to be usable directly
 by LLM agents as well as humans.
 
 #### Coverage
-- **81 tests** across 16 modules: read_file, write_file, list_directory,
+- **81 tests** across 28 modules: read_file, write_file, list_directory,
   glob, search_file_content, run_shell_command, web_fetch, web_scraper,
   git_tool, calculator, save_memory, code_analyzer, project_scanner,
   publisher_tool, log_manager, session_manager
@@ -142,8 +186,6 @@ Honoured at process startup (POSIX standard). Equivalent to `--no-color`.
   HTML reports with inline CSS and 9 visual themes
 - Web scraper: LLM analysis action, smart image scoring, RSS/Atom feed
   discovery, DuckDuckGo search via `ddgs`
-- `pre_commit_clean.py` — pre-commit hook runner + test gate
-
 ### Changed
 - README completely rewritten: architecture diagram, full tool tables,
   output-tier guide, provider switching reference

@@ -32,7 +32,7 @@ cp .env.example .env
 
 ## Running Tests
 
-The test suite is in `tests/test.py`. It exercises all 16 modules with real-world scenarios and produces verbose expected-vs-actual output.
+The test suite is in `tests/test.py`. It exercises all 28 modules with real-world scenarios and produces verbose expected-vs-actual output.
 
 ```bash
 # Run all tests (includes live web calls)
@@ -151,35 +151,17 @@ Tests create temporary files in `tests/test_workspace/`. This directory is gitig
 
 ---
 
-## Pre-Commit Hook
+## Pre-Commit Checks
 
-Run the pre-commit script before pushing:
-
-```bash
-python pre_commit_clean.py --verbose
-```
-
-This will:
-1. Clean temporary files (`tmpclaude-*`, `*.tmp`, `__pycache__`, etc.)
-2. Run Python syntax checks on all `.py` files
-3. Run the full test suite
-4. Report a summary of what was cleaned
-
-### Dry Run
+Before pushing, run the test suite and use the Cleanup agent (OVR_CLN_08) or `cleanup_tool` to scan for secrets, remove temp files, and validate project structure:
 
 ```bash
-# See what would be cleaned without deleting anything
-python pre_commit_clean.py --dry-run --verbose
+# Run tests
+python tests/test.py --skip-web --quiet
+
+# Run cleanup tool
+python tools/python/cleanup_tool.py --path . --action full_scan
 ```
-
-### Options
-
-| Option | Description |
-|--------|-------------|
-| `--dry-run` | Show what would be deleted without deleting |
-| `--verbose` / `-v` | Show detailed output |
-| `--all` | Clean all temp files (not just tmpclaude) |
-| `--clean-only` | Only run cleaning, skip tests |
 
 ---
 
@@ -304,13 +286,15 @@ test: add publisher_tool theme coverage tests
 
 ```
 Overlord11/
-├── agents/          # Agent system prompts — edit carefully
+├── agents/          # 8 agent system prompts — edit carefully
 ├── tools/
-│   ├── defs/        # JSON Schema tool definitions
-│   └── python/      # Python tool implementations
+│   ├── defs/        # 28 JSON Schema tool definitions
+│   └── python/      # Tool Python implementations
+├── directives/      # Behavioral instruction files for AI sessions
 ├── docs/            # Wiki documentation
+├── skills/          # UI/UX design system datasets
 ├── tests/
-│   ├── test.py              # 81-test suite covering all 16 modules
+│   ├── test.py              # 81-test suite
 │   └── test_results.json    # Machine-readable results (auto-generated)
 ├── config.json      # Unified configuration
 ├── Consciousness.md # Shared agent memory (runtime artifact)
@@ -318,8 +302,7 @@ Overlord11/
 ├── CHANGELOG.md     # Release history
 ├── .env.example     # API key template
 ├── .env             # Your API keys (gitignored)
-├── .gitignore
-└── pre_commit_clean.py  # Pre-commit cleanup + test runner
+└── .gitignore
 ```
 
 ---

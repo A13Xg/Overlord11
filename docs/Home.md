@@ -1,6 +1,6 @@
 # Overlord11 Wiki — Home
 
-> **Provider-agnostic multi-agent LLM toolset** · v2.1.0
+> **Provider-agnostic multi-agent LLM toolset** · v2.2.0
 
 Welcome to the Overlord11 documentation. This wiki covers everything you need to understand, configure, use, and extend the framework.
 
@@ -8,16 +8,16 @@ Welcome to the Overlord11 documentation. This wiki covers everything you need to
 
 ## What Is Overlord11?
 
-Overlord11 is a structured multi-agent framework that coordinates **seven specialist AI agents** across any LLM provider — Anthropic Claude, Google Gemini, or OpenAI GPT. It provides:
+Overlord11 is a structured multi-agent framework that coordinates **eight specialist AI agents** across any LLM provider — Anthropic Claude, Google Gemini, or OpenAI GPT. It provides:
 
 - A **task routing layer** (the Orchestrator) that decomposes requests and delegates to the right specialists
-- **Seven specialist agents**, each with a distinct role and quality checklist
-- **Fifteen built-in tools** for file I/O, web research, code analysis, project scanning, and report generation
+- **Eight specialist agents**, each with a distinct role and quality checklist
+- **Twenty-eight built-in tools** for file I/O, web research, code analysis, project scanning, scaffolding, task management, and report generation
 - A **shared memory system** (`Consciousness.md`) for cross-agent, cross-session context
 - **Provider-agnostic design** — no provider-specific code in agent definitions or tool schemas
 - **Three output tiers** — inline text, Markdown documents, or styled self-contained HTML reports
 - **Encoding safety by default** — all agents enforce UTF-8 file I/O, `safe_str()` output guards, and Windows console protection
-- **81-test suite** — covering all 16 modules with encoding, ripgrep/fallback, Unicode, and CI-friendly output modes
+- **81-test suite** — covering all 28 modules with encoding, ripgrep/fallback, Unicode, and CI-friendly output modes
 
 ---
 
@@ -27,8 +27,8 @@ Overlord11 is a structured multi-agent framework that coordinates **seven specia
 |----------|---------------|
 | [Getting Started](Getting-Started.md) | Installation, setup, first run, and verification |
 | [Architecture](Architecture.md) | System design, agent roles, data flow, and component interactions |
-| [Agents Reference](Agents-Reference.md) | All 7 agents — identities, workflows, tools, and quality checklists |
-| [Tools Reference](Tools-Reference.md) | All 15 tools — parameters, return values, and CLI examples |
+| [Agents Reference](Agents-Reference.md) | All 8 agents — identities, workflows, tools, and quality checklists |
+| [Tools Reference](Tools-Reference.md) | All 28 tools — parameters, return values, and CLI examples |
 | [Configuration Reference](Configuration-Reference.md) | Every field in `config.json` explained |
 | [Providers](Providers.md) | LLM provider guide: models, costs, switching, and fallbacks |
 | [Memory System](Memory-System.md) | `Consciousness.md` format, rules, priority levels, and best practices |
@@ -41,7 +41,7 @@ Overlord11 is a structured multi-agent framework that coordinates **seven specia
 
 ## Core Concepts
 
-### The Seven Agents
+### The Eight Agents
 
 | ID | Agent | One-Line Role |
 |----|-------|---------------|
@@ -52,6 +52,7 @@ Overlord11 is a structured multi-agent framework that coordinates **seven specia
 | OVR_WRT_05 | **Writer** | Creates polished Markdown documents and reports |
 | OVR_REV_06 | **Reviewer** | Quality gates all outputs before delivery |
 | OVR_PUB_07 | **Publisher** | Produces styled self-contained HTML reports |
+| OVR_CLN_08 | **Cleanup** | Pre-deployment sanity check — secrets, temp files, structure |
 
 ### The Three Output Tiers
 
@@ -75,13 +76,15 @@ Overlord11 is a structured multi-agent framework that coordinates **seven specia
 
 ```
 Overlord11/
-├── agents/          # Agent system prompts (.md files)
+├── agents/          # 8 agent system prompts (.md files)
 ├── tools/
-│   ├── defs/        # Tool JSON schemas (provider-agnostic)
+│   ├── defs/        # 28 tool JSON schemas (provider-agnostic)
 │   └── python/      # Tool Python implementations
+├── directives/      # Behavioral instruction files for AI sessions
 ├── docs/            # This wiki
+├── skills/          # UI/UX design system datasets
 ├── tests/
-│   ├── test.py              # 81-test suite covering all 16 modules
+│   ├── test.py              # 81-test suite
 │   └── test_results.json    # Machine-readable results (auto-generated)
 ├── config.json      # Unified configuration
 ├── Consciousness.md # Shared agent memory

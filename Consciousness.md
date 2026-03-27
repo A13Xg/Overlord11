@@ -28,7 +28,7 @@ This document serves as a **shared memory location** for all Overlord11 sub-agen
 
 ```
 ### [PRIORITY] Title
-- **Source**: Agent ID (e.g., CG_DIR_01, AS_ANL_02)
+- **Source**: Agent ID (e.g., OVR_DIR_01, OVR_ANL_04)
 - **Created**: YYYY-MM-DD HH:MM
 - **TTL**: Duration or "persistent"
 - **Status**: ACTIVE | PENDING | RESOLVED
@@ -157,6 +157,7 @@ _No active errors._
 | OVR_WRT_05 | Writer | Documentation, reports, content creation | `agents/writer.md` | Available |
 | OVR_REV_06 | Reviewer | QA, code review, proofreading, validation | `agents/reviewer.md` | Available |
 | OVR_PUB_07 | Publisher | Styled self-contained HTML report generation (Tier 2) | `agents/publisher.md` | Available |
+| OVR_CLN_08 | Cleanup | Pre-deployment sanity check — secrets scan, temp cleanup, structure validation | `agents/cleanup.md` | Available |
 
 ---
 

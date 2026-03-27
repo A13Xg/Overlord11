@@ -99,7 +99,7 @@
       "file": "agents/writer.md",
       "description": "Documentation, reports, content creation",
       "entry_point": false,
-      "tools": ["read_file", "write_file", "replace", "list_directory", "glob", "task_manager"]
+      "tools": ["read_file", "write_file", "replace", "list_directory", "glob", "task_manager", "consciousness_tool", "response_formatter", "file_converter"]
     },
     "reviewer": {
       "id": "OVR_REV_06",
@@ -107,7 +107,7 @@
       "file": "agents/reviewer.md",
       "description": "QA, code review, proofreading, validation",
       "entry_point": false,
-      "tools": ["read_file", "code_analyzer", "run_shell_command", "search_file_content", "glob", "cleanup_tool", "ui_design_system"]
+      "tools": ["read_file", "code_analyzer", "run_shell_command", "search_file_content", "glob", "cleanup_tool", "ui_design_system", "consciousness_tool", "error_handler"]
     },
     "publisher": {
       "id": "OVR_PUB_07",
@@ -215,6 +215,30 @@
     "ui_design_system": {
       "def": "tools/defs/ui_design_system.json",
       "impl": "tools/python/ui_design_system.py"
+    },
+    "consciousness_tool": {
+      "def": "tools/defs/consciousness_tool.json",
+      "impl": "tools/python/consciousness_tool.py"
+    },
+    "error_handler": {
+      "def": "tools/defs/error_handler.json",
+      "impl": "tools/python/error_handler.py"
+    },
+    "response_formatter": {
+      "def": "tools/defs/response_formatter.json",
+      "impl": "tools/python/response_formatter.py"
+    },
+    "file_converter": {
+      "def": "tools/defs/file_converter.json",
+      "impl": "tools/python/file_converter.py"
+    },
+    "computer_control": {
+      "def": "tools/defs/computer_control.json",
+      "impl": "tools/python/computer_control.py"
+    },
+    "vision_tool": {
+      "def": "tools/defs/vision_tool.json",
+      "impl": "tools/python/vision_tool.py"
     }
   },
 

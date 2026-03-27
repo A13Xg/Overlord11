@@ -123,7 +123,7 @@ Precise find-and-replace within a file.
 | `old_str` | string | ✓ | Exact string to find (must be unique in the file) |
 | `new_str` | string | ✓ | Replacement string |
 
-> **Note:** This tool is defined in `tools/defs/replace.json` but implemented inline by the LLM agent, not as a standalone Python script.
+> **Implementation:** `tools/python/replace_tool.py`
 
 ---
 
@@ -406,4 +406,269 @@ Central logging system for tool invocations and agent decisions (JSONL format).
 ```bash
 python tools/python/log_manager.py --action summary --session_id 20260215_120000
 python tools/python/log_manager.py --action query --session_id 20260215_120000
+```
+
+---
+
+## Design System Tools
+
+### `ui_design_system`
+
+**Schema:** `tools/defs/ui_design_system.json`
+**Implementation:** `tools/python/ui_design_system.py`
+
+Generate a complete UI/UX design system specification. 10 styles × 10 palettes = 100 combinations.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `style_id` | string | | Style identifier (e.g., `brutalist`, `glassmorphism`) |
+| `palette_id` | string | | Palette identifier (e.g., `midnight-ink`, `neon-city`) |
+| `stack` | string | | Tech stack: `html-tailwind`, `html-css`, `react`, `nextjs`, `vue`, `svelte` |
+| `page` | string | | Page name for per-page overrides |
+| `project_name` | string | | Used for deterministic default selection |
+| `output_format` | string | | `md` (default) or `json` |
+| `persist` | boolean | | Write `design-system/MASTER.md` to disk (default: `false`) |
+
+```bash
+python tools/python/ui_design_system.py --style_id brutalist --palette_id neon-city --stack react --persist true
+python tools/python/ui_design_system.py --project_name "MyApp"
+```
+
+---
+
+## Project Management Tools
+
+### `task_manager`
+
+**Schema:** `tools/defs/task_manager.json`
+**Implementation:** `tools/python/task_manager.py`
+
+Manage tasks in `TaskingLog.md` with T-NNN IDs, checkboxes, and subtasks.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✓ | `create`, `update`, `list`, `complete`, `delete` |
+| `task_id` | string | | Task ID (e.g., `T-001`) — required for update/complete/delete |
+| `title` | string | | Task title — required for create |
+| `status` | string | | Status update: `todo`, `in_progress`, `done`, `blocked` |
+| `session_id` | string | | Session ID for logging |
+
+```bash
+python tools/python/task_manager.py --action create --title "Implement auth" --session_id 20260315_120000
+python tools/python/task_manager.py --action update --task_id T-001 --status in_progress
+python tools/python/task_manager.py --action list
+```
+
+---
+
+### `error_logger`
+
+**Schema:** `tools/defs/error_logger.json`
+**Implementation:** `tools/python/error_logger.py`
+
+Log errors to `ErrorLog.md` with severity, attempts, and resolution tracking.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✓ | `log`, `resolve`, `list` |
+| `error` | string | | Error description — required for log |
+| `severity` | string | | `low`, `medium`, `high`, `critical` (default: `medium`) |
+| `resolution` | string | | Resolution description — required for resolve |
+| `session_id` | string | | Session ID for logging |
+
+```bash
+python tools/python/error_logger.py --action log --error "API timeout on fetch" --severity high
+python tools/python/error_logger.py --action resolve --error "API timeout" --resolution "Added retry logic"
+```
+
+---
+
+### `project_docs_init`
+
+**Schema:** `tools/defs/project_docs_init.json`
+**Implementation:** `tools/python/project_docs_init.py`
+
+Initialize the 5 standardized project files in a sandboxed project directory.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `path` | string | ✓ | Project root to initialize |
+| `project_name` | string | | Project name (auto-detected from directory if omitted) |
+| `session_id` | string | | Session ID for logging |
+
+Creates: `ProjectOverview.md`, `Settings.md`, `TaskingLog.md`, `AInotes.md`, `ErrorLog.md`
+
+```bash
+python tools/python/project_docs_init.py --path ./my_project --project_name "My Project"
+```
+
+---
+
+### `cleanup_tool`
+
+**Schema:** `tools/defs/cleanup_tool.json`
+**Implementation:** `tools/python/cleanup_tool.py`
+
+Pre-deployment scan: detect hardcoded secrets, remove temp files, validate project structure.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `path` | string | ✓ | Project root to scan |
+| `action` | string | | `full_scan`, `secrets_only`, `temp_only`, `structure_only` (default: `full_scan`) |
+| `fix` | boolean | | Auto-fix safe issues like temp file removal (default: `false`) |
+| `session_id` | string | | Session ID for logging |
+
+```bash
+python tools/python/cleanup_tool.py --path . --action full_scan
+python tools/python/cleanup_tool.py --path . --action secrets_only
+python tools/python/cleanup_tool.py --path . --action temp_only --fix true
+```
+
+---
+
+### `launcher_generator`
+
+**Schema:** `tools/defs/launcher_generator.json`
+**Implementation:** `tools/python/launcher_generator.py`
+
+Generate `run.py` (ASCII title, color menu, concurrent mode) + `run.bat` + `run.command` for Python projects.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `path` | string | ✓ | Project root to generate launchers in |
+| `project_name` | string | ✓ | Project name (used in ASCII title) |
+| `modes` | array | | List of run modes for the menu (default: auto-detect) |
+| `session_id` | string | | Session ID for logging |
+
+```bash
+python tools/python/launcher_generator.py --path ./my_project --project_name "My App"
+```
+
+---
+
+## Error Handling & Recovery Tools
+
+### `error_handler`
+
+**Schema:** `tools/defs/error_handler.json`
+**Implementation:** `tools/python/error_handler.py`
+
+Catch, classify, and recover from tool execution errors with retry logic.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `error` | string | ✓ | Error message or traceback |
+| `tool_name` | string | | Tool that produced the error |
+| `context` | string | | Additional context about what was being attempted |
+| `session_id` | string | | Session ID for logging |
+
+```bash
+python tools/python/error_handler.py --error "FileNotFoundError: config.json" --tool_name read_file
+```
+
+---
+
+### `consciousness_tool`
+
+**Schema:** `tools/defs/consciousness_tool.json`
+**Implementation:** `tools/python/consciousness_tool.py`
+
+Read, query, and manage entries in `Consciousness.md` programmatically.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✓ | `read`, `query`, `add`, `resolve`, `list_active` |
+| `section` | string | | Target section (e.g., `signals`, `wip`, `handoffs`, `errors`) |
+| `query` | string | | Search term for query action |
+| `entry` | string | | Entry content for add action |
+| `session_id` | string | | Session ID for logging |
+
+```bash
+python tools/python/consciousness_tool.py --action list_active
+python tools/python/consciousness_tool.py --action query --query "rate limit"
+```
+
+---
+
+### `response_formatter`
+
+**Schema:** `tools/defs/response_formatter.json`
+**Implementation:** `tools/python/response_formatter.py`
+
+Format agent responses into structured output (sections, tables, summaries).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `content` | string | ✓ | Raw content to format |
+| `format` | string | | Output format: `sections`, `table`, `summary`, `bullet` (default: `sections`) |
+| `session_id` | string | | Session ID for logging |
+
+```bash
+python tools/python/response_formatter.py --content "Raw analysis output..." --format summary
+```
+
+---
+
+### `file_converter`
+
+**Schema:** `tools/defs/file_converter.json`
+**Implementation:** `tools/python/file_converter.py`
+
+Convert files between formats (JSON, CSV, YAML, Markdown).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `input_path` | string | ✓ | Input file path |
+| `output_format` | string | ✓ | Target format: `json`, `csv`, `yaml`, `md` |
+| `output_path` | string | | Output file path (auto-generated if omitted) |
+| `session_id` | string | | Session ID for logging |
+
+```bash
+python tools/python/file_converter.py --input_path data.json --output_format csv
+python tools/python/file_converter.py --input_path report.csv --output_format md --output_path report.md
+```
+
+---
+
+## Automation & Vision Tools
+
+### `computer_control`
+
+**Schema:** `tools/defs/computer_control.json`
+**Implementation:** `tools/python/computer_control.py`
+
+Desktop automation: mouse control, keyboard input, window management, screenshots.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✓ | `click`, `type`, `screenshot`, `move`, `scroll`, `key_press`, `window_list` |
+| `x` | integer | | X coordinate (for click/move) |
+| `y` | integer | | Y coordinate (for click/move) |
+| `text` | string | | Text to type (for type action) |
+| `key` | string | | Key to press (for key_press action) |
+| `session_id` | string | | Session ID for logging |
+
+```bash
+python tools/python/computer_control.py --action screenshot
+python tools/python/computer_control.py --action window_list
+```
+
+---
+
+### `vision_tool`
+
+**Schema:** `tools/defs/vision_tool.json`
+**Implementation:** `tools/python/vision_tool.py`
+
+Image analysis: OCR, object detection, screenshot interpretation.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `image_path` | string | ✓ | Path to the image file |
+| `action` | string | | `analyze`, `ocr`, `describe` (default: `analyze`) |
+| `session_id` | string | | Session ID for logging |
+
+```bash
+python tools/python/vision_tool.py --image_path screenshot.png --action ocr
+python tools/python/vision_tool.py --image_path ui_mockup.png --action describe
 ```

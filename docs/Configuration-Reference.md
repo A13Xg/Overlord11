@@ -8,7 +8,7 @@ Complete reference for every field in `config.json`.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `version` | string | Framework version (e.g., `"2.1.0"`) |
+| `version` | string | Framework version (e.g., `"2.2.0"`) |
 | `name` | string | Framework name (`"Overlord11"`) |
 | `description` | string | One-line description |
 | `providers` | object | LLM provider configuration |
