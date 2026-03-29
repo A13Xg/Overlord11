@@ -58,7 +58,7 @@ _No active signals._
 
 <!-- Example:
 ### [HIGH] Research Data Available for Analysis
-- **Source**: DS_DIR_01
+- **Source**: OVR_RES_02
 - **Created**: 2026-01-12 18:00
 - **TTL**: 7 days
 - **Status**: ACTIVE
@@ -98,7 +98,7 @@ _No work in progress._
 
 <!-- Example:
 ### [NORMAL] Code Generation: REST API Project
-- **Source**: CG_DIR_01
+- **Source**: OVR_COD_03
 - **Created**: 2026-01-12 19:30
 - **TTL**: 24 hours
 - **Status**: ACTIVE
@@ -116,7 +116,7 @@ _No pending handoffs._
 
 <!-- Example:
 ### [HIGH] Analysis Ready for Document Generation
-- **Source**: AS_VAL_05
+- **Source**: OVR_ANL_04
 - **Created**: 2026-01-12 20:00
 - **TTL**: 48 hours
 - **Status**: PENDING
@@ -134,7 +134,7 @@ _No active errors._
 
 <!-- Example:
 ### [CRITICAL] API Rate Limit Reached
-- **Source**: DS_RES_02
+- **Source**: OVR_RES_02
 - **Created**: 2026-01-12 21:00
 - **TTL**: 1 hour
 - **Status**: ACTIVE

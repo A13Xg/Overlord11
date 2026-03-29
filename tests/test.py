@@ -1,7 +1,7 @@
 """
 Overlord11 - Comprehensive Tool Test Suite
 ============================================
-Exercises all 15 tools with practical, real-world scenarios.
+Exercises tool modules with practical, real-world scenarios.
 Produces verbose output with EXPECTED vs ACTUAL results.
 
 Usage:
