@@ -3,8 +3,8 @@
 > **Provider-agnostic multi-agent LLM orchestration framework**
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-3776ab?logo=python&logoColor=white)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-2.3.0-22c55e)](config.json)
-[![Tests](https://img.shields.io/badge/tests-147%20passing-22c55e?logo=pytest&logoColor=white)](tests/test.py)
+[![Version](https://img.shields.io/badge/version-2.2.0-22c55e)](config.json)
+[![Tests](https://img.shields.io/badge/tests-81%20passing-22c55e?logo=pytest&logoColor=white)](tests/test.py)
 [![Tools](https://img.shields.io/badge/tools-28%20built--in-6366f1)](tools/python/)
 [![Agents](https://img.shields.io/badge/agents-8%20specialists-f59e0b)](agents/)
 [![Providers](https://img.shields.io/badge/providers-Anthropic%20%7C%20Gemini%20%7C%20OpenAI-0ea5e9)](docs/Providers.md)
@@ -20,7 +20,6 @@ Overlord11 is a structured multi-agent framework that coordinates **eight specia
 - [Features](#features)
 - [Architecture](#architecture)
 - [Quick Start](#quick-start)
-- [Tactical WebUI](#tactical-webui)
 - [Agents](#agents)
 - [Tools](#tools)
 - [Output Tiers](#output-tiers)
@@ -47,7 +46,6 @@ Overlord11 is a structured multi-agent framework that coordinates **eight specia
 - 🔒 **Security-first** — Reviewer agent blocks hardcoded secrets; no credentials in agent definitions
 - ✅ **Fully tested** — test suite covering all tool modules, ripgrep/Python fallback, Unicode, encoding edge-cases
 - 🔌 **Extensible** — add new agents, tools, or LLM providers without touching the framework core
-- 🌐 **Tactical WebUI** — FastAPI + SSE live-streaming autonomous mission runner with military-terminal UI
 
 ---
 
@@ -436,116 +434,9 @@ python tools/python/save_memory_tool.py \
 
 ---
 
-## Tactical WebUI
-
-The **Tactical WebUI** (`webui/`) is a production-ready autonomous mission runner with a live-streaming FastAPI backend and a military-terminal single-page UI.
-
-### Quick start
-
-```bash
-pip install -r requirements-webui.txt
-python scripts/run_webui.py          # → http://localhost:7900
-```
-
-Custom port:
-
-```bash
-python scripts/run_webui.py --port 8080
-```
-
-### What it does
-
-| Capability | Detail |
-|------------|--------|
-| **Autonomous runner** | LLM-driven iteration loop; plans each step, patches code, re-verifies, repairs on failure |
-| **Live SSE telemetry** | 35 typed events streamed in real time; reconnect with `?since=<offset>` |
-| **Self-healing venv** | Detects `ModuleNotFoundError`, creates job-scoped `.venv`, installs missing packages automatically |
-| **Reviewer gate** | Pre-delivery secrets scan, diff coverage assertion, hardcoded model name detection |
-| **Directive injection** | POST feedback mid-run; consumed at next iteration start |
-| **Artifact store** | All verify logs, diffs, plans, reports persisted to `workspace/jobs/<id>/artifacts/` |
-| **Dry-run mode** | Fully functional without LLM API keys — emits `LLM_UNAVAILABLE` events, stubs responses |
-
-### API reference
-
-```bash
-# Health check
-curl http://localhost:7900/api/health
-
-# Create a job
-curl -X POST http://localhost:7900/api/jobs \
-  -H "Content-Type: application/json" \
-  -d '{"goal":"Fix all failing unit tests","max_iterations":5}'
-
-# Start it
-curl -X POST http://localhost:7900/api/jobs/<id>/start
-
-# Stream events (SSE)
-curl -N http://localhost:7900/api/jobs/<id>/events
-
-# Resume from offset after disconnect
-curl -N "http://localhost:7900/api/jobs/<id>/events?since=2048"
-
-# Pause / Resume
-curl -X POST "http://localhost:7900/api/jobs/<id>/pause?pause=true"
-curl -X POST "http://localhost:7900/api/jobs/<id>/pause?pause=false"
-
-# Inject a directive mid-run
-curl -X POST http://localhost:7900/api/jobs/<id>/directive \
-  -H "Content-Type: application/json" \
-  -d '{"text":"Focus on the database tests first","severity":"high","tags":["database"]}'
-
-# List artifacts (with size + mtime)
-curl http://localhost:7900/api/jobs/<id>/artifacts
-
-# Get artifact content
-curl "http://localhost:7900/api/jobs/<id>/artifacts/verify/iter_001.log"
-```
-
-### Key files
-
-```
-webui/
-  app.py                FastAPI routes (14 endpoints)
-  runner.py             Autonomous runner loop
-  events.py             Event schema (schema_version: 0.1)
-  models.py             Pydantic state / request models
-  state_store.py        Disk persistence
-  llm_interface.py      LLM call helper (dry-run fallback)
-  reviewer.py           Reviewer gate rules
-  providers/
-    base.py             Abstract LLMProvider interface
-    anthropic_adapter.py
-    gemini_adapter.py
-    openai_adapter.py
-    router.py           Reads config.json, selects adapter
-  static/index.html     Single-page tactical terminal UI
-workspace/
-  jobs/<id>/
-    state.json          Current job state
-    events.jsonl        Append-only event log
-    artifacts/
-      verify/           Verify gate logs
-      install/          pip install logs
-      diffs/            Unified diff patches
-      plans/            StepPlan JSON files
-      reports/          Reviewer reports
-```
-
-### Tests
-
-```bash
-python3 -m pytest tests/test_webui.py -v   # 66 smoke tests
-```
-
-> See [`docs/WebUI.md`](docs/WebUI.md) and [`docs/EventSchema.md`](docs/EventSchema.md) for full documentation.
-
----
-
 ## Testing
 
-The main test suite at `tests/test.py` covers all **28 modules** across **81 tests** — including encoding edge-cases (UTF-8, CJK, emoji), ripgrep/Python-fallback compatibility, live web calls, and all 9 publisher themes.
-
-The Tactical WebUI has its own test suite at `tests/test_webui.py` (**66 tests**) covering event schema, state store CRUD, reviewer rules, LLM provider config, API surface, patch security, and runner unit logic.
+The test suite at `tests/test.py` covers all **28 modules** across **81 tests** — including encoding edge-cases (UTF-8, CJK, emoji), ripgrep/Python-fallback compatibility, live web calls, and all 9 publisher themes.
 
 ### Run the tests
 
