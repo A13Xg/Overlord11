@@ -1,6 +1,6 @@
 {
-  "session_id": "20260401_002133_test",
-  "run_at": "2026-04-01T00:21:34.153381",
+  "session_id": "20260401_014235_test",
+  "run_at": "2026-04-01T01:42:35.736118",
   "total_tests": 113,
   "passed": 111,
   "failed": 2,
@@ -59,7 +59,7 @@
       "passed": true,
       "expected": "Unicode preserved",
       "actual": "Contains e-acute and em-dash",
-      "duration_ms": 0.11,
+      "duration_ms": 0.14,
       "details": "UTF-8 special characters intact",
       "error": null
     },
@@ -69,7 +69,7 @@
       "passed": true,
       "expected": "CJK preserved",
       "actual": "Contains Chinese and Japanese chars",
-      "duration_ms": 0.14,
+      "duration_ms": 0.11,
       "details": null,
       "error": null
     },
@@ -79,7 +79,7 @@
       "passed": true,
       "expected": "Emoji file readable",
       "actual": "Contains check mark and text",
-      "duration_ms": 0.11,
+      "duration_ms": 0.12,
       "details": null,
       "error": null
     },
@@ -99,7 +99,7 @@
       "passed": true,
       "expected": "File created with correct content",
       "actual": "Hello, Overlord11!",
-      "duration_ms": 0.2,
+      "duration_ms": 0.18,
       "details": "write_file returned: Successfully wrote to file: /home/runner/work/Overlord11/Overlord11/tests/test_workspace/write/new_file.txt",
       "error": null
     },
@@ -109,7 +109,7 @@
       "passed": true,
       "expected": "Both lines present",
       "actual": "First line.\nSecond line.",
-      "duration_ms": 0.18,
+      "duration_ms": 0.17,
       "details": "Append mode works",
       "error": null
     },
@@ -119,7 +119,7 @@
       "passed": true,
       "expected": "File created in nested dirs",
       "actual": "Successfully wrote to file: /home/runner/work/Overlord11/Overlord11/tests/test_workspace/write/deep/nested/dir/file.txt",
-      "duration_ms": 0.23,
+      "duration_ms": 0.22,
       "details": "Auto-mkdir works",
       "error": null
     },
@@ -139,7 +139,7 @@
       "passed": true,
       "expected": "Unicode roundtrip OK",
       "actual": "Written and read back match",
-      "duration_ms": 0.13,
+      "duration_ms": 0.12,
       "details": null,
       "error": null
     },
@@ -179,7 +179,7 @@
       "passed": true,
       "expected": "[DIR] marker present for subdirs",
       "actual": "Directory listing for /home/runner/work/Overlord11/Overlord11/tests/test_workspace/listdir:\n      beta.py\n      alpha.txt\n[DIR] subdir",
-      "duration_ms": 0.04,
+      "duration_ms": 0.07,
       "details": null,
       "error": null
     },
@@ -189,7 +189,7 @@
       "passed": true,
       "expected": ">=3 .py files found",
       "actual": "Found 3: ['deep.py', 'utils.py', 'app.py']",
-      "duration_ms": 0.33,
+      "duration_ms": 0.35,
       "details": null,
       "error": null
     },
@@ -199,7 +199,7 @@
       "passed": true,
       "expected": "Found .md file(s)",
       "actual": "['readme.md']",
-      "duration_ms": 0.16,
+      "duration_ms": 0.13,
       "details": null,
       "error": null
     },
@@ -209,7 +209,7 @@
       "passed": true,
       "expected": "Empty list for no matches",
       "actual": "[]",
-      "duration_ms": 0.11,
+      "duration_ms": 0.1,
       "details": null,
       "error": null
     },
@@ -239,7 +239,7 @@
       "passed": true,
       "expected": "Found TODO in notes.txt=True, not in main.py=True",
       "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"/home/runner/work/Overlord11/Overlord11/tests/test_workspace/search/notes.txt\"}, \"lines\": {\"text\": \"TODO: fix the login bug\\n\"}, \"line_number\": 1, \"submatc",
-      "duration_ms": 0.28,
+      "duration_ms": 0.26,
       "details": null,
       "error": null
     },
@@ -279,7 +279,7 @@
       "passed": true,
       "expected": "Found function def in project tools",
       "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"/home/runner/work/Overlord11/Overlord11/tools/python/search_file_content.py\"}, \"lines\": {\"text\": \"def search_file_content(\\n\"}, \"line_number\": 153, \"submat",
-      "duration_ms": 5.56,
+      "duration_ms": 5.58,
       "details": null,
       "error": null
     },
@@ -299,7 +299,7 @@
       "passed": false,
       "expected": "Overlord11 Test in stdout",
       "actual": "(empty)",
-      "duration_ms": 0.35,
+      "duration_ms": 0.32,
       "details": null,
       "error": "(empty)"
     },
@@ -319,7 +319,7 @@
       "passed": true,
       "expected": "Correct working directory",
       "actual": "(empty)",
-      "duration_ms": 0.24,
+      "duration_ms": 0.23,
       "details": null,
       "error": null
     },
@@ -339,7 +339,7 @@
       "passed": true,
       "expected": "Git status output",
       "actual": "On branch copilot/build-tactical-webui-autonomous-runner\nYour branch is up to date with 'origin/copilot/build-tactical-w",
-      "duration_ms": 3.24,
+      "duration_ms": 3.1,
       "details": null,
       "error": null
     },
@@ -348,8 +348,8 @@
       "test": "Git log (last 3 commits)",
       "passed": true,
       "expected": "Git log output",
-      "actual": "de813aa feat: Tactical WebUI + Autonomous Runner for Overlord11\nf7f9ea4 Initial plan\n151dc29 Changes",
-      "duration_ms": 2.22,
+      "actual": "cc97d03 feat: implement TacticalWebUI_MasterPlan.md milestones A-D and UI-1\nde813aa feat: Tactical WebUI + Autonomous Runner for Overlord11",
+      "duration_ms": 2.24,
       "details": null,
       "error": null
     },
@@ -359,7 +359,7 @@
       "passed": true,
       "expected": "Error for invalid command",
       "actual": "Error executing git command: Command 'git totally-invalid-command-12345' returned non-zero exit status 1.\nStdout: \nStder",
-      "duration_ms": 8.64,
+      "duration_ms": 8.22,
       "details": null,
       "error": null
     },
@@ -389,7 +389,7 @@
       "passed": true,
       "expected": "2^10 = 1024",
       "actual": "1024.0",
-      "duration_ms": 0.01,
+      "duration_ms": 0.0,
       "details": null,
       "error": null
     },
@@ -399,7 +399,7 @@
       "passed": true,
       "expected": "sin(30)=0.5, cos(60)=0.5, tan(45)=1.0",
       "actual": "sin(30)=0.500000, cos(60)=0.500000, tan(45)=1.000000",
-      "duration_ms": 0.01,
+      "duration_ms": 0.02,
       "details": null,
       "error": null
     },
@@ -468,7 +468,7 @@
       "test": "Save a memory entry to file",
       "passed": true,
       "expected": "Memory saved",
-      "actual": "[2026-04-01 00:21:33] Overlord11 test completed successfully",
+      "actual": "[2026-04-01 01:42:35] Overlord11 test completed successfully",
       "duration_ms": 0.2,
       "details": null,
       "error": null
@@ -499,7 +499,7 @@
       "passed": true,
       "expected": "Found 4/4 functions",
       "actual": "['simple_function', 'complex_function', '__init__', 'process']",
-      "duration_ms": 0.49,
+      "duration_ms": 0.53,
       "details": null,
       "error": null
     },
@@ -519,7 +519,7 @@
       "passed": true,
       "expected": "Cyclomatic complexity calculated",
       "actual": "total=12, max_nesting=10",
-      "duration_ms": 0.7,
+      "duration_ms": 0.69,
       "details": null,
       "error": null
     },
@@ -539,7 +539,7 @@
       "passed": true,
       "expected": "Analyzed 1 file(s)",
       "actual": "total_lines=38, functions=4, smells=2",
-      "duration_ms": 1.22,
+      "duration_ms": 1.18,
       "details": null,
       "error": null
     },
@@ -549,7 +549,7 @@
       "passed": true,
       "expected": "Project scanned successfully",
       "actual": "name=Overlord11, langs=['Python', 'Markdown', 'JSON', 'HTML'], has_git=True, files=141",
-      "duration_ms": 20.17,
+      "duration_ms": 20.67,
       "details": null,
       "error": null
     },
@@ -558,8 +558,8 @@
       "test": "Detect Python as primary language",
       "passed": true,
       "expected": "Python detected",
-      "actual": "files=52, lines=17192",
-      "duration_ms": 19.56,
+      "actual": "files=52, lines=17200",
+      "duration_ms": 20.13,
       "details": null,
       "error": null
     },
@@ -569,7 +569,7 @@
       "passed": true,
       "expected": "Found 5 config file(s)",
       "actual": "['.env.example', '.gitignore', 'LICENSE', 'README.md', 'directives/README.md']",
-      "duration_ms": 19.65,
+      "duration_ms": 19.62,
       "details": null,
       "error": null
     },
@@ -579,7 +579,7 @@
       "passed": true,
       "expected": "Git repo detected",
       "actual": "has_git=True",
-      "duration_ms": 17.96,
+      "duration_ms": 18.02,
       "details": null,
       "error": null
     },
@@ -599,7 +599,7 @@
       "passed": true,
       "expected": "HTML report generated",
       "actual": "theme=techno, sections=4, size=11707B",
-      "duration_ms": 1.82,
+      "duration_ms": 2.13,
       "details": "File: /home/runner/work/Overlord11/Overlord11/tests/test_workspace/reports/test_techno_report.html",
       "error": null
     },
@@ -609,7 +609,7 @@
       "passed": true,
       "expected": "Auto-detected theme: tactical",
       "actual": "theme=tactical",
-      "duration_ms": 0.32,
+      "duration_ms": 0.34,
       "details": "Expected 'tactical' for security content",
       "error": null
     },
@@ -619,7 +619,7 @@
       "passed": true,
       "expected": "Self-contained HTML",
       "actual": "has_style=True, has_doctype=True, no_cdn=True",
-      "duration_ms": 0.35,
+      "duration_ms": 0.36,
       "details": null,
       "error": null
     },
@@ -629,7 +629,7 @@
       "passed": true,
       "expected": "All 9 themes generate valid HTML",
       "actual": "['techno', 'classic', 'informative', 'contemporary', 'abstract', 'modern', 'colorful', 'tactical', 'editorial']",
-      "duration_ms": 1.72,
+      "duration_ms": 1.71,
       "details": null,
       "error": null
     },
@@ -639,7 +639,7 @@
       "passed": true,
       "expected": "Full Markdown design system generated",
       "actual": "len=5523, has_tokens=True, has_review=True",
-      "duration_ms": 0.49,
+      "duration_ms": 0.47,
       "details": null,
       "error": null
     },
@@ -689,7 +689,7 @@
       "passed": true,
       "expected": "All 10 styles produce valid Markdown",
       "actual": "['brutalist', 'glassmorphism', 'neobrutalism', 'editorial', 'minimal-zen', 'data-dense', 'soft-ui', 'retro-terminal', 'biomimetic', 'aurora-gradient']",
-      "duration_ms": 3.67,
+      "duration_ms": 3.62,
       "details": null,
       "error": null
     },
@@ -698,8 +698,8 @@
       "test": "Log a tool invocation",
       "passed": true,
       "expected": "Tool invocation logged",
-      "actual": "{\"type\": \"tool_invocation\", \"session_id\": \"20260401_002133_test\", \"tool\": \"test_tool\", \"params\": {\"action\": \"test\", \"target\": \"unit_test\"}, \"result\": {\"status\": \"success\", \"data\": \"test_value\"}, \"dura",
-      "duration_ms": 0.14,
+      "actual": "{\"type\": \"tool_invocation\", \"session_id\": \"20260401_014235_test\", \"tool\": \"test_tool\", \"params\": {\"action\": \"test\", \"target\": \"unit_test\"}, \"result\": {\"status\": \"success\", \"data\": \"test_value\"}, \"dura",
+      "duration_ms": 0.12,
       "details": null,
       "error": null
     },
@@ -708,8 +708,8 @@
       "test": "Log an LLM decision",
       "passed": true,
       "expected": "LLM decision logged",
-      "actual": "{\"type\": \"llm_decision\", \"session_id\": \"20260401_002133_test\", \"agent_id\": \"OVR_DIR_01\", \"decision\": \"Delegate research to OVR_RES_02\", \"reasoning\": \"User query requires web research\", \"context\": {\"qu",
-      "duration_ms": 0.09,
+      "actual": "{\"type\": \"llm_decision\", \"session_id\": \"20260401_014235_test\", \"agent_id\": \"OVR_DIR_01\", \"decision\": \"Delegate research to OVR_RES_02\", \"reasoning\": \"User query requires web research\", \"context\": {\"qu",
+      "duration_ms": 0.13,
       "details": null,
       "error": null
     },
@@ -718,8 +718,8 @@
       "test": "Log an error event",
       "passed": true,
       "expected": "Error logged",
-      "actual": "{\"type\": \"error\", \"session_id\": \"20260401_002133_test\", \"source\": \"test_suite\", \"error\": \"Simulated error for testing\", \"traceback\": \"File test.py, line 1, in <module>\", \"timestamp\": \"2026-04-01T00:21",
-      "duration_ms": 0.08,
+      "actual": "{\"type\": \"error\", \"session_id\": \"20260401_014235_test\", \"source\": \"test_suite\", \"error\": \"Simulated error for testing\", \"traceback\": \"File test.py, line 1, in <module>\", \"timestamp\": \"2026-04-01T01:42",
+      "duration_ms": 0.09,
       "details": null,
       "error": null
     },
@@ -748,8 +748,8 @@
       "test": "Create a new work session",
       "passed": true,
       "expected": "Session created",
-      "actual": "id=20260401_002134, workspace=/home/runner/work/Overlord11/Overlord11/workspace/20260401_0",
-      "duration_ms": 0.56,
+      "actual": "id=20260401_014235, workspace=/home/runner/work/Overlord11/Overlord11/workspace/20260401_0",
+      "duration_ms": 0.51,
       "details": null,
       "error": null
     },
@@ -759,7 +759,7 @@
       "passed": true,
       "expected": "Session is active",
       "actual": "description=Overlord11 Test Suite Session",
-      "duration_ms": 0.07,
+      "duration_ms": 0.06,
       "details": null,
       "error": null
     },
@@ -768,8 +768,8 @@
       "test": "Log a file change in session",
       "passed": true,
       "expected": "Change logged",
-      "actual": "{\"status\": \"logged\", \"change\": {\"timestamp\": \"2026-04-01T00:21:34.040007\", \"file\": \"tests/test.py\", \"action\": \"created\", \"summary\": \"Created comprehensive test suite\"}}",
-      "duration_ms": 0.2,
+      "actual": "{\"status\": \"logged\", \"change\": {\"timestamp\": \"2026-04-01T01:42:35.623830\", \"file\": \"tests/test.py\", \"action\": \"created\", \"summary\": \"Created comprehensive test suite\"}}",
+      "duration_ms": 0.23,
       "details": null,
       "error": null
     },
@@ -779,7 +779,7 @@
       "passed": true,
       "expected": "Note added",
       "actual": "{'status': 'noted'}",
-      "duration_ms": 0.29,
+      "duration_ms": 0.44,
       "details": null,
       "error": null
     },
@@ -789,7 +789,7 @@
       "passed": true,
       "expected": "Session closed",
       "actual": "changes=1, notes=1",
-      "duration_ms": 0.52,
+      "duration_ms": 0.6,
       "details": null,
       "error": null
     },
@@ -798,8 +798,8 @@
       "test": "List all sessions",
       "passed": true,
       "expected": "Listed 1 session(s)",
-      "actual": "['20260401_002134']",
-      "duration_ms": 0.07,
+      "actual": "['20260401_014235']",
+      "duration_ms": 0.05,
       "details": null,
       "error": null
     },
@@ -809,7 +809,7 @@
       "passed": true,
       "expected": "Index returned",
       "actual": "2 heading(s)",
-      "duration_ms": 0.19,
+      "duration_ms": 0.17,
       "details": null,
       "error": null
     },
@@ -819,7 +819,7 @@
       "passed": true,
       "expected": "Memory committed",
       "actual": "priority=HIGH, ttl=7d",
-      "duration_ms": 0.19,
+      "duration_ms": 0.18,
       "details": null,
       "error": null
     },
@@ -828,7 +828,7 @@
       "test": "search: find committed entry by keyword",
       "passed": true,
       "expected": "Found 1 match(es)",
-      "actual": "### [HIGH] test_api_endpoint\n- **Source**: OVR_TEST\n- **Created**: 2026-04-01 00",
+      "actual": "### [HIGH] test_api_endpoint\n- **Source**: OVR_TEST\n- **Created**: 2026-04-01 01",
       "duration_ms": 0.1,
       "details": null,
       "error": null
@@ -839,7 +839,7 @@
       "passed": true,
       "expected": "read_section status=ok",
       "actual": "## Active Memory\n\n_No active signals._\n\n### [HIGH] test_api_endpoint\n- **Source*",
-      "duration_ms": 0.14,
+      "duration_ms": 0.11,
       "details": null,
       "error": null
     },
@@ -849,7 +849,7 @@
       "passed": true,
       "expected": "read_all status=ok",
       "actual": "chars=329",
-      "duration_ms": 0.05,
+      "duration_ms": 0.04,
       "details": null,
       "error": null
     },
@@ -909,7 +909,7 @@
       "passed": true,
       "expected": "HTML generated",
       "actual": "size=1162 chars",
-      "duration_ms": 0.18,
+      "duration_ms": 0.13,
       "details": null,
       "error": null
     },
@@ -919,7 +919,7 @@
       "passed": true,
       "expected": "auto decided: json",
       "actual": "rendered_len=103",
-      "duration_ms": 0.05,
+      "duration_ms": 0.08,
       "details": null,
       "error": null
     },
@@ -949,7 +949,7 @@
       "passed": true,
       "expected": "Detected json",
       "actual": "method=extension",
-      "duration_ms": 0.17,
+      "duration_ms": 0.14,
       "details": null,
       "error": null
     },
@@ -969,7 +969,7 @@
       "passed": true,
       "expected": "CSV→JSON conversion",
       "actual": "2 rows converted",
-      "duration_ms": 0.44,
+      "duration_ms": 0.45,
       "details": null,
       "error": null
     },
@@ -979,7 +979,7 @@
       "passed": true,
       "expected": "CSV→Markdown table",
       "actual": "| tool | status |\n| --- | --- |\n| read_file | PASS |\n| write_file | PASS |",
-      "duration_ms": 0.35,
+      "duration_ms": 0.3,
       "details": null,
       "error": null
     },
@@ -989,7 +989,7 @@
       "passed": true,
       "expected": "Markdown→HTML",
       "actual": "size=828 chars",
-      "duration_ms": 0.5,
+      "duration_ms": 0.52,
       "details": null,
       "error": null
     },
@@ -1069,7 +1069,7 @@
       "passed": true,
       "expected": "analyze_image OK",
       "actual": "mime=image/png, b64_len=92",
-      "duration_ms": 0.23,
+      "duration_ms": 0.18,
       "details": null,
       "error": null
     },
@@ -1079,7 +1079,7 @@
       "passed": true,
       "expected": "Empty dir returns 0 images",
       "actual": "image_count=0",
-      "duration_ms": 0.2,
+      "duration_ms": 0.21,
       "details": null,
       "error": null
     },
