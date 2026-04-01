@@ -433,3 +433,188 @@ class TestAPI:
         routes = [r.path for r in client.app.routes]
         sse_routes = [r for r in routes if "events" in r and "tail" not in r]
         assert len(sse_routes) >= 1
+
+
+# ---------------------------------------------------------------------------
+# 6. Patch path validation
+# ---------------------------------------------------------------------------
+
+class TestPatchValidation:
+    """Tests for _patch_escapes_root() path traversal detection."""
+
+    def _esc(self, diff: str) -> bool:
+        from webui.runner import _patch_escapes_root
+        return _patch_escapes_root(diff)
+
+    def test_safe_patch_passes(self):
+        diff = "--- a/src/foo.py\n+++ b/src/foo.py\n+line"
+        assert not self._esc(diff)
+
+    def test_dotdot_traversal_rejected(self):
+        diff = "--- a/../etc/passwd\n+++ b/../etc/passwd\n+line"
+        assert self._esc(diff)
+
+    def test_dotdot_in_middle_rejected(self):
+        diff = "--- a/src/../../etc/passwd\n+++ b/src/../../etc/passwd\n+line"
+        assert self._esc(diff)
+
+    def test_absolute_unix_path_rejected(self):
+        diff = "--- /etc/passwd\n+++ /etc/passwd\n+line"
+        assert self._esc(diff)
+
+    def test_absolute_windows_path_rejected(self):
+        diff = "--- C:\\Windows\\System32\\foo.txt\n+++ C:\\Windows\\System32\\foo.txt\n+line"
+        assert self._esc(diff)
+
+    def test_unc_windows_path_rejected(self):
+        diff = "--- \\\\server\\share\\foo.txt\n+++ \\\\server\\share\\foo.txt\n+line"
+        assert self._esc(diff)
+
+    def test_dev_null_allowed(self):
+        # /dev/null appears in git diffs for new files — should not be rejected
+        diff = "--- /dev/null\n+++ b/newfile.py\n+line"
+        assert not self._esc(diff)
+
+    def test_safe_subdir_patch_passes(self):
+        diff = "--- a/tests/test_foo.py\n+++ b/tests/test_foo.py\n+line"
+        assert not self._esc(diff)
+
+
+# ---------------------------------------------------------------------------
+# 7. Runner unit tests
+# ---------------------------------------------------------------------------
+
+class TestRunnerUnit:
+    """Tests for runner.py utility functions."""
+
+    def test_parse_action_valid_json(self):
+        from webui.runner import _parse_action
+        raw = '{"action": "complete", "summary": "done"}'
+        result = _parse_action(raw, "aabbccdd1234")
+        assert result["action"] == "complete"
+
+    def test_parse_action_with_markdown_fences(self):
+        from webui.runner import _parse_action
+        raw = '```json\n{"action": "complete", "summary": "done"}\n```'
+        result = _parse_action(raw, "aabbccdd1234")
+        assert result["action"] == "complete"
+
+    def test_parse_action_invalid_json_defaults_to_complete(self):
+        """Malformed JSON should default to complete action and emit ASSUMPTION_LOG."""
+        from webui.runner import _parse_action
+        from webui.events import EventType
+        emitted = []
+        # Patch _emit to capture events
+        import webui.runner as runner_mod
+        orig_emit = runner_mod._emit
+        runner_mod._emit = lambda ev: emitted.append(ev)
+        try:
+            result = _parse_action("not valid json at all", "aabbccdd1234")
+        finally:
+            runner_mod._emit = orig_emit
+        assert result["action"] == "complete"
+        types = [ev["type"] for ev in emitted]
+        assert EventType.ASSUMPTION_LOG.value in types
+
+    def test_parse_action_plain_text_defaults_to_complete(self):
+        from webui.runner import _parse_action
+        result = _parse_action("just some plain text", "aabbccdd1234")
+        assert result["action"] == "complete"
+        assert "just some plain text" in result["summary"]
+
+    def test_control_flags_cleared_after_finish(self):
+        """After _finish(), control flags for the job should be removed."""
+        import asyncio
+        import webui.runner as runner_mod
+        from webui.runner import _finish, _control_flags
+        from webui.models import JobState, JobStatus
+        from datetime import datetime, timezone
+        import webui.state_store as ss
+        from pathlib import Path
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("webui.state_store._WORKSPACE", Path(tmp) / "jobs"):
+                state = JobState(
+                    job_id="aabbccdd1234",
+                    goal="test",
+                    status=JobStatus.RUNNING,
+                    created_at=datetime.now(timezone.utc).isoformat(),
+                )
+                ss.create_job(state)
+                _control_flags["aabbccdd1234"] = "stop"
+
+                asyncio.run(_finish(state, JobStatus.STOPPED, "test stop", ev_type=runner_mod.EventType.STOPPED))
+
+                # Flag should be cleaned up
+                assert "aabbccdd1234" not in _control_flags
+
+
+# ---------------------------------------------------------------------------
+# 8. API input validation
+# ---------------------------------------------------------------------------
+
+class TestAPIInputValidation:
+    """Tests for input validation on API routes."""
+
+    @pytest.fixture
+    def client(self, isolated_workspace):
+        from fastapi.testclient import TestClient
+        from webui.app import app
+        with TestClient(app, raise_server_exceptions=False) as c:
+            yield c
+
+    def test_create_job_blank_goal_rejected(self, client):
+        r = client.post("/api/jobs", json={"goal": "   "})
+        assert r.status_code == 422
+
+    def test_create_job_invalid_provider_rejected(self, client):
+        r = client.post("/api/jobs", json={"goal": "test", "provider": "badprovider"})
+        assert r.status_code == 422
+
+    def test_create_job_max_iterations_too_large(self, client):
+        r = client.post("/api/jobs", json={"goal": "test", "max_iterations": 999})
+        assert r.status_code == 422
+
+    def test_create_job_with_custom_verify_command(self, client):
+        r = client.post(
+            "/api/jobs",
+            json={"goal": "test", "verify_command": ["echo", "ok"]},
+        )
+        assert r.status_code == 201
+        assert r.json()["verify_command"] == ["echo", "ok"]
+
+    def test_directive_blank_text_rejected(self, client):
+        cr = client.post("/api/jobs", json={"goal": "test"})
+        job_id = cr.json()["job_id"]
+        r = client.post(
+            f"/api/jobs/{job_id}/directive",
+            json={"text": "  ", "severity": "normal"},
+        )
+        assert r.status_code == 422
+
+    def test_directive_invalid_severity_rejected(self, client):
+        cr = client.post("/api/jobs", json={"goal": "test"})
+        job_id = cr.json()["job_id"]
+        r = client.post(
+            f"/api/jobs/{job_id}/directive",
+            json={"text": "do this", "severity": "critical"},
+        )
+        assert r.status_code == 422
+
+    def test_directive_valid_severities(self, client):
+        cr = client.post("/api/jobs", json={"goal": "test"})
+        job_id = cr.json()["job_id"]
+        for sev in ("normal", "high"):
+            r = client.post(
+                f"/api/jobs/{job_id}/directive",
+                json={"text": "do this", "severity": sev},
+            )
+            assert r.status_code == 202, f"Expected 202 for severity={sev!r}, got {r.status_code}"
+
+    def test_sse_since_negative_rejected(self, client):
+        cr = client.post("/api/jobs", json={"goal": "test"})
+        job_id = cr.json()["job_id"]
+        # Negative `since` should be rejected by query validation
+        r = client.get(f"/api/jobs/{job_id}/events?since=-1")
+        assert r.status_code == 422

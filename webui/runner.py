@@ -346,7 +346,11 @@ def _build_history(state: JobState, iteration: int) -> list[dict[str, str]]:
 
 
 def _parse_action(raw: str, job_id: str) -> dict[str, Any]:
-    """Parse LLM response into an action dict."""
+    """Parse LLM response into an action dict.
+
+    Emits ASSUMPTION_LOG if the response cannot be parsed as structured JSON
+    so operators have visibility into LLM output quality.
+    """
     raw = raw.strip()
     if raw.startswith("```"):
         lines = raw.split("\n")
@@ -357,6 +361,12 @@ def _parse_action(raw: str, job_id: str) -> dict[str, Any]:
             return data
     except json.JSONDecodeError:
         pass
+    # Malformed JSON — log and default to complete action
+    _emit_assumption(
+        job_id,
+        f"LLM returned unparseable JSON; defaulting to 'complete' action. "
+        f"Raw (first 200 chars): {raw[:200]!r}",
+    )
     return {"action": "complete", "summary": raw[:500]}
 
 
@@ -408,24 +418,165 @@ async def _apply_patch(state: JobState, action: dict[str, Any], iteration: int) 
 
 
 def _patch_escapes_root(diff: str) -> bool:
-    """Return True if the patch tries to write outside the project root."""
+    """Return True if the patch tries to write outside the project root.
+
+    Catches:
+    - Path traversal via ``..`` segments
+    - Absolute Unix paths (starting with ``/``)
+    - Absolute Windows paths (e.g. ``C:\\`` or ``\\\\server``)
+    - Paths that resolve outside _PROJECT_ROOT after normalization
+    """
     for line in diff.splitlines():
         if line.startswith("+++ ") or line.startswith("--- "):
             path_part = line[4:].split("\t")[0].strip()
+            # Skip /dev/null (used for new files in git diffs)
+            if path_part == "/dev/null":
+                continue
             # Normalize: strip a/ or b/ prefix added by git
             path_part = re.sub(r'^[ab]/', '', path_part)
-            if ".." in path_part:
+            # Reject absolute paths (Unix or Windows)
+            if path_part.startswith("/") or re.match(r'^[A-Za-z]:[/\\]', path_part) or path_part.startswith("\\\\"):
                 return True
+            # Reject traversal via .. (use pathlib.Path.parts for cross-platform handling)
+            from pathlib import PurePosixPath, PureWindowsPath
+            try:
+                parts = PurePosixPath(path_part).parts
+                if ".." in parts:
+                    return True
+                # Also check Windows-style separators in case of mixed paths
+                if "\\" in path_part:
+                    win_parts = PureWindowsPath(path_part).parts
+                    if ".." in win_parts:
+                        return True
+            except Exception:
+                return True  # reject unparseable paths
+            # Resolve against project root and verify containment
+            try:
+                resolved = (_PROJECT_ROOT / path_part).resolve()
+                if not str(resolved).startswith(str(_PROJECT_ROOT.resolve())):
+                    return True
+            except Exception:
+                return True  # reject on any resolution error
     return False
 
 
 async def _execute_tool(state: JobState, action: dict[str, Any]) -> None:
-    """Execute a named tool_call action (structured placeholder)."""
+    """
+    Execute a named tool_call action.
+
+    Supported built-in tools (safe, sandboxed):
+      - ``shell``        Run a shell command (cwd=project root, timeout=60s)
+      - ``read_file``    Read a text file relative to project root
+      - ``write_file``   Write/overwrite a text file relative to project root
+      - ``list_dir``     List directory contents relative to project root
+
+    Unknown tools emit STEP_END with success=False and a descriptive error.
+    """
     tool_name = action.get("tool", "unknown")
     args = action.get("args", {})
     _emit_ev(state.job_id, EventType.STEP_START, tool=tool_name, args=args)
-    # Real tool dispatch would route to tools/python/<tool>.py here.
-    _emit_ev(state.job_id, EventType.STEP_END, tool=tool_name, success=True, output="[stub] tool dispatched")
+
+    try:
+        output, success = await _dispatch_tool(state, tool_name, args)
+    except Exception as exc:
+        output = f"Tool execution error: {exc}"
+        success = False
+
+    _emit_ev(
+        state.job_id,
+        EventType.STEP_END,
+        tool=tool_name,
+        success=success,
+        output=str(output)[:500],
+        level=EventLevel.INFO if success else EventLevel.WARN,
+    )
+
+
+async def _dispatch_tool(
+    state: JobState,
+    tool_name: str,
+    args: dict[str, Any],
+) -> tuple[str, bool]:
+    """Route a tool_call to the appropriate implementation.
+
+    Returns (output_text, success).
+    """
+    root = _PROJECT_ROOT
+
+    if tool_name == "shell":
+        cmd_str = args.get("command", "")
+        if not cmd_str:
+            return "Missing 'command' arg", False
+        # Clamp timeout to a safe range (1-300 seconds)
+        try:
+            timeout = max(1, min(300, int(args.get("timeout", 60))))
+        except (TypeError, ValueError):
+            timeout = 60
+        result = await asyncio.to_thread(
+            _run_shell,
+            ["bash", "-c", cmd_str],
+            cwd=str(root),
+            timeout=timeout,
+        )
+        output = (result["stdout"] + result["stderr"])[-2000:]
+        return output, result["returncode"] == 0
+
+    elif tool_name == "read_file":
+        rel_path = args.get("path", "")
+        if not rel_path:
+            return "Missing 'path' arg", False
+        # Safety: resolve and confirm within project root
+        target = (root / rel_path).resolve()
+        if not str(target).startswith(str(root.resolve())):
+            return f"Path outside project root rejected: {rel_path!r}", False
+        if not target.exists():
+            return f"File not found: {rel_path!r}", False
+        try:
+            content = target.read_text(encoding="utf-8", errors="replace")
+            return content[:8000], True
+        except OSError as exc:
+            return str(exc), False
+
+    elif tool_name == "write_file":
+        rel_path = args.get("path", "")
+        content = args.get("content", "")
+        if not rel_path:
+            return "Missing 'path' arg", False
+        target = (root / rel_path).resolve()
+        if not str(target).startswith(str(root.resolve())):
+            return f"Path outside project root rejected: {rel_path!r}", False
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content, encoding="utf-8")
+            # Persist as artifact
+            # Use sanitized relative path to avoid basename collisions
+            safe_rel = rel_path.replace("/", "_").replace("\\", "_").lstrip("_")
+            artifact_path = f"diffs/write_{safe_rel}"
+            state_store.write_artifact(state.job_id, artifact_path, content[:8000])
+            _emit_artifact_written(state.job_id, artifact_path)
+            return f"Wrote {len(content)} bytes to {rel_path}", True
+        except OSError as exc:
+            return str(exc), False
+
+    elif tool_name == "list_dir":
+        rel_path = args.get("path", ".")
+        target = (root / rel_path).resolve()
+        if not str(target).startswith(str(root.resolve())):
+            return f"Path outside project root rejected: {rel_path!r}", False
+        if not target.is_dir():
+            return f"Not a directory: {rel_path!r}", False
+        try:
+            entries = sorted(
+                (("d" if e.is_dir() else "f"), e.name)
+                for e in target.iterdir()
+            )
+            lines = [f"{'[dir]' if t=='d' else '     '} {n}" for t, n in entries]
+            return "\n".join(lines[:200]), True
+        except OSError as exc:
+            return str(exc), False
+
+    else:
+        return f"Unknown tool: {tool_name!r}. Supported: shell, read_file, write_file, list_dir", False
 
 
 # ---------------------------------------------------------------------------
@@ -434,15 +585,48 @@ async def _execute_tool(state: JobState, action: dict[str, Any]) -> None:
 
 async def _run_verify(state: JobState) -> tuple[bool, str]:
     """
-    Run `python tests/test.py --skip-web --quiet`.
+    Run the verify gate command.
+
+    Uses ``state.verify_command`` if set, otherwise falls back to the default
+    ``python tests/test.py --skip-web --quiet``.  If the default test script
+    does not exist the verify gate is skipped and a warning is emitted so the
+    runner does not stall on a misconfigured project.
+
     Uses venv python if one exists for this job.
     """
     _emit_ev(state.job_id, EventType.VERIFY_START, iteration=state.iteration)
 
     python_cmd = _get_python_cmd(state)
+
+    if state.verify_command:
+        cmd = list(state.verify_command)
+    else:
+        default_script = _PROJECT_ROOT / "tests" / "test.py"
+        if not default_script.exists():
+            warning = (
+                f"Default verify script not found: {default_script}. "
+                "Skipping verify gate — job will not be marked COMPLETE without passing verify."
+            )
+            _emit_assumption(state.job_id, warning)
+            artifact_path = f"verify/iter_{state.iteration:03d}.log"
+            state_store.write_artifact(state.job_id, artifact_path, warning)
+            _emit_artifact_written(state.job_id, artifact_path)
+            _emit_ev(
+                state.job_id,
+                EventType.VERIFY_RESULT,
+                iteration=state.iteration,
+                passed=False,
+                returncode=-1,
+                output_tail=warning,
+                artifact_ref=artifact_path,
+                level=EventLevel.WARN,
+            )
+            return False, warning
+        cmd = [python_cmd, str(default_script), "--skip-web", "--quiet"]
+
     result = await asyncio.to_thread(
         _run_shell,
-        [python_cmd, "tests/test.py", "--skip-web", "--quiet"],
+        cmd,
         cwd=str(_PROJECT_ROOT),
     )
     passed = result["returncode"] == 0
@@ -758,6 +942,8 @@ async def _finish(
     level = EventLevel.INFO if status == JobStatus.COMPLETE else EventLevel.ERROR
     _emit_ev(state.job_id, ev_type, reason=reason, level=level)
     _emit_ev(state.job_id, EventType.STATUS, status=str(status), reason=reason)
+    # Cleanup: remove control flags so finished jobs don't leak memory
+    _control_flags.pop(state.job_id, None)
 
 
 def _emit_assumption(job_id: str, message: str) -> None:

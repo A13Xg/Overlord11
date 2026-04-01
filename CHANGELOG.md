@@ -5,6 +5,54 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.3.0] — 2026-04-01
+
+### Added — Tactical WebUI + Autonomous Mission Runner
+
+#### Backend (`webui/`)
+
+- **`webui/`** — New production-ready FastAPI package: autonomous runner, SSE event streaming, disk-backed job persistence, reviewer gate, provider adapters
+- **`webui/events.py`** — Stable event envelope schema v0.1; 35 typed events; `emit_event()` canonical helper
+- **`webui/models.py`** — Pydantic models: `JobState`, `JobStatus`, `CreateJobRequest`, `DirectiveRequest` (typed severity), `ArtifactMeta`; input validators for goal, provider, text
+- **`webui/state_store.py`** — Disk persistence under `workspace/jobs/<id>/`; artifact subdirs (`verify/`, `install/`, `diffs/`, `plans/`, `reports/`); `list_artifacts` returns path/size/mtime
+- **`webui/runner.py`** — Asyncio task per job; cooperative pause/stop; LLM-driven iteration loop; tool execution (`shell`, `read_file`, `write_file`, `list_dir`); safe patch apply (rejects `..`, absolute, Windows paths); self-healing venv repair (detects `ModuleNotFoundError`); configurable verify command; control flag cleanup on finish; ASSUMPTION_LOG on LLM parse failure
+- **`webui/llm_interface.py`** — Provider-agnostic LLM call helper; dry-run fallback emitting `LLM_UNAVAILABLE`
+- **`webui/reviewer.py`** — Pre-delivery gate: secrets scan, hardcoded model detection, diff coverage
+- **`webui/providers/`** — Abstract `LLMProvider` interface + Anthropic/Gemini/OpenAI adapters + config-driven router
+- **`webui/app.py`** — 14 REST endpoints; `POST /jobs/{id}/pause?pause=true|false`; SSE `?since=` byte-offset with EOF clamping; directive `{text, severity, tags}`; artifact list with metadata; `verify_command` support; `ge=0` validation on SSE offset
+- **`webui/static/index.html`** — Military-terminal single-page UI; radar grid + scanline background; live event telemetry with 35 event type formatters; venv status panel; severity selector; artifact browser with size display; SSE reconnect with byte-offset tracking
+
+#### Documentation
+
+- **`docs/EventSchema.md`** — Full event schema reference: envelope fields, all 35 event types, payload tables, examples
+- **`docs/WebUI.md`** — Operations manual: architecture, LLM config, curl examples for all 14 endpoints, runner loop diagram, troubleshooting
+
+#### Scripts & Config
+
+- **`scripts/run_webui.py`** — Entry point with `--port` / `--host` args
+- **`requirements-webui.txt`** — FastAPI, uvicorn, pydantic, httpx, sse-starlette, aiofiles, python-multipart
+
+#### Tests
+
+- **`tests/test_webui.py`** — 66 smoke tests: event schema, state store CRUD + artifact metadata, reviewer gate rules, LLM provider routing, full API surface, patch path security, runner unit logic (parse_action, control flag cleanup, JSON fallback logging), API input validation (blank goal, invalid provider, severity enum, SSE offset clamping)
+
+### Changed
+
+- **`README.md`** — Added Tactical WebUI section; updated test badge to 147 tests; added WebUI to Table of Contents and Features list
+- **`.gitignore`** — Exclude `tests/test_results.json`
+
+### Fixed
+
+- **`webui/runner.py`** — `_patch_escapes_root()`: now rejects absolute Unix/Windows paths and UNC paths in addition to `..` traversal
+- **`webui/runner.py`** — `_finish()`: control flags (`_control_flags`) cleaned up after job ends (memory leak fix)
+- **`webui/runner.py`** — `_parse_action()`: emits `ASSUMPTION_LOG` warning when LLM returns unparseable JSON instead of silently defaulting
+- **`webui/runner.py`** — `_run_verify()`: checks for existence of default test script before running; emits informative failure if missing; uses `state.verify_command` when set
+- **`webui/runner.py`** — `_execute_tool()`: implemented real tool dispatch (was stub)
+- **`webui/app.py`** — SSE `?since=` offset clamped to file size (prevented potential `seek()` past EOF)
+- **`webui/models.py`** — `DirectiveRequest.severity` uses `Literal["normal","high"]` (was unconstrained `str`); blank goal/text rejected via `field_validator`
+
+---
+
 ## [2.2.0] — 2026-03-22
 
 ### Added — Cleanup Agent (OVR_CLN_08)

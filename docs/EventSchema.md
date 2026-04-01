@@ -84,10 +84,19 @@ All additional fields are payload fields specific to the event type.
 | Type | Level | Key Payload Fields |
 |------|-------|--------------------|
 | `PLAN_CREATED` | info | `iteration`, `artifact_ref` |
-| `STEP_START` | info | `tool`, `args` |
-| `STEP_END` | info | `tool`, `success` |
+| `STEP_START` | info | `tool`, `args` (see built-in tools below) |
+| `STEP_END` | info/warn | `tool`, `success`, `output` (first 500 chars) |
 | `PATCH_APPLY_START` | info | `iteration`, `rationale` |
 | `PATCH_APPLY_RESULT` | info/error | `iteration`, `success`, `output`, `artifact_ref` |
+
+**Built-in tools (`tool` field values):**
+
+| Tool | Args | Description |
+|------|------|-------------|
+| `shell` | `command` (str), `timeout` (int, default 60) | Run a shell command in the project root |
+| `read_file` | `path` (str, relative to project root) | Read a text file (max 8 000 chars) |
+| `write_file` | `path` (str), `content` (str) | Write/overwrite a file; persisted as artifact |
+| `list_dir` | `path` (str, default `.`) | List directory entries with type prefix |
 
 ### Review
 

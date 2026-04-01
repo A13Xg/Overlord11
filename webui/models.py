@@ -6,9 +6,18 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+#: Canonical set of supported LLM provider names.  Referenced by both the
+#: request validator below and the provider router so they stay in sync.
+VALID_PROVIDERS: frozenset[str] = frozenset({"anthropic", "gemini", "openai"})
 
 
 # ---------------------------------------------------------------------------
@@ -31,7 +40,7 @@ class JobStatus(str, Enum):
 class CreateJobRequest(BaseModel):
     """Payload for POST /jobs."""
 
-    goal: str = Field(..., description="Mission goal / instructions for the runner.")
+    goal: str = Field(..., min_length=1, max_length=4096, description="Mission goal / instructions for the runner.")
     max_iterations: int = Field(10, ge=1, le=100, description="Budget: max runner loops.")
     max_time_seconds: int = Field(
         3600, ge=10, le=86400, description="Budget: wall-clock time limit in seconds."
@@ -48,14 +57,45 @@ class CreateJobRequest(BaseModel):
         True,
         description="If True, runner proceeds without permission prompts.",
     )
+    verify_command: Optional[list[str]] = Field(
+        None,
+        description=(
+            "Custom verify command (list of args). "
+            "Defaults to ['python', 'tests/test.py', '--skip-web', '--quiet']. "
+            "The first element must be a Python interpreter or known safe binary."
+        ),
+    )
+
+    @field_validator("goal")
+    @classmethod
+    def goal_must_not_be_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("goal must not be blank or whitespace-only")
+        return v.strip()
+
+    @field_validator("provider")
+    @classmethod
+    def provider_must_be_known(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in VALID_PROVIDERS:
+            raise ValueError(
+                f"provider must be one of: {', '.join(sorted(VALID_PROVIDERS))} (got {v!r})"
+            )
+        return v
 
 
 class DirectiveRequest(BaseModel):
     """Payload for POST /jobs/{job_id}/directive — injects user feedback mid-run."""
 
-    text: str = Field(..., description="Feedback or instruction from the user.")
-    severity: str = Field("normal", description="normal | high")
+    text: str = Field(..., min_length=1, max_length=4096, description="Feedback or instruction from the user.")
+    severity: Literal["normal", "high"] = Field("normal", description="Directive priority level.")
     tags: list[str] = Field(default_factory=list, description="Optional classification tags.")
+
+    @field_validator("text")
+    @classmethod
+    def text_must_not_be_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("text must not be blank or whitespace-only")
+        return v.strip()
 
 
 class ArtifactMeta(BaseModel):
@@ -91,6 +131,9 @@ class JobState(BaseModel):
     provider: Optional[str] = None
     model: Optional[str] = None
     autonomous: bool = True
+
+    # optional custom verify command
+    verify_command: Optional[list[str]] = None
 
     # outcome
     stop_reason: Optional[str] = None

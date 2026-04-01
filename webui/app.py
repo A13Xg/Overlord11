@@ -95,6 +95,7 @@ async def create_job(req: CreateJobRequest):
         provider=req.provider,
         model=req.model,
         autonomous=req.autonomous,
+        verify_command=req.verify_command,
     )
     state_store.create_job(state)
     return state.model_dump()
@@ -223,13 +224,15 @@ async def post_directive(job_id: str, req: DirectiveRequest):
 @app.get("/api/jobs/{job_id}/events")
 async def stream_events(
     job_id: str,
-    since: int = Query(0, description="Byte offset to resume from (from events.jsonl)"),
+    since: int = Query(0, ge=0, description="Byte offset to resume from (from events.jsonl)"),
 ):
     """
     Server-Sent Events stream.
 
     Replays persisted events from *since* byte offset, then streams live
     events in real time.  Use `since=<last_offset>` to resume after disconnect.
+    If *since* exceeds the current file size it is clamped to EOF (no events
+    replayed, only live stream).
     """
     _assert_exists(job_id)
 
@@ -240,9 +243,12 @@ async def stream_events(
             from . import state_store as ss
             path = Path(ss._events_path(job_id))
             if path.exists():
+                file_size = path.stat().st_size
+                # Clamp offset to [0, file_size] — prevents seeking past EOF
+                safe_offset = min(since, file_size)
                 with open(path, "r", encoding="utf-8") as fh:
-                    if since:
-                        fh.seek(since)
+                    if safe_offset > 0:
+                        fh.seek(safe_offset)
                     for line in fh:
                         line = line.strip()
                         if line:
