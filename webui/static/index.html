@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Overlord11 — Tactical Command</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --accent: #3fb950;
+      --blue: #58a6ff;
+      --text: #c9d1d9;
+      --muted: #8b949e;
+      --orange: #f0883e;
+      --red: #f85149;
+      --yellow: #d29922;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .status-running  { color: var(--orange); }
+    .status-completed{ color: var(--accent); }
+    .status-failed   { color: var(--red); }
+    .status-pending  { color: var(--yellow); }
+    .dot-running  { background: var(--orange); }
+    .dot-completed{ background: var(--accent); }
+    .dot-failed   { background: var(--red); }
+    .dot-pending  { background: var(--yellow); }
+    .job-item { border-left: 3px solid transparent; transition: all 0.15s; }
+    .job-item:hover { background: var(--surface2); }
+    .job-item.active { border-left-color: var(--blue); background: var(--surface2); }
+    .tab { border-bottom: 2px solid transparent; transition: all 0.15s; }
+    .tab.active { border-bottom-color: var(--blue); color: var(--blue); }
+    .tab:hover { color: var(--text); }
+    .artifact-row:hover { background: var(--surface2); }
+    .fp-badge { background: #2d333b; color: #d29922; font-size: 11px; padding: 1px 6px; border-radius: 9px; }
+    .md-content h1,.md-content h2,.md-content h3 { color: var(--text); margin: 8px 0 4px; }
+    .md-content code { background: var(--surface2); padding: 1px 4px; border-radius: 3px; font-family: monospace; font-size: 13px; }
+    .md-content pre  { background: var(--surface2); padding: 10px; border-radius: 6px; overflow-x: auto; }
+    .md-content a    { color: var(--blue); }
+    .event-row { border-left: 3px solid var(--border); }
+    .event-row.info    { border-left-color: var(--blue); }
+    .event-row.error   { border-left-color: var(--red); }
+    .event-row.success { border-left-color: var(--accent); }
+    .event-row.warn    { border-left-color: var(--yellow); }
+    .pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 50; display: flex; align-items: center; justify-content: center; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; min-width: 360px; max-width: 500px; width: 100%; }
+    select, input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 10px; width: 100%; outline: none; }
+    select:focus, input:focus { border-color: var(--blue); }
+    .btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; transition: opacity .15s; }
+    .btn:hover { opacity: .8; }
+    .btn-primary   { background: var(--blue);    color: #0d1117; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-green     { background: var(--accent);  color: #0d1117; }
+    .filter-btn { color: var(--muted); background: transparent; border: 1px solid transparent; }
+    .filter-btn:hover { background: var(--surface2); }
+    .filter-btn.active-filter { background: var(--surface2); color: var(--text); border-color: var(--border); }
+  </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+<!-- HEADER -->
+<header class="flex items-center gap-3 px-5 py-3 border-b" style="border-color:var(--border);background:var(--surface);">
+  <span class="text-lg font-bold tracking-widest" style="color:var(--blue);">🎯 OVERLORD11</span>
+  <span class="text-xs tracking-widest" style="color:var(--muted);">TACTICAL COMMAND</span>
+  <div class="flex-1"></div>
+  <div id="apiStatus" class="flex items-center gap-1.5 text-xs" style="color:var(--muted);">
+    <span class="w-2 h-2 rounded-full" id="apiDot" style="background:var(--muted);"></span>
+    <span id="apiStatusText">connecting…</span>
+  </div>
+  <button id="refreshBtn" class="btn btn-secondary text-xs ml-2">↺ Refresh</button>
+  <button id="settingsBtn" class="btn btn-secondary text-xs ml-1">⚙ Settings</button>
+</header>
+
+<!-- MAIN LAYOUT -->
+<div class="flex flex-1 overflow-hidden">
+
+  <!-- SIDEBAR -->
+  <aside style="width:300px;min-width:220px;background:var(--surface);border-right:1px solid var(--border);" class="flex flex-col overflow-hidden">
+    <div class="px-3 py-2 border-b" style="border-color:var(--border);">
+      <input id="searchInput" type="text" placeholder="Search jobs…" class="text-sm w-full" style="padding:5px 8px;" />
+    </div>
+    <div class="flex gap-1 px-3 py-2 border-b text-xs" style="border-color:var(--border);">
+      <button class="filter-btn px-2 py-1 rounded active-filter" data-f="">All</button>
+      <button class="filter-btn px-2 py-1 rounded" data-f="running">Running</button>
+      <button class="filter-btn px-2 py-1 rounded" data-f="completed">Done</button>
+      <button class="filter-btn px-2 py-1 rounded" data-f="failed">Failed</button>
+    </div>
+    <div id="jobsList" class="flex-1 overflow-y-auto text-sm"></div>
+  </aside>
+
+  <!-- MAIN PANEL -->
+  <main class="flex-1 flex flex-col overflow-hidden">
+    <div id="mainPanel" class="flex-1 overflow-y-auto p-5">
+      <div id="noSelection" class="flex flex-col items-center justify-center h-full" style="color:var(--muted);">
+        <div class="text-5xl mb-4">🎯</div>
+        <div class="text-xl font-semibold mb-2" style="color:var(--text);">Tactical Command Center</div>
+        <div class="text-sm">Select a job from the sidebar to view details</div>
+        <div class="text-xs mt-4 opacity-60">Auto-refreshing every 5s · Backend: <span id="backendUrl">http://127.0.0.1:8844</span></div>
+      </div>
+      <div id="jobDetail" class="hidden"></div>
+    </div>
+  </main>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settingsModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="font-bold text-base" style="color:var(--text);">⚙ Settings</h2>
+      <button id="closeSettings" class="text-xl leading-none" style="color:var(--muted);">×</button>
+    </div>
+    <div class="mb-4">
+      <label class="block text-xs mb-1" style="color:var(--muted);">Active Provider</label>
+      <select id="settingsProvider"></select>
+    </div>
+    <div class="mb-4">
+      <label class="block text-xs mb-1" style="color:var(--muted);">Model <span class="fp-badge ml-1">recommended: gemini-3.1-flash-lite-preview</span></label>
+      <select id="settingsModel"></select>
+    </div>
+    <div class="text-xs mt-2" style="color:var(--muted);">
+      <b>Note:</b> This shows the current config. To change defaults, edit <code>config.json</code>.
+    </div>
+    <div class="flex justify-end mt-5">
+      <button id="closeSettings2" class="btn btn-secondary text-sm">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+const BASE = '';
+let jobs = [];
+let activeJobId = null;
+let activeJob = null;
+let activeTab = 'overview';
+let filterStatus = '';
+let searchQ = '';
+let providerConfig = null;
+let refreshInterval = null;
+let jobRefreshInterval = null;
+
+// ─── API helpers ──────────────────────────────────────────────────────────────
+async function apiFetch(path) {
+  const r = await fetch(BASE + path);
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return r.json();
+}
+
+function setApiStatus(ok, msg) {
+  document.getElementById('apiDot').style.background = ok ? 'var(--accent)' : 'var(--red)';
+  document.getElementById('apiStatusText').textContent = msg;
+}
+
+// ─── Jobs list ────────────────────────────────────────────────────────────────
+async function loadJobs() {
+  try {
+    const params = new URLSearchParams();
+    if (filterStatus) params.set('status', filterStatus);
+    if (searchQ) params.set('q', searchQ);
+    const url = '/api/jobs' + (params.toString() ? '?' + params : '');
+    jobs = await apiFetch(url);
+    setApiStatus(true, `${jobs.length} job${jobs.length !== 1 ? 's' : ''}`);
+    renderJobsList();
+  } catch(e) {
+    setApiStatus(false, 'backend offline');
+    document.getElementById('jobsList').innerHTML =
+      `<div class="px-4 py-6 text-center text-xs" style="color:var(--muted);">Cannot reach backend<br/><span style="color:var(--red);">${e.message}</span></div>`;
+  }
+}
+
+function statusDot(status) {
+  return `<span class="inline-block w-2 h-2 rounded-full dot-${status} mr-2 flex-shrink-0"></span>`;
+}
+
+function fmtTime(ts) {
+  if (!ts) return '—';
+  return new Date(ts * 1000).toLocaleString();
+}
+
+function fmtRelTime(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - ts * 1000;
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h/24)}d ago`;
+}
+
+function renderJobsList() {
+  const el = document.getElementById('jobsList');
+  if (!jobs.length) {
+    el.innerHTML = `<div class="px-4 py-8 text-center text-xs" style="color:var(--muted);">No jobs found<br/><span class="text-xs mt-1 block">Jobs appear here when created in workspace/jobs/</span></div>`;
+    return;
+  }
+  el.innerHTML = jobs.map(j => `
+    <div class="job-item px-3 py-2.5 cursor-pointer ${j.job_id === activeJobId ? 'active' : ''}" onclick="selectJob('${escAttr(j.job_id)}')">
+      <div class="flex items-center gap-1">
+        ${statusDot(j.status)}
+        <span class="font-mono text-xs" style="color:var(--muted);">${escHtml(j.job_id.slice(0,12))}</span>
+        ${j.status === 'running' ? '<span class="pulse ml-auto text-xs" style="color:var(--orange);">●</span>' : ''}
+      </div>
+      <div class="mt-0.5 text-xs leading-tight" style="color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${escHtml(j.goal || '(no goal)')}</div>
+      <div class="mt-1 text-xs" style="color:var(--muted);">${fmtRelTime(j.updated || j.created)}</div>
+    </div>
+  `).join('');
+}
+
+// ─── Job detail ───────────────────────────────────────────────────────────────
+async function selectJob(jobId) {
+  activeJobId = jobId;
+  activeTab = 'overview';
+  renderJobsList();
+  document.getElementById('noSelection').classList.add('hidden');
+  document.getElementById('jobDetail').classList.remove('hidden');
+  document.getElementById('jobDetail').innerHTML = `<div class="text-center py-12" style="color:var(--muted);">Loading…</div>`;
+
+  if (jobRefreshInterval) clearInterval(jobRefreshInterval);
+  await loadJobDetail();
+
+  jobRefreshInterval = setInterval(async () => {
+    if (activeJob && activeJob.status === 'running') await loadJobDetail();
+  }, 3000);
+}
+
+async function loadJobDetail() {
+  try {
+    activeJob = await apiFetch(`/api/jobs/${encodeURIComponent(activeJobId)}`);
+    renderJobDetail();
+  } catch(e) {
+    document.getElementById('jobDetail').innerHTML =
+      `<div class="py-8 text-center" style="color:var(--red);">Error loading job: ${escHtml(e.message)}</div>`;
+  }
+}
+
+function renderJobDetail() {
+  if (!activeJob) return;
+  const j = activeJob;
+  const tabs = ['overview','events','artifacts','products'];
+  const tabLabels = {
+    overview: 'Overview',
+    events: `Events (${j.events?.length || 0})`,
+    artifacts: `Artifacts (${j.artifacts?.length || 0})`,
+    products: '⭐ Finished Products',
+  };
+
+  document.getElementById('jobDetail').innerHTML = `
+    <div class="mb-5">
+      <div class="flex items-center gap-3 mb-1 flex-wrap">
+        ${statusDot(j.status)}
+        <span class="font-bold text-lg" style="color:var(--text);">${escHtml(j.goal || j.job_id)}</span>
+        <span class="status-${j.status} text-sm font-semibold capitalize">${escHtml(j.status)}</span>
+      </div>
+      <div class="text-xs font-mono" style="color:var(--muted);">ID: ${escHtml(j.job_id)}</div>
+    </div>
+
+    <div class="flex gap-0 border-b mb-5 text-sm" style="border-color:var(--border);">
+      ${tabs.map(t => `
+        <button class="tab px-4 py-2 ${activeTab===t?'active':''}"
+          style="color:${activeTab===t?'var(--blue)':'var(--muted)'};"
+          onclick="switchTab('${t}')">${escHtml(tabLabels[t])}</button>
+      `).join('')}
+    </div>
+
+    <div id="tabContent"></div>
+  `;
+  renderTab();
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach(b => {
+    const m = b.getAttribute('onclick').match(/'(\w+)'/);
+    if (!m) return;
+    const t = m[1];
+    b.classList.toggle('active', t === tab);
+    b.style.color = t === tab ? 'var(--blue)' : 'var(--muted)';
+  });
+  renderTab();
+}
+
+function renderTab() {
+  const el = document.getElementById('tabContent');
+  if (!el || !activeJob) return;
+  if      (activeTab === 'overview')   el.innerHTML = renderOverview(activeJob);
+  else if (activeTab === 'events')     el.innerHTML = renderEvents(activeJob);
+  else if (activeTab === 'artifacts')  el.innerHTML = renderArtifacts(activeJob, false);
+  else if (activeTab === 'products')   el.innerHTML = renderArtifacts(activeJob, true);
+}
+
+function renderOverview(j) {
+  const rows = [
+    ['Job ID',   `<span class="font-mono text-xs">${escHtml(j.job_id)}</span>`],
+    ['Status',   `<span class="status-${j.status} font-semibold capitalize">${escHtml(j.status)}</span>`],
+    ['Goal',     escHtml(j.goal || '—')],
+    ['Provider', escHtml(j.provider || '—')],
+    ['Model',    escHtml(j.model || '—')],
+    ['Created',  escHtml(fmtTime(j.created))],
+    ['Updated',  escHtml(fmtTime(j.updated))],
+  ];
+  if (j.verify_summary) {
+    rows.push(['Verify', `<pre class="text-xs mt-1 p-2 rounded overflow-x-auto" style="background:var(--surface2);">${escHtml(j.verify_summary)}</pre>`]);
+  }
+
+  let stateSection = '';
+  if (j.state && Object.keys(j.state).length) {
+    stateSection = `
+      <div class="mt-5">
+        <h3 class="text-sm font-semibold mb-2" style="color:var(--muted);">State Snapshot</h3>
+        <pre class="text-xs p-3 rounded overflow-x-auto" style="background:var(--surface2);color:var(--text);">${escHtml(JSON.stringify(j.state, null, 2))}</pre>
+      </div>`;
+  }
+
+  return `
+    <div class="rounded-lg p-4" style="background:var(--surface2);border:1px solid var(--border);">
+      <table class="w-full text-sm">
+        ${rows.map(([k,v]) => `
+          <tr>
+            <td class="py-1.5 pr-4 text-xs font-semibold align-top" style="color:var(--muted);width:120px;">${k}</td>
+            <td class="py-1.5">${v}</td>
+          </tr>`).join('')}
+      </table>
+    </div>
+    ${stateSection}`;
+}
+
+function renderEvents(j) {
+  if (!j.events || !j.events.length) {
+    return `<div class="py-8 text-center text-sm" style="color:var(--muted);">No events recorded for this job.</div>`;
+  }
+  return `
+    <div class="space-y-2">
+      ${j.events.slice().reverse().map(ev => {
+        const type = (ev.type || ev.event || '').toLowerCase();
+        const cls = type.includes('error') ? 'error'
+                  : type.includes('success') || type.includes('complete') ? 'success'
+                  : type.includes('warn') ? 'warn' : 'info';
+        const ts = ev.timestamp || ev.ts || ev.time;
+        const msg = ev.message || ev.msg || ev.content || JSON.stringify(ev);
+        return `<div class="event-row ${cls} pl-3 py-2 rounded-r text-xs" style="background:var(--surface2);">
+          <div class="flex items-start gap-2">
+            <span class="font-mono flex-shrink-0" style="color:var(--muted);min-width:80px;">${ts ? new Date(ts*1000).toLocaleTimeString() : ''}</span>
+            <span class="uppercase text-xs font-semibold flex-shrink-0" style="color:var(--muted);min-width:60px;">${escHtml(ev.type || ev.event || 'event')}</span>
+            <span style="color:var(--text);word-break:break-word;">${escHtml(String(msg))}</span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function safeB64(path) {
+  return btoa(unescape(encodeURIComponent(path))).replace(/[^a-z0-9]/gi, '');
+}
+
+function renderArtifacts(j, fpOnly) {
+  let arts = j.artifacts || [];
+  if (fpOnly) arts = arts.filter(a => a.is_finished_product);
+  if (!arts.length) {
+    return fpOnly
+      ? `<div class="py-8 text-center text-sm" style="color:var(--muted);">No finished products detected.<br/><span class="text-xs">Place files in artifacts/deliverables/ or artifacts/reports/</span></div>`
+      : `<div class="py-8 text-center text-sm" style="color:var(--muted);">No artifacts found for this job.</div>`;
+  }
+  const jid = escAttr(activeJobId);
+  return `
+    <div class="rounded-lg overflow-hidden" style="border:1px solid var(--border);">
+      ${arts.map(a => {
+        const key = 'prev_' + safeB64(a.path);
+        const encPath = encodeURIComponent(a.path);
+        return `
+          <div class="artifact-row flex items-center gap-3 px-4 py-2.5 border-b text-sm cursor-pointer"
+               style="border-color:var(--border);"
+               onclick="viewArtifact('${jid}','${escAttr(a.path)}')">
+            <span class="text-base flex-shrink-0">${fileIcon(a.path)}</span>
+            <span class="flex-1 font-mono text-xs truncate">${escHtml(a.path)}</span>
+            ${a.is_finished_product ? '<span class="fp-badge flex-shrink-0">⭐ product</span>' : ''}
+            <span class="text-xs flex-shrink-0" style="color:var(--muted);">${fmtBytes(a.size)}</span>
+            <a href="/api/jobs/${jid}/artifacts/${encPath}" download
+               class="btn btn-secondary text-xs py-0.5 px-2 ml-1 flex-shrink-0"
+               onclick="event.stopPropagation()">↓</a>
+          </div>
+          <div class="artifact-preview hidden px-4 py-3" id="${key}"
+               style="background:var(--surface2);border-bottom:1px solid var(--border);max-height:400px;overflow-y:auto;"></div>
+        `;
+      }).join('')}
+    </div>`;
+}
+
+async function viewArtifact(jobId, path) {
+  const key = 'prev_' + safeB64(path);
+  const prev = document.getElementById(key);
+  if (!prev) return;
+  if (!prev.classList.contains('hidden')) {
+    prev.classList.add('hidden');
+    return;
+  }
+  prev.classList.remove('hidden');
+  prev.innerHTML = '<div class="text-xs py-2" style="color:var(--muted);">Loading…</div>';
+  try {
+    const r = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/artifacts/${encodeURIComponent(path)}`);
+    if (!r.ok) throw new Error(r.statusText);
+    const text = await r.text();
+    if (path.endsWith('.md') || path.endsWith('.markdown')) {
+      prev.innerHTML = `<div class="md-content text-sm" style="color:var(--text);">${marked.parse(text)}</div>`;
+    } else {
+      prev.innerHTML = `<pre class="text-xs overflow-x-auto whitespace-pre-wrap" style="color:var(--text);">${escHtml(text)}</pre>`;
+    }
+  } catch(e) {
+    prev.innerHTML = `<div class="text-xs" style="color:var(--red);">Error: ${escHtml(e.message)}</div>`;
+  }
+}
+
+function fileIcon(path) {
+  if (path.endsWith('.md') || path.endsWith('.markdown')) return '📝';
+  if (path.endsWith('.json')) return '{}';
+  if (path.endsWith('.py'))   return '🐍';
+  if (path.endsWith('.log'))  return '📋';
+  if (path.endsWith('.txt'))  return '📄';
+  if (path.endsWith('.html')) return '🌐';
+  if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg')) return '🖼';
+  if (path.endsWith('.zip') || path.endsWith('.tar') || path.endsWith('.gz'))   return '📦';
+  return '📎';
+}
+
+function fmtBytes(b) {
+  if (b < 1024)    return b + 'B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + 'KB';
+  return (b / 1048576).toFixed(1) + 'MB';
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function escAttr(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+// ─── Config / Settings ────────────────────────────────────────────────────────
+async function loadConfig() {
+  try {
+    providerConfig = await apiFetch('/api/config');
+    populateSettings();
+  } catch(e) {}
+}
+
+function populateSettings() {
+  if (!providerConfig) return;
+  const pSel = document.getElementById('settingsProvider');
+  const providers = Object.keys(providerConfig.providers || {});
+  pSel.innerHTML = providers.map(p =>
+    `<option value="${escAttr(p)}" ${p === providerConfig.active_provider ? 'selected' : ''}>${escHtml(p)}</option>`
+  ).join('');
+  updateModelSelect(providerConfig.active_provider);
+  pSel.onchange = () => updateModelSelect(pSel.value);
+}
+
+function updateModelSelect(provider) {
+  if (!providerConfig) return;
+  const mSel = document.getElementById('settingsModel');
+  const pCfg = providerConfig.providers[provider] || {};
+  const models = Object.entries(pCfg.available_models || {});
+  const current = pCfg.model;
+  mSel.innerHTML = models.map(([m, desc]) =>
+    `<option value="${escAttr(m)}" ${m === current ? 'selected' : ''}>${escHtml(m)}${desc ? ' — ' + escHtml(desc) : ''}</option>`
+  ).join('');
+}
+
+// ─── Filters ──────────────────────────────────────────────────────────────────
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    filterStatus = btn.dataset.f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active-filter'));
+    btn.classList.add('active-filter');
+    loadJobs();
+  });
+});
+
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQ = e.target.value;
+  clearTimeout(window._searchTimer);
+  window._searchTimer = setTimeout(loadJobs, 300);
+});
+
+document.getElementById('refreshBtn').addEventListener('click', () => {
+  loadJobs();
+  if (activeJobId) loadJobDetail();
+});
+
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  loadConfig();
+  document.getElementById('settingsModal').classList.remove('hidden');
+});
+document.getElementById('closeSettings').addEventListener('click',  () => document.getElementById('settingsModal').classList.add('hidden'));
+document.getElementById('closeSettings2').addEventListener('click', () => document.getElementById('settingsModal').classList.add('hidden'));
+document.getElementById('settingsModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('settingsModal'))
+    document.getElementById('settingsModal').classList.add('hidden');
+});
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+loadJobs();
+loadConfig();
+refreshInterval = setInterval(loadJobs, 5000);
+</script>
+</body>
+</html>

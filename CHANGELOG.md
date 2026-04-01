@@ -5,6 +5,40 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.3.0] — 2026-06-15
+
+### Added — Tactical WebUI
+
+- `webui/` Python package — FastAPI backend for read-only job browsing
+  - `webui/app.py` — FastAPI application with CORS, static file serving, and all API endpoints
+  - `webui/models.py` — Pydantic models: `JobSummary`, `JobDetail`, `ArtifactInfo`, `ConfigInfo`, etc.
+  - `webui/state_store.py` — reads `workspace/jobs/*/state.json` and `events.jsonl`; lists and serves artifacts with path-traversal protection
+- `webui/static/index.html` — self-contained SPA (Vanilla JS + Tailwind CDN + Marked.js CDN)
+  - Dark tactical aesthetic (GitHub dark palette — `#0d1117` bg, `#58a6ff` blue, `#3fb950` green)
+  - Sidebar: job list with status dots, filters (All/Running/Done/Failed), search
+  - Main panel: Overview / Events / Artifacts / ⭐ Finished Products tabs
+  - Inline Markdown preview for `.md` artifacts
+  - Auto-refresh: jobs list every 5 s, active running job detail every 3 s
+  - Settings panel: provider/model dropdowns populated from `/api/config`
+- `scripts/run_webui.py` — convenience launcher (`python scripts/run_webui.py`)
+- `requirements-webui.txt` — FastAPI, uvicorn, pydantic ≥ 2, python-multipart
+- `docs/WebUI.md` — comprehensive WebUI documentation
+- `workspace/jobs/.gitkeep` — ensures jobs directory exists in the repo
+- `tests/test_webui.py` — pytest suite for WebUI API (health, jobs CRUD, config, artifacts, path traversal)
+
+### Changed — Provider Configuration
+
+- `providers.active` switched from `"anthropic"` to `"gemini"`
+- `providers.gemini.model` updated to `"gemini-3.1-flash-lite-preview"`
+- `providers.gemini.available_models` expanded with Gemini 3.1 models:
+  - `gemini-3.1-flash-lite-preview` (new default)
+  - `gemini-3.1-flash-preview`
+  - `gemini-3.1-pro-preview`
+- `orchestration.fallback_provider_order` reordered to `["gemini", "anthropic", "openai"]`
+- `docs/Providers.md` updated with Gemini 3.1 model table entries
+
+---
+
 ## [2.2.0] — 2026-03-22
 
 ### Added — Cleanup Agent (OVR_CLN_08)

@@ -1,20 +1,18 @@
 {
-  "version": "2.2.0",
+  "version": "2.3.0",
   "name": "Overlord11",
   "description": "Provider-agnostic multi-agent LLM toolset",
-
   "providers": {
-    "active": "anthropic",
-
+    "active": "gemini",
     "anthropic": {
       "model": "claude-opus-4-5",
       "available_models": {
-        "claude-opus-4-5":        "Most capable — best for complex reasoning, long-form generation, nuanced tasks",
-        "claude-opus-4-0":        "Previous Opus generation — strong capability, slightly lower cost",
-        "claude-sonnet-4-5":      "Balanced speed + capability — recommended default for most tasks",
-        "claude-sonnet-3-7":      "Extended thinking variant — ideal for step-by-step reasoning tasks",
-        "claude-haiku-3-5":       "Fast and lightweight — best for simple Q&A, classification, quick responses",
-        "claude-haiku-3-0":       "Smallest / cheapest — high-throughput, latency-sensitive workloads"
+        "claude-opus-4-5": "Most capable \u2014 best for complex reasoning, long-form generation, nuanced tasks",
+        "claude-opus-4-0": "Previous Opus generation \u2014 strong capability, slightly lower cost",
+        "claude-sonnet-4-5": "Balanced speed + capability \u2014 recommended default for most tasks",
+        "claude-sonnet-3-7": "Extended thinking variant \u2014 ideal for step-by-step reasoning tasks",
+        "claude-haiku-3-5": "Fast and lightweight \u2014 best for simple Q&A, classification, quick responses",
+        "claude-haiku-3-0": "Smallest / cheapest \u2014 high-throughput, latency-sensitive workloads"
       },
       "api_key_env": "ANTHROPIC_API_KEY",
       "max_tokens": 8192,
@@ -22,17 +20,19 @@
       "top_p": 1.0,
       "api_base": "https://api.anthropic.com/v1"
     },
-
     "gemini": {
-      "model": "gemini-2.5-pro",
+      "model": "gemini-3.1-flash-lite-preview",
       "available_models": {
-        "gemini-2.5-pro":         "Most capable Gemini — best for complex tasks, long context (1M tokens), multimodal",
-        "gemini-2.5-flash":       "Fast + capable — best balance of speed and quality for most tasks",
-        "gemini-2.5-flash-lite":  "Ultra-fast / cheapest — high-volume, latency-critical workloads",
-        "gemini-2.0-pro":         "Previous Pro generation — strong reasoning, multimodal support",
-        "gemini-2.0-flash":       "Previous Flash — fast, reliable, widely supported",
-        "gemini-1.5-pro":         "Legacy long-context model — 2M token window, good for document-heavy tasks",
-        "gemini-1.5-flash":       "Legacy fast model — cost-effective for simpler tasks"
+        "gemini-3.1-flash-lite-preview": "Default \u2014 ultra-fast, cost-effective, latest Flash Lite generation",
+        "gemini-3.1-flash-preview": "Fast + high quality \u2014 latest Flash generation preview",
+        "gemini-3.1-pro-preview": "Most capable 3.1 \u2014 complex reasoning, long context",
+        "gemini-2.5-pro": "Previous Pro \u2014 1M token context, multimodal, complex tasks",
+        "gemini-2.5-flash": "Previous Flash \u2014 fast + capable, best balance",
+        "gemini-2.5-flash-lite": "Ultra-fast / cheapest \u2014 high-volume, latency-critical",
+        "gemini-2.0-pro": "Legacy Pro \u2014 strong reasoning, multimodal",
+        "gemini-2.0-flash": "Legacy Flash \u2014 reliable, widely supported",
+        "gemini-1.5-pro": "Legacy long-context \u2014 2M token window",
+        "gemini-1.5-flash": "Legacy fast \u2014 cost-effective for simple tasks"
       },
       "api_key_env": "GOOGLE_GEMINI_API_KEY",
       "max_tokens": 8192,
@@ -40,17 +40,16 @@
       "top_p": 1.0,
       "api_base": "https://generativelanguage.googleapis.com/v1beta"
     },
-
     "openai": {
       "model": "gpt-4o",
       "available_models": {
-        "gpt-4o":                 "Most capable GPT-4 class — best for complex tasks, vision, tool use",
-        "gpt-4o-mini":            "Fast and cheap GPT-4 class — excellent for most everyday tasks",
-        "gpt-4-turbo":            "Previous flagship — 128k context, strong reasoning",
-        "o3":                     "OpenAI reasoning model — best for multi-step logic and math",
-        "o3-mini":                "Lightweight reasoning model — fast chain-of-thought at lower cost",
-        "o4-mini":                "Latest reasoning mini — strong coding and math, very fast",
-        "gpt-3.5-turbo":          "Legacy lightweight model — cheapest option for simple completions"
+        "gpt-4o": "Most capable GPT-4 class \u2014 best for complex tasks, vision, tool use",
+        "gpt-4o-mini": "Fast and cheap GPT-4 class \u2014 excellent for most everyday tasks",
+        "gpt-4-turbo": "Previous flagship \u2014 128k context, strong reasoning",
+        "o3": "OpenAI reasoning model \u2014 best for multi-step logic and math",
+        "o3-mini": "Lightweight reasoning model \u2014 fast chain-of-thought at lower cost",
+        "o4-mini": "Latest reasoning mini \u2014 strong coding and math, very fast",
+        "gpt-3.5-turbo": "Legacy lightweight model \u2014 cheapest option for simple completions"
       },
       "api_key_env": "OPENAI_API_KEY",
       "max_tokens": 8192,
@@ -59,15 +58,22 @@
       "api_base": "https://api.openai.com/v1"
     }
   },
-
   "agents": {
     "orchestrator": {
       "id": "OVR_DIR_01",
       "name": "Orchestrator",
       "file": "agents/orchestrator.md",
-      "description": "Master coordinator — delegates to all other agents",
+      "description": "Master coordinator \u2014 delegates to all other agents",
       "entry_point": true,
-      "can_delegate_to": ["researcher", "coder", "analyst", "writer", "reviewer", "publisher", "cleanup"]
+      "can_delegate_to": [
+        "researcher",
+        "coder",
+        "analyst",
+        "writer",
+        "reviewer",
+        "publisher",
+        "cleanup"
+      ]
     },
     "researcher": {
       "id": "OVR_RES_02",
@@ -75,7 +81,18 @@
       "file": "agents/researcher.md",
       "description": "Web research, information gathering, source verification",
       "entry_point": false,
-      "tools": ["web_fetch", "web_scraper", "read_file", "list_directory", "glob", "search_file_content", "save_memory", "project_scanner", "consciousness_tool", "error_handler"]
+      "tools": [
+        "web_fetch",
+        "web_scraper",
+        "read_file",
+        "list_directory",
+        "glob",
+        "search_file_content",
+        "save_memory",
+        "project_scanner",
+        "consciousness_tool",
+        "error_handler"
+      ]
     },
     "coder": {
       "id": "OVR_COD_03",
@@ -83,7 +100,23 @@
       "file": "agents/coder.md",
       "description": "Code generation, debugging, testing, refactoring",
       "entry_point": false,
-      "tools": ["read_file", "write_file", "replace", "run_shell_command", "code_analyzer", "project_scanner", "scaffold_generator", "git_tool", "search_file_content", "glob", "task_manager", "error_logger", "project_docs_init", "launcher_generator", "ui_design_system"]
+      "tools": [
+        "read_file",
+        "write_file",
+        "replace",
+        "run_shell_command",
+        "code_analyzer",
+        "project_scanner",
+        "scaffold_generator",
+        "git_tool",
+        "search_file_content",
+        "glob",
+        "task_manager",
+        "error_logger",
+        "project_docs_init",
+        "launcher_generator",
+        "ui_design_system"
+      ]
     },
     "analyst": {
       "id": "OVR_ANL_04",
@@ -91,7 +124,18 @@
       "file": "agents/analyst.md",
       "description": "Data analysis, summarization, pattern recognition",
       "entry_point": false,
-      "tools": ["read_file", "calculator", "code_analyzer", "project_scanner", "search_file_content", "glob", "save_memory", "consciousness_tool", "response_formatter", "file_converter"]
+      "tools": [
+        "read_file",
+        "calculator",
+        "code_analyzer",
+        "project_scanner",
+        "search_file_content",
+        "glob",
+        "save_memory",
+        "consciousness_tool",
+        "response_formatter",
+        "file_converter"
+      ]
     },
     "writer": {
       "id": "OVR_WRT_05",
@@ -99,7 +143,17 @@
       "file": "agents/writer.md",
       "description": "Documentation, reports, content creation",
       "entry_point": false,
-      "tools": ["read_file", "write_file", "replace", "list_directory", "glob", "task_manager", "consciousness_tool", "response_formatter", "file_converter"]
+      "tools": [
+        "read_file",
+        "write_file",
+        "replace",
+        "list_directory",
+        "glob",
+        "task_manager",
+        "consciousness_tool",
+        "response_formatter",
+        "file_converter"
+      ]
     },
     "reviewer": {
       "id": "OVR_REV_06",
@@ -107,26 +161,46 @@
       "file": "agents/reviewer.md",
       "description": "QA, code review, proofreading, validation",
       "entry_point": false,
-      "tools": ["read_file", "code_analyzer", "run_shell_command", "search_file_content", "glob", "cleanup_tool", "ui_design_system", "consciousness_tool", "error_handler"]
+      "tools": [
+        "read_file",
+        "code_analyzer",
+        "run_shell_command",
+        "search_file_content",
+        "glob",
+        "cleanup_tool",
+        "ui_design_system",
+        "consciousness_tool",
+        "error_handler"
+      ]
     },
     "publisher": {
       "id": "OVR_PUB_07",
       "name": "Publisher",
       "file": "agents/publisher.md",
-      "description": "Tiered output formatter — markdown for mid-complexity, styled self-contained HTML for detailed/visual requests",
+      "description": "Tiered output formatter \u2014 markdown for mid-complexity, styled self-contained HTML for detailed/visual requests",
       "entry_point": false,
-      "tools": ["read_file", "write_file", "replace", "publisher_tool"]
+      "tools": [
+        "read_file",
+        "write_file",
+        "replace",
+        "publisher_tool"
+      ]
     },
     "cleanup": {
       "id": "OVR_CLN_08",
       "name": "Cleanup",
       "file": "agents/cleanup.md",
-      "description": "Pre-deployment sanity check — scans for secrets, removes temp files, validates structure",
+      "description": "Pre-deployment sanity check \u2014 scans for secrets, removes temp files, validates structure",
       "entry_point": false,
-      "tools": ["cleanup_tool", "read_file", "glob", "search_file_content", "run_shell_command"]
+      "tools": [
+        "cleanup_tool",
+        "read_file",
+        "glob",
+        "search_file_content",
+        "run_shell_command"
+      ]
     }
   },
-
   "tools": {
     "read_file": {
       "def": "tools/defs/read_file.json",
@@ -241,13 +315,16 @@
       "impl": "tools/python/vision_tool.py"
     }
   },
-
   "orchestration": {
     "max_loops": 10,
     "max_retries_per_agent": 3,
     "retry_on_empty_output": true,
     "always_review_before_delivery": true,
-    "fallback_provider_order": ["anthropic", "gemini", "openai"],
+    "fallback_provider_order": [
+      "gemini",
+      "anthropic",
+      "openai"
+    ],
     "phases": [
       "intake",
       "research",
@@ -260,7 +337,6 @@
     "log_sessions": true,
     "log_dir": "logs/"
   },
-
   "quality": {
     "min_test_coverage": 80,
     "require_tests_for_new_code": true,
@@ -269,14 +345,12 @@
     "security_scan_enabled": true,
     "require_docstrings": true
   },
-
   "workspace": {
     "root": "workspace/",
     "session_id_format": "YYYYMMDD_HHmmss",
     "max_sessions_retained": 50,
     "auto_cleanup_days": 30
   },
-
   "logging": {
     "level": "info",
     "log_dir": "logs/",

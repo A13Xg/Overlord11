@@ -57,13 +57,16 @@ To change the active Anthropic model:
 
 | Model | Speed | Cost | Best For |
 |-------|-------|------|----------|
-| `gemini-2.5-pro` | Medium | High | 1M token context, multimodal, complex tasks |
-| `gemini-2.5-flash` | Fast | Medium | **Recommended for most tasks** — best balance |
-| `gemini-2.5-flash-lite` | Very Fast | Very Low | Ultra-high volume, latency-critical |
-| `gemini-2.0-pro` | Medium | Medium | Previous Pro — strong reasoning |
-| `gemini-2.0-flash` | Fast | Low | Reliable, widely supported |
-| `gemini-1.5-pro` | Medium | Medium | 2M token window — document-heavy tasks |
-| `gemini-1.5-flash` | Fast | Low | Legacy fast — cost-effective |
+| `gemini-3.1-flash-lite-preview` | Ultra-fast | Very Low | **Default** — latest Flash Lite, cost-effective |
+| `gemini-3.1-flash-preview` | Very Fast | Low | Latest Flash generation preview — fast + high quality |
+| `gemini-3.1-pro-preview` | Medium | High | Most capable 3.1 — complex reasoning, long context |
+| `gemini-2.5-pro` | Medium | High | Previous Pro — 1M token context, multimodal, complex tasks |
+| `gemini-2.5-flash` | Fast | Medium | Previous Flash — fast + capable, best balance |
+| `gemini-2.5-flash-lite` | Very Fast | Very Low | Ultra-fast / cheapest — high-volume, latency-critical |
+| `gemini-2.0-pro` | Medium | Medium | Legacy Pro — strong reasoning, multimodal |
+| `gemini-2.0-flash` | Fast | Low | Legacy Flash — reliable, widely supported |
+| `gemini-1.5-pro` | Medium | Medium | Legacy long-context — 2M token window |
+| `gemini-1.5-flash` | Fast | Low | Legacy fast — cost-effective for simple tasks |
 
 ---
 
