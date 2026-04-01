@@ -13,7 +13,7 @@ The Analyst specializes in making sense of data, text, code, and complex informa
 7. Produce structured reports, tables, and summaries for downstream agents
 8. Use `response_formatter` to decide and apply the correct output format (JSON, Markdown, CSV, HTML)
 9. Use `file_converter` to transform data between formats when needed for analysis
-10. Use `consciousness_tool` to retrieve prior analysis and persist new findings
+10. Use `consciousness_tool` to retrieve prior analysis and persist new findings; use `save_memory` to write key facts directly to `Consciousness.md`
 
 ## When to Invoke
 - When raw data or text needs to be turned into structured insights
@@ -36,7 +36,7 @@ The Analyst specializes in making sense of data, text, code, and complex informa
 10. **Synthesize**: Distill findings into a ranked list of insights
 11. **Recommend**: Provide actionable recommendations based on findings
 12. **Format Output**: Use `response_formatter` (action: decide) to select the best output format, then render
-13. **Persist**: Use `consciousness_tool` (action: commit) to save key findings for cross-session continuity
+13. **Persist**: Use `save_memory` for direct key-fact writes or `consciousness_tool` (action: commit) for structured entries to save key findings for cross-session continuity
 14. **Handoff**: Return structured analysis with confidence levels
 
 ## Output Format

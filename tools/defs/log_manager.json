@@ -1,0 +1,95 @@
+{
+  "name": "log_manager",
+  "description": "Central logging system for all tool invocations, LLM decisions, agent switches, and errors. Writes structured JSONL entries to the master log (logs/master.jsonl) and per-session log files (logs/sessions/<session_id>.jsonl). Also provides query and summary capabilities for reviewing session activity. This tool supports the self-healing process by producing AI-parseable logs of all agent and tool work.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Action to perform.",
+        "enum": ["log_tool", "log_decision", "log_agent_switch", "log_error", "log_event", "query", "summary", "list_sessions"]
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session identifier (YYYYMMDD_HHmmss). Required for all logging actions. Optional for 'query' (defaults to master log)."
+      },
+      "data": {
+        "type": "object",
+        "description": "Action-specific payload. For 'log_tool': {tool, params, result, duration_ms?}. For 'log_decision': {agent, decision, reasoning?, context?}. For 'log_agent_switch': {from, to, reason}. For 'log_error': {source, error, traceback?}. For 'log_event': {event_type, ...extra_fields}.",
+        "properties": {
+          "tool": {
+            "type": "string",
+            "description": "Tool name (for log_tool)."
+          },
+          "params": {
+            "type": "object",
+            "description": "Parameters passed to the tool (for log_tool)."
+          },
+          "result": {
+            "type": "object",
+            "description": "Tool result or status summary (for log_tool)."
+          },
+          "duration_ms": {
+            "type": "number",
+            "description": "Execution time in milliseconds (for log_tool)."
+          },
+          "agent": {
+            "type": "string",
+            "description": "Agent ID making the decision (for log_decision)."
+          },
+          "decision": {
+            "type": "string",
+            "description": "The decision or output summary (for log_decision)."
+          },
+          "reasoning": {
+            "type": "string",
+            "description": "Explanation of the decision (for log_decision)."
+          },
+          "context": {
+            "type": "object",
+            "description": "Additional context for the decision (for log_decision)."
+          },
+          "from": {
+            "type": "string",
+            "description": "Agent ID being switched away from (for log_agent_switch)."
+          },
+          "to": {
+            "type": "string",
+            "description": "Agent ID being switched to (for log_agent_switch)."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Reason for the agent switch (for log_agent_switch)."
+          },
+          "source": {
+            "type": "string",
+            "description": "Source module or agent where the error occurred (for log_error)."
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message (for log_error)."
+          },
+          "traceback": {
+            "type": "string",
+            "description": "Full traceback string (for log_error)."
+          },
+          "event_type": {
+            "type": "string",
+            "description": "Custom event type identifier (for log_event)."
+          }
+        }
+      },
+      "type_filter": {
+        "type": "string",
+        "description": "Filter log entries by type when querying: tool_invocation, llm_decision, agent_switch, error.",
+        "enum": ["tool_invocation", "llm_decision", "agent_switch", "error"]
+      },
+      "last_n": {
+        "type": "integer",
+        "description": "Number of most-recent log entries to return (default: 50).",
+        "default": 50
+      }
+    },
+    "required": ["action"]
+  }
+}

@@ -85,23 +85,48 @@ Or exactly matches:
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/health` | Health check — returns `{"status":"ok"}` |
+| `GET` | `/api/health` | Health check — returns `{"status":"ok","service":"Overlord11 WebUI","version":"..."}` |
 | `GET` | `/api/jobs` | List all jobs. Query: `?status=running\|completed\|failed\|pending`, `?q=search` |
+| `POST` | `/api/jobs` | Create / queue a new job — body: `{"goal":"...","provider":"gemini","model":"gemini-2.5-flash"}` |
 | `GET` | `/api/jobs/{job_id}` | Full job detail (state, events, artifacts) |
 | `GET` | `/api/jobs/{job_id}/artifacts` | List artifacts for a job |
 | `GET` | `/api/jobs/{job_id}/artifacts/{path}` | Download/view a specific artifact |
-| `GET` | `/api/config` | Current provider/model configuration (no API keys) |
+| `GET` | `/api/config` | Current provider/model configuration (no API keys exposed) |
+| `GET` | `/api/config/selection` | Currently selected provider + model for the next job |
+| `PUT` | `/api/config/selection` | Set provider + model — body: `{"provider":"gemini","model":"gemini-2.5-flash"}` |
+| `DELETE` | `/api/config/selection` | Reset selection to config.json defaults |
+| `GET` | `/api/providers/status` | Live provider health for all providers. Add `?force=true` to re-probe immediately |
+| `GET` | `/api/providers/gemini/fallback` | Gemini progressive fallback chain info |
 | `GET` | `/docs` | Interactive OpenAPI docs (Swagger UI) |
 
-All endpoints are **read-only** (GET/HEAD/OPTIONS only).
+All read operations are available without authentication. Write operations (`POST /api/jobs`, `PUT /api/config/selection`) modify the runtime state only (not `config.json`).
 
 ---
 
 ## Settings Panel
 
-Click the **⚙ Settings** button in the top-right to open the settings overlay. It shows the currently active provider and model, populated from `config.json`. All available models and their descriptions are listed in the dropdown.
+Click the **⚙ Settings** button in the top-right to open the settings overlay. It shows the currently active provider and model, populated from `config.json` and the live provider probe.
 
-> **Note:** The Settings panel is view-only. To change the active provider or model, edit `config.json` directly.
+### Provider Status Indicators
+
+Each provider appears in the header row with a coloured status dot:
+
+| Colour | Meaning |
+|--------|---------|
+| 🟢 Green | API probe succeeded — provider is live |
+| 🟡 Yellow | No API key configured |
+| 🔴 Red | API probe failed or error |
+| ⚪ Gray | Status unknown / still checking |
+
+### Model Picker
+
+**Click a provider's status indicator** to open the model picker panel. It lists:
+- All models returned from the live provider API (marked `API ✓`)
+- All models configured in `config.json` (marked `config only` if not in the live list)
+
+Click any model to select it for the next job. The selected provider + model is shown as the active badge in the header.
+
+> Selection is stored in `workspace/.webui_prefs.json` and returned by `GET /api/config/selection`. It does **not** modify `config.json`. Use `DELETE /api/config/selection` to reset to defaults.
 
 ---
 
@@ -125,3 +150,16 @@ Change the port in `scripts/run_webui.py` or pass `--port XXXX` directly to uvic
 
 ### Markdown not rendering
 Marked.js is loaded from the jsDelivr CDN. Ensure you have internet access, or host the script locally and update the `<script>` tag in `webui/static/index.html`.
+
+---
+
+## Logs
+
+The WebUI writes two separate structured JSONL log streams:
+
+| File | Content |
+|------|---------|
+| `logs/webui.jsonl` | HTTP requests, provider health probes, config changes, startup events |
+| `logs/agents.jsonl` | Tool invocations, agent decisions, job execution events |
+
+Both files are AI-parseable (one JSON object per line). Use them for diagnostics and self-healing analysis. Logs rotate automatically at 50 MB (5 generations kept).

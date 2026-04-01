@@ -90,11 +90,21 @@ If the active provider's API call fails (timeout, rate limit, outage), the Orche
 
 ```json
 "orchestration": {
-  "fallback_provider_order": ["anthropic", "gemini", "openai"]
+  "fallback_provider_order": ["gemini", "openai", "anthropic"]
 }
 ```
 
-Change the order or remove providers as needed. The fallback chain is used in sequence until one succeeds or all fail.
+The default order is **Gemini → OpenAI → Anthropic**. Change the order or remove providers as needed. The fallback chain is used in sequence until one succeeds or all fail.
+
+### Gemini Rate-Limit Fallback
+
+When using Gemini, the system additionally detects `429 RESOURCE_EXHAUSTED` responses and automatically falls back through progressively lighter Gemini models before escalating to another provider:
+
+```
+gemini-2.5-pro → gemini-2.5-flash → gemini-2.5-flash-lite → gemini-2.0-flash → gemini-1.5-flash → gemini-1.5-pro
+```
+
+This is handled by `webui/provider_health.py` and visible in the WebUI's Gemini status panel.
 
 ---
 

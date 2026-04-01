@@ -1,6 +1,6 @@
 {
   "name": "publisher_tool",
-  "description": "Generates fully self-contained styled HTML reports from structured content data. Automatically selects a visual theme based on subject matter (techno, classic, informative, contemporary, abstract, modern, colorful, tactical, editorial) and produces a single .html file with all CSS inline. Used by the Publisher agent for Tier 2 output — detailed reports, infographics, dashboards, and publication-quality documents.",
+  "description": "Generates fully self-contained styled HTML reports from structured content data. Automatically selects a visual theme based on subject matter (premium: ultraviolet, aurora, neobrutalism — standard: techno, classic, informative, contemporary, abstract, modern, colorful, tactical, editorial) and produces a single .html file with all CSS inline. Premium themes are preferred and receive double weight in auto-detection. Used by the Publisher agent for Tier 2 output — detailed reports, infographics, dashboards, and publication-quality documents.",
   "parameters": {
     "type": "object",
     "properties": {
@@ -18,8 +18,8 @@
       },
       "theme": {
         "type": "string",
-        "description": "Visual theme for the report. 'auto' lets the tool infer the best theme from the content.",
-        "enum": ["auto", "techno", "classic", "informative", "contemporary", "abstract", "modern", "colorful", "tactical", "editorial"],
+        "description": "Visual theme for the report. 'auto' lets the tool infer the best theme from the content. Premium themes (ultraviolet, aurora, neobrutalism) are preferred for AI/dashboard/product content and are selected first by the auto-detector.",
+        "enum": ["auto", "ultraviolet", "aurora", "neobrutalism", "techno", "classic", "informative", "contemporary", "abstract", "modern", "colorful", "tactical", "editorial"],
         "default": "auto"
       },
       "sections": {

@@ -1,5 +1,5 @@
 {
-  "version": "2.3.0",
+  "version": "2.3.1",
   "name": "Overlord11",
   "description": "Provider-agnostic multi-agent LLM toolset",
   "providers": {
@@ -183,7 +183,8 @@
         "read_file",
         "write_file",
         "replace",
-        "publisher_tool"
+        "publisher_tool",
+        "response_formatter"
       ]
     },
     "cleanup": {
@@ -313,6 +314,16 @@
     "vision_tool": {
       "def": "tools/defs/vision_tool.json",
       "impl": "tools/python/vision_tool.py"
+    },
+    "session_manager": {
+      "file": "tools/python/session_manager.py",
+      "schema": "tools/defs/session_manager.json",
+      "description": "Work session lifecycle management — create, track, and close sessions with file-change and agent-usage logging"
+    },
+    "log_manager": {
+      "file": "tools/python/log_manager.py",
+      "schema": "tools/defs/log_manager.json",
+      "description": "Central JSONL logger for tool invocations, LLM decisions, agent switches, and errors — AI-parseable for self-healing diagnostics"
     }
   },
   "orchestration": {

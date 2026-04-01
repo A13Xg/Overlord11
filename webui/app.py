@@ -48,7 +48,7 @@ PREFS_FILE = Path(__file__).resolve().parent.parent / "workspace" / ".webui_pref
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    log.info("Overlord11 Tactical WebUI starting", extra={"event": "startup", "version": "2.3.0"})
+    log.info("Overlord11 Tactical WebUI starting", extra={"event": "startup", "version": "2.3.1"})
     import asyncio
 
     async def _background_probe():
@@ -70,7 +70,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Overlord11 Tactical WebUI",
     description="Browse jobs, artifacts, and finished products",
-    version="2.3.0",
+    version="2.3.1",
     lifespan=lifespan,
 )
 
@@ -152,7 +152,7 @@ def health():
     return {
         "status": "ok",
         "service": "Overlord11 Tactical WebUI",
-        "version": "2.3.0",
+        "version": "2.3.1",
         "active_provider": provider,
         "active_model": model,
     }

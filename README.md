@@ -3,11 +3,11 @@
 > **Provider-agnostic multi-agent LLM orchestration framework**
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-3776ab?logo=python&logoColor=white)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-2.2.0-22c55e)](config.json)
-[![Tests](https://img.shields.io/badge/tests-81%20passing-22c55e?logo=pytest&logoColor=white)](tests/test.py)
-[![Tools](https://img.shields.io/badge/tools-28%20built--in-6366f1)](tools/python/)
+[![Version](https://img.shields.io/badge/version-2.3.1-22c55e)](config.json)
+[![Tests](https://img.shields.io/badge/tests-31%20webui%20passing-22c55e?logo=pytest&logoColor=white)](tests/test_webui.py)
+[![Tools](https://img.shields.io/badge/tools-30%20built--in-6366f1)](tools/python/)
 [![Agents](https://img.shields.io/badge/agents-8%20specialists-f59e0b)](agents/)
-[![Providers](https://img.shields.io/badge/providers-Anthropic%20%7C%20Gemini%20%7C%20OpenAI-0ea5e9)](docs/Providers.md)
+[![Providers](https://img.shields.io/badge/providers-Gemini%20%7C%20OpenAI%20%7C%20Anthropic-0ea5e9)](docs/Providers.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-64748b)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-64748b)](https://github.com/A13Xg/Overlord11)
 
@@ -35,16 +35,18 @@ Overlord11 is a structured multi-agent framework that coordinates **eight specia
 
 ## Features
 
-- 🔀 **Provider-agnostic** — switch between Anthropic, Gemini, or OpenAI by changing one line in `config.json`
+- 🔀 **Provider-agnostic** — switch between Gemini, OpenAI, or Anthropic by changing one line in `config.json`; fallback order: Gemini → OpenAI → Anthropic
 - 🤖 **8 specialist agents** — Orchestrator, Researcher, Coder, Analyst, Writer, Reviewer, Publisher, Cleanup
-- 🛠️ **28 built-in tools** — file I/O, web fetch/scrape, shell execution, Git, code analysis, project scanning, UI design system, scaffolding, task management, error logging, and more
-- 🎨 **UI/UX design system skill** — 10 curated styles × 10 color palettes; Coder generates a persistent spec before any UI work; Reviewer validates against it
+- 🛠️ **30 built-in tools** — file I/O, web fetch/scrape, shell execution, Git, code analysis, project scanning, UI design system, scaffolding, task management, error logging, session/log management, and more
+- 🎨 **UI/UX design system skill** — 13 styles (5 premium + 8 standard/basic) × 10 color palettes; auto-selection uses premium styles by default; Coder generates a persistent spec before any UI work; Reviewer validates against it
+- 🌐 **Tactical WebUI** — FastAPI dashboard on port 8844; live provider health indicators; clickable model picker; Gemini rate-limit fallback chain; structured JSONL logging
 - 🔍 **Dual-engine search** — ripgrep when available, pure-Python fallback producing identical JSON output
 - 📊 **3 output tiers** — inline text, Markdown docs, or styled self-contained HTML reports
-- 🖼️ **9 HTML themes** — techno, classic, modern, editorial, and more — auto-selected by content type
+- 🖼️ **13 HTML themes** — ultraviolet, aurora, neobrutalism (premium); techno, classic, modern, editorial, and more — auto-selected by content type with premium themes preferred
 - 🧠 **Shared memory** — `Consciousness.md` enables cross-agent, cross-session context
+- 📋 **Structured logging** — separate JSONL streams for WebUI ops (`logs/webui.jsonl`) and agent/tool activity (`logs/agents.jsonl`) — AI-parseable for self-healing diagnostics
 - 🔒 **Security-first** — Reviewer agent blocks hardcoded secrets; no credentials in agent definitions
-- ✅ **Fully tested** — test suite covering all tool modules, ripgrep/Python fallback, Unicode, encoding edge-cases
+- ✅ **Tested** — pytest suite covering WebUI API, health, jobs CRUD, config, provider status, Gemini fallback, and path-traversal protection
 - 🔌 **Extensible** — add new agents, tools, or LLM providers without touching the framework core
 
 ---
@@ -124,15 +126,17 @@ OPENAI_API_KEY=sk-...
 
 ### 4. Set the active provider
 
-In `config.json`, set `providers.active` to `"anthropic"`, `"gemini"`, or `"openai"`:
+In `config.json`, set `providers.active` to `"gemini"` (default), `"openai"`, or `"anthropic"`:
 
 ```json
 {
   "providers": {
-    "active": "anthropic"
+    "active": "gemini"
   }
 }
 ```
+
+The fallback order is `gemini → openai → anthropic`. Edit `orchestration.fallback_provider_order` to change it.
 
 ### 5. Run a task
 
@@ -146,10 +150,20 @@ python tools/python/project_scanner.py --path .
 python tools/python/publisher_tool.py --title "Q1 Analysis" --content report.md --theme modern
 ```
 
-### 6. Verify your setup
+### 6. Launch the Tactical WebUI (optional)
 
 ```bash
-python tests/test.py --skip-web --quiet
+pip install -r requirements-webui.txt
+python scripts/run_webui.py
+# Open http://127.0.0.1:8844
+```
+
+The WebUI shows live provider health indicators, a model picker, job history, artifacts, and an activity log.
+
+### 7. Verify your setup
+
+```bash
+python -m pytest tests/test_webui.py -v
 ```
 
 ---
@@ -169,13 +183,21 @@ Overlord11/
 │   └── cleanup.md           # OVR_CLN_08 — pre-deployment sanity check
 │
 ├── tools/
-│   ├── defs/                # 28 provider-agnostic tool JSON schemas
+│   ├── defs/                # 30 provider-agnostic tool JSON schemas
 │   └── python/              # Python implementations of all tools
 │
 ├── skills/
 │   └── uiux/                # UI/UX design system datasets
-│       ├── styles.json      # 10 curated UI styles
+│       ├── styles.json      # 13 curated UI styles (5 premium + 8 standard/basic)
 │       └── palettes.json    # 10 color palettes with semantic tokens
+│
+├── webui/                   # Tactical WebUI (FastAPI, port 8844)
+│   ├── app.py               # FastAPI application
+│   ├── models.py            # Pydantic models
+│   ├── state_store.py       # Job state reader
+│   ├── provider_health.py   # Provider health probes + Gemini fallback chain
+│   ├── logging_config.py    # Structured JSONL loggers
+│   └── static/index.html   # Self-contained SPA
 │
 ├── docs/                    # Full Wiki documentation
 │   ├── Home.md
@@ -190,10 +212,12 @@ Overlord11/
 │   ├── Extension-Guide.md
 │   ├── Development.md
 │   ├── Troubleshooting.md
-│   └── UI-UX-Design-System.md  # Design system skill documentation
+│   ├── UI-UX-Design-System.md  # Design system skill documentation
+│   └── WebUI.md             # Tactical WebUI documentation
 │
 ├── tests/
-│   ├── test.py              # 81-test suite covering all 16 modules
+│   ├── test.py              # 81-test suite covering all tool modules
+│   ├── test_webui.py        # 31-test WebUI suite
 │   └── test_results.json    # Machine-readable results (auto-generated)
 │
 ├── directives/              # Behavioral instruction files for AI sessions

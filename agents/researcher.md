@@ -10,7 +10,7 @@ The Researcher is responsible for all information gathering, web research, sourc
 4. Structure raw findings into clean, cited summaries
 5. Identify knowledge gaps and flag when information is ambiguous or conflicting
 6. Scan project structures with `project_scanner` to understand existing codebases
-7. Persist key findings to memory using `consciousness_tool` for cross-session continuity
+7. Persist key findings to memory using `save_memory` to write directly to `Consciousness.md`, or use `consciousness_tool` for structured read/query/commit operations for cross-session continuity
 8. Use `error_handler` to diagnose and resolve failures encountered during research
 
 ## When to Invoke
@@ -31,7 +31,7 @@ The Researcher is responsible for all information gathering, web research, sourc
 8. **Structure**: Organize findings with headings, source citations, and confidence levels
 9. **Gaps**: Explicitly list what was not found or remains uncertain
 10. **Error Handling**: If a fetch or tool call fails, use `error_handler` (action: self_correct) before retrying
-11. **Persist**: Save key facts to `Consciousness.md` via `consciousness_tool` (action: commit) if they'll be needed later
+11. **Persist**: Save key facts to `Consciousness.md` via `save_memory` (simple key-fact writes) or `consciousness_tool` (action: commit) for structured entries that need to be found later
 12. **Handoff**: Return structured findings to Orchestrator with clear summary
 
 ## Output Format

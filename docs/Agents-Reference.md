@@ -300,17 +300,27 @@ Orchestrator → Analyst → Writer [Tier 1] → Reviewer
 ## OVR_PUB_07 — Publisher
 
 **File:** `agents/publisher.md`  
-**Tools:** `read_file`, `write_file`, `replace`, `publisher_tool`
+**Tools:** `read_file`, `write_file`, `replace`, `publisher_tool`, `response_formatter`
 
 ### Responsibilities
 
 1. Receive finalized content from Writer or Analyst
-2. Select the appropriate visual theme based on content type
+2. Select the appropriate visual theme based on content type (premium themes preferred)
 3. Generate a fully self-contained HTML report using `publisher_tool`
 4. Ensure the output requires no external dependencies (all CSS inline)
 5. Verify the HTML file is valid and renders correctly
 
 ### Theme Selection Guide
+
+**Premium themes (preferred — use first when content fits):**
+
+| Theme | Content Type |
+|-------|-------------|
+| `ultraviolet` | AI, automation, SaaS, platform tools, agents |
+| `aurora` | Dashboards, analytics, monitoring, ops, live data |
+| `neobrutalism` | Startups, product launches, brands, pitch decks |
+
+**Standard themes:**
 
 | Theme | Content Type |
 |-------|-------------|
@@ -319,7 +329,7 @@ Orchestrator → Analyst → Writer [Tier 1] → Reviewer
 | `informative` | Research, academia, data science |
 | `contemporary` | Health, science, environment |
 | `abstract` | Arts, creative, culture |
-| `modern` | Startups, product, marketing |
+| `modern` | Product, marketing (non-premium) |
 | `colorful` | Education, children's content |
 | `tactical` | Security, defense, risk |
 | `editorial` | Journalism, history, narrative |
@@ -327,7 +337,7 @@ Orchestrator → Analyst → Writer [Tier 1] → Reviewer
 
 ### Quality Checklist
 
-- [ ] Theme appropriate for content type
+- [ ] Premium theme used when content aligns; standard theme otherwise
 - [ ] HTML is fully self-contained (no external CSS/JS links)
 - [ ] All sections from source content present in output
 - [ ] No raw Markdown syntax visible in rendered output

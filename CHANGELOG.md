@@ -5,6 +5,62 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.3.1] — 2026-04-01
+
+### Added — Tool Registrations
+
+- `tools/defs/session_manager.json` — provider-agnostic JSON schema for `session_manager.py` (previously orphaned)
+- `tools/defs/log_manager.json` — provider-agnostic JSON schema for `log_manager.py` (previously orphaned)
+- Both tools registered in `config.json` tools section; now agent-callable
+- `response_formatter` added to Publisher agent's tool list in `config.json` (was documented in `agents/publisher.md` but missing from config)
+
+### Added — UI/UX Premium Themes
+
+- `publisher_tool.py`: Three premium HTML themes added — `ultraviolet` (deep purple AI aesthetic), `aurora` (dark gradient dashboard), `neobrutalism` (bold offset shadow)
+- Premium themes receive 2× keyword weight in auto-detection; default no-match fallback changed from `modern` → `aurora`
+- "CLASSIFIED" tag removed from tactical theme — now "INTEL"
+- `tools/defs/publisher_tool.json`: Updated `theme` enum to include `ultraviolet`, `aurora`, `neobrutalism`
+- `ui_design_system.py`: Style pool split into `_PREMIUM_STYLE_IDS` (aurora-gradient, glassmorphism, ultraviolet, neobrutalism, biomimetic), `_STANDARD_STYLE_IDS`, `_BASIC_STYLE_IDS`; `_default_style()` now draws exclusively from premium pool
+
+### Added — WebUI: Provider Health, Model Picker, Gemini Fallback
+
+- `webui/provider_health.py` — async health probes for Gemini/OpenAI/Anthropic at startup; TTL-cached (5 min); Gemini `429 RESOURCE_EXHAUSTED` detection with `retryDelay` extraction
+- `webui/logging_config.py` — two rotating JSONL loggers: `logs/webui.jsonl` (HTTP, config, health) and `logs/agents.jsonl` (agent/tool work)
+- Gemini progressive fallback chain: `gemini-2.5-pro → gemini-2.5-flash → gemini-2.5-flash-lite → gemini-2.0-flash → gemini-1.5-flash → gemini-1.5-pro`
+- New API endpoints: `POST /api/jobs`, `GET/PUT/DELETE /api/config/selection`, `GET /api/providers/status?force=`, `GET /api/providers/gemini/fallback`
+- WebUI header: 2-row layout with clickable provider pills, model picker panel, active model badge, activity log
+
+### Changed — Fallback Order (corrected)
+
+- `orchestration.fallback_provider_order` corrected from `["gemini", "anthropic", "openai"]` to `["gemini", "openai", "anthropic"]`
+- All documentation updated to reflect Gemini → OpenAI → Anthropic order
+
+### Changed — Agent Documentation
+
+- `agents/researcher.md`: Added explicit `save_memory` tool documentation (was in config.json but undocumented in .md)
+- `agents/analyst.md`: Added explicit `save_memory` tool documentation
+- `agents/writer.md`: Added `glob` and `list_directory` tool documentation
+- `agents/publisher.md`: Updated theme table to include premium themes; clarified `response_formatter` usage; removed "CLASSIFIED" language
+- `agents/coder.md`: Strengthened UI/UX mandate — all providers must call `ui_design_system(persist=True)` before any UI work
+- `agents/orchestrator.md`: Updated UI/UX routing with premium style requirement; updated reviewer checklist
+
+### Changed — Documentation
+
+- `ONBOARDING.md`: Updated v2.2.0 → v2.3.1; added WebUI section, `.env` row, updated tool tables (added session_manager, log_manager, consciousness_tool, error_handler, response_formatter, file_converter, vision_tool, computer_control); updated logging section with dual-log structure; added UI/UX premium pool description; added rule 19 (logging protocol); fixed fallback order
+- `README.md`: Updated version badge (2.2.0 → 2.3.1), tests badge, tool count badge (28 → 30); updated features list; corrected provider order badge and active provider; added WebUI step to Quick Start; updated directory structure
+- `docs/Providers.md`: Corrected fallback order from `anthropic→gemini→openai` to `gemini→openai→anthropic`; added Gemini rate-limit fallback section
+- `docs/WebUI.md`: Added new API endpoints table; updated Settings Panel section with model picker docs; added Logs section
+- `docs/Tools-Reference.md`: Added `tools/defs/` schema references to session_manager and log_manager entries; updated publisher_tool with premium themes; updated ui_design_system with premium/standard/basic tier table
+- `docs/Agents-Reference.md`: Updated Publisher tools list to include `response_formatter`; updated Publisher theme table with premium themes
+- `directives/CodingBehavior.md`: Added "UI/UX Design System — Mandatory Rules" section covering design-system check, premium style requirement, publisher_tool theme priority, and verbose-UI guidelines
+- `config.json`: Version bumped to 2.3.1; added `ui_defaults` section (premium styles, no-generic-html policy); added `session_manager` and `log_manager` to tools section; added `response_formatter` to publisher agent tools
+
+### Fixed
+
+- `tests/test_webui.py`: Removed duplicate test functions (lines 411+); fixed stray `r.status_code` reference in `test_gemini_fallback_logic`; fixed `test_config_no_api_keys` to allow `api_key_env` (env var name is intentionally exposed — actual key value is not)
+
+---
+
 ## [2.3.0] — 2026-06-15
 
 ### Added — Tactical WebUI

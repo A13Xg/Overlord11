@@ -16,14 +16,16 @@ The framework is designed to work with **any LLM provider** — Anthropic Claude
 
 | Property | Value |
 |----------|-------|
-| Framework | Overlord11 v2.2.0 |
+| Framework | Overlord11 v2.3.1 |
 | Memory file | `Consciousness.md` (shared across all agents) |
 | Config | `config.json` (provider, agent, tool settings) |
+| Environment | `.env` (API keys — copy from `.env.example`) |
 | Tool implementations | `tools/python/` |
 | Tool schemas | `tools/defs/` |
 | Agent definitions | `agents/` |
 | Workspace | `workspace/` (session outputs) |
-| Logs | `logs/` |
+| Logs | `logs/` (JSONL — `master.jsonl`, `sessions/`, `webui.jsonl`, `agents.jsonl`) |
+| WebUI | `webui/` (FastAPI, port 8844 — `python scripts/run_webui.py`) |
 
 ---
 
@@ -76,11 +78,23 @@ These tools are registered in `config.json` and implemented in `tools/python/`. 
 |------|-------------|-------------|
 | `code_analyzer` | Static analysis (bugs, security, complexity) | Before any code handoff |
 | `project_scanner` | Project structure + framework detection | Onboarding to an unfamiliar codebase |
-| `save_memory` | Write to `Consciousness.md` | Persisting findings across sessions |
+| `consciousness_tool` | Programmatic read/query/commit of `Consciousness.md` | Structured memory operations; searching prior findings |
+| `save_memory` | Write a key fact directly to `Consciousness.md` | Quick persistence of findings that must outlast a session |
+| `error_handler` | Catch, classify, and recover from tool execution errors | When tool calls fail; diagnosing error types |
+| `response_formatter` | Format agent responses into JSON, Markdown, CSV, HTML | When output format is ambiguous; rendering intermediate content |
+| `file_converter` | Convert files between JSON, CSV, YAML, and Markdown | When data needs to be in a different format for downstream agents |
 | `publisher_tool` | Generate styled self-contained HTML reports | Used by Publisher agent for Tier 2 output |
 | `scaffold_generator` | Generate project boilerplate from templates | Starting new projects |
 | `launcher_generator` | Generate `run.py` launcher + platform shortcuts (`run.bat`, `run.command`) | Every new project — provides ASCII title, color menu, concurrent mode |
 | `ui_design_system` | Generate a complete UI/UX design system (style + palette + tokens + rules). Persists to `design-system/MASTER.md`. | Before any UI implementation — generates or loads the design spec |
+| `vision_tool` | Image analysis, OCR, screenshot interpretation | When visual content needs to be understood or described |
+| `computer_control` | Desktop automation (mouse, keyboard, screenshots) | When GUI interaction is required |
+
+### Session & Logging
+| Tool | What It Does | When to Use |
+|------|-------------|-------------|
+| `session_manager` | Create and track work sessions with file-change logs, agent and tool usage, and close summaries | Complex multi-step tasks that span multiple agent invocations |
+| `log_manager` | Write and query structured JSONL logs (tool invocations, LLM decisions, agent switches, errors) | Recording detailed activity for AI-parseable audit trails |
 
 ### Project Management
 | Tool | What It Does | When to Use |
@@ -227,9 +241,51 @@ Orchestrator
 
 ---
 
+## Tactical WebUI
+
+The Overlord11 Tactical WebUI is a browser-based dashboard for monitoring and managing agent jobs.
+
+| Property | Value |
+|----------|-------|
+| Start | `pip install -r requirements-webui.txt && python scripts/run_webui.py` |
+| Port | `8844` — open `http://127.0.0.1:8844` |
+| API docs | `http://127.0.0.1:8844/docs` (Swagger UI) |
+| Jobs source | `workspace/jobs/` — one subdirectory per job |
+
+### Key Features
+- **Provider status**: On startup, the WebUI probes all configured providers and shows a green/yellow/red status indicator next to each provider name
+- **Model picker**: Click a provider's status indicator to see all available models (from the live API + config). Click a model to use it for the next queued job
+- **Gemini rate-limit fallback**: If Gemini returns a `429 RESOURCE_EXHAUSTED`, the system walks a fallback chain (`gemini-2.5-pro → gemini-2.5-flash → gemini-2.5-flash-lite → gemini-2.0-flash → gemini-1.5-flash → gemini-1.5-pro`) before escalating to another provider
+- **Activity log**: Collapsible panel showing the last 200 events, color-coded by level
+- **Job creation**: Use the `+ New Job` button or `POST /api/jobs` to queue a job with a specific provider/model
+
+### API Endpoints (subset)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/health` | Health check |
+| GET | `/api/jobs` | List jobs (`?status=`, `?q=`) |
+| POST | `/api/jobs` | Create / queue a new job |
+| GET | `/api/providers/status` | Live provider health (`?force=true` re-probes) |
+| GET | `/api/providers/gemini/fallback` | Gemini fallback chain info |
+| GET/PUT/DELETE | `/api/config/selection` | Get/set/reset active provider+model |
+| GET | `/api/config` | Full config (no API keys) |
+
+> Full documentation: `docs/WebUI.md`
+
+---
+
 ## Logging Protocol
 
-All agent sessions should be logged. Log files go to `logs/` in JSON format.
+All agent sessions should be logged. Log files go to `logs/` in JSONL format (one JSON object per line — AI-parseable).
+
+Two separate log streams are maintained:
+
+| Log File | Purpose |
+|----------|---------|
+| `logs/agents.jsonl` | Tool invocations, LLM decisions, agent switches, and errors — the agent/tool activity log |
+| `logs/webui.jsonl` | WebUI HTTP requests, provider health probes, config changes — the WebUI operational log |
+| `logs/master.jsonl` | Combined master log (all events) |
+| `logs/sessions/<id>.jsonl` | Per-session logs for individual work sessions |
 
 Each log entry should include:
 - `timestamp` — ISO 8601
@@ -268,8 +324,18 @@ python tools/python/ui_design_system.py \
   --persist
 ```
 
-### Available styles (10)
-`brutalist` · `glassmorphism` · `neobrutalism` · `editorial` · `minimal-zen` · `data-dense` · `soft-ui` · `retro-terminal` · `biomimetic` · `aurora-gradient`
+### Available styles (13 total — premium pool used by default)
+
+**Premium (preferred — auto-selected by default):**
+`aurora-gradient` · `glassmorphism` · `ultraviolet` · `neobrutalism` · `biomimetic`
+
+**Standard:**
+`minimal-zen` · `data-dense` · `soft-ui`
+
+**Basic:**
+`editorial` · `brutalist` · `retro-terminal`
+
+> When `ui_design_system` auto-selects a style, it draws exclusively from the **premium pool**. Standard and basic styles are still available via `--style_id` on the CLI or `style_id` parameter. All providers (Gemini, OpenAI, Anthropic) follow this rule.
 
 ### Available palettes (10)
 `midnight-ink` · `chalk-board` · `neon-city` · `nordic-frost` · `terracotta-sun` · `deep-forest` · `sakura-bloom` · `volcanic-night` · `arctic-monochrome` · `ultraviolet`
@@ -305,6 +371,7 @@ design-system/
 16. **Encoding safety is mandatory** — every file opened must use `encoding="utf-8"`, every `json.dumps()` must use `ensure_ascii=False`, and every module that prints must use a `safe_str()` helper. See `agents/coder.md` → **Encoding Safety** for full patterns.
 17. **Stay in scope** — complete the delegated subtask fully; don't expand scope without notifying the Orchestrator.
 18. **Be explicit about uncertainty** — if you don't know something, say so. Don't fabricate data or code.
+19. **Log agent work** — use `log_manager` or `session_manager` for complex multi-step tasks so the work is AI-parseable for self-healing diagnostics. Tool-call and agent-decision activity goes to `logs/agents.jsonl`; WebUI activity goes to `logs/webui.jsonl`.
 
 ---
 
@@ -330,6 +397,10 @@ Phases may be skipped if not needed (e.g., a pure writing task skips Research).
 This framework is provider-agnostic. The active provider is set in `config.json` under `providers.active`. The agent definitions (`.md` files) and tool schemas (`.json` files) contain **no provider-specific content**. You may be running on Claude, Gemini, or GPT — your behavior should be identical regardless.
 
 If the active provider fails, the Orchestrator falls back through the order defined in `orchestration.fallback_provider_order`.
+
+The default fallback order is **Gemini → OpenAI → Anthropic**. This means if Gemini fails, OpenAI is tried next, then Anthropic. Modify the order in `config.json → orchestration.fallback_provider_order` as needed.
+
+For Gemini specifically, the system also detects rate-limit responses (`429 RESOURCE_EXHAUSTED`) and automatically falls back through a chain of progressively lighter Gemini models before escalating to another provider.
 
 ---
 

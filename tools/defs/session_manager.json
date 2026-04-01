@@ -1,0 +1,68 @@
+{
+  "name": "session_manager",
+  "description": "Manages work sessions with unique IDs, tracks file changes, agent and tool usage, and enables session continuity. Each session gets a dedicated workspace sub-directory under workspace/. Use this to create a session at the start of complex multi-step tasks and close it at the end to produce a structured summary for future reference.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Action to perform on sessions.",
+        "enum": ["create", "status", "log_change", "log_agent", "log_tool", "add_note", "close", "list", "active"]
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session identifier in YYYYMMDD_HHmmss format. Required for all actions except 'create', 'list', and 'active'."
+      },
+      "description": {
+        "type": "string",
+        "description": "Human-readable description of the session or action being performed. Required for 'create'."
+      },
+      "data": {
+        "type": "object",
+        "description": "Action-specific payload. For 'log_change': {file, action, summary, diff_preview?}. For 'log_agent': {agent_id}. For 'log_tool': {tool_name}. For 'add_note': {note}. For 'close': {summary}. For 'create': {description, tags?}.",
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "File path (for log_change)."
+          },
+          "action": {
+            "type": "string",
+            "description": "Change type: created, modified, deleted, renamed (for log_change).",
+            "enum": ["created", "modified", "deleted", "renamed"]
+          },
+          "summary": {
+            "type": "string",
+            "description": "Brief description of the change or close summary."
+          },
+          "diff_preview": {
+            "type": "string",
+            "description": "Optional short diff snippet (truncated to 500 chars)."
+          },
+          "agent_id": {
+            "type": "string",
+            "description": "Agent ID to record as used (for log_agent), e.g. OVR_COD_03."
+          },
+          "tool_name": {
+            "type": "string",
+            "description": "Tool name to record as used (for log_tool)."
+          },
+          "note": {
+            "type": "string",
+            "description": "Freeform note text (for add_note)."
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Optional tags for categorising the session (for create)."
+          }
+        }
+      },
+      "status_filter": {
+        "type": "string",
+        "description": "Filter sessions by status when using 'list'. Options: active, closed.",
+        "enum": ["active", "closed"]
+      }
+    },
+    "required": ["action"]
+  }
+}

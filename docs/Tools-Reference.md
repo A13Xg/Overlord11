@@ -352,18 +352,26 @@ python tools/python/save_memory_tool.py --key "api_limit" --value "Rate limited 
 **Schema:** `tools/defs/publisher_tool.json`  
 **Implementation:** `tools/python/publisher_tool.py`
 
-Generate themed, fully self-contained HTML reports from Markdown or plain text content.
+Generate themed, fully self-contained HTML reports from Markdown or plain text content. Premium themes are preferred by auto-detection (2× keyword weight) and fall back to `aurora` when no keywords match.
+
+**Available themes:**
+
+| Tier | Themes |
+|------|--------|
+| Premium (auto-preferred) | `ultraviolet`, `aurora`, `neobrutalism` |
+| Standard | `techno`, `editorial`, `tactical`, `modern`, `contemporary`, `abstract` |
+| Basic | `classic`, `informative`, `colorful` |
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `--title` | string | ✓ | Report title |
 | `--content` | string | ✓ | Input file path (Markdown or plain text) |
-| `--theme` | string | | Visual theme (default: `auto`) — see [Output Tiers](Output-Tiers.md) |
+| `--theme` | string | | Visual theme (default: `auto`) — premium themes preferred |
 | `--output` | string | | Output file path (default: auto-generated in `workspace/`) |
 
 ```bash
-python tools/python/publisher_tool.py --title "Q1 Analysis" --content report.md --theme modern
-python tools/python/publisher_tool.py --title "Security Audit" --content audit.txt --theme tactical --output reports/audit.html
+python tools/python/publisher_tool.py --title "AI Analysis" --content report.md --theme ultraviolet
+python tools/python/publisher_tool.py --title "Dashboard Report" --content data.md --theme aurora
 python tools/python/publisher_tool.py --title "Auto Theme Test" --content data.md
 ```
 
@@ -373,39 +381,55 @@ python tools/python/publisher_tool.py --title "Auto Theme Test" --content data.m
 
 ### `session_manager`
 
+**Schema:** `tools/defs/session_manager.json`
 **Implementation:** `tools/python/session_manager.py`
 
-Manage work sessions with unique IDs and track agent activity.
+Manage work sessions with unique IDs and track agent activity. Persists session manifests to `workspace/<session_id>/session.json`.
 
 | Action | Description |
 |--------|-------------|
-| `create` | Create a new session |
-| `status` | Get session details |
-| `log_change` | Log a file change within a session |
-| `log_agent` | Record agent usage |
-| `log_tool` | Record tool usage |
-| `add_note` | Add a free-text note |
-| `close` | Close a session with a summary |
-| `list` | List all sessions |
-| `active` | Get the current active session |
+| `create` | Create a new session with a description and optional tags |
+| `status` | Get full session details |
+| `log_change` | Log a file change (path, action type, summary, diff preview) |
+| `log_agent` | Record that an agent was used in this session |
+| `log_tool` | Record that a tool was used in this session |
+| `add_note` | Add a free-text timestamped note |
+| `close` | Close a session and generate a stats summary |
+| `list` | List all sessions (optionally filtered by `active` or `closed`) |
+| `active` | Get the most recent active session |
 
 ```bash
 python tools/python/session_manager.py --action create --description "Implement user auth"
-python tools/python/session_manager.py --action list
+python tools/python/session_manager.py --action log_change --session_id 20260215_120000 \
+    --data '{"file": "src/auth.py", "action": "created", "summary": "Added JWT handler"}'
 python tools/python/session_manager.py --action close --session_id 20260215_120000
+python tools/python/session_manager.py --action list
 ```
 
 ---
 
 ### `log_manager`
 
+**Schema:** `tools/defs/log_manager.json`
 **Implementation:** `tools/python/log_manager.py`
 
-Central logging system for tool invocations and agent decisions (JSONL format).
+Central JSONL logging system for tool invocations, LLM decisions, agent switches, and errors. All output is AI-parseable structured JSON. Writes to `logs/master.jsonl` and per-session files in `logs/sessions/`.
+
+| Action | Description |
+|--------|-------------|
+| `log_tool` | Log a tool invocation with params, result, and duration |
+| `log_decision` | Log an LLM decision with reasoning |
+| `log_agent_switch` | Log an agent role transition |
+| `log_error` | Log an error with optional traceback |
+| `log_event` | Log a generic custom event |
+| `query` | Retrieve recent log entries (optionally filtered by type) |
+| `summary` | Generate a session activity summary |
+| `list_sessions` | List all session log files |
 
 ```bash
 python tools/python/log_manager.py --action summary --session_id 20260215_120000
-python tools/python/log_manager.py --action query --session_id 20260215_120000
+python tools/python/log_manager.py --action query --session_id 20260215_120000 --type_filter tool_invocation --last_n 20
+python tools/python/log_manager.py --action list_sessions
 ```
 
 ---
@@ -417,7 +441,17 @@ python tools/python/log_manager.py --action query --session_id 20260215_120000
 **Schema:** `tools/defs/ui_design_system.json`
 **Implementation:** `tools/python/ui_design_system.py`
 
-Generate a complete UI/UX design system specification. 10 styles × 10 palettes = 100 combinations.
+Generate a complete UI/UX design system specification. 13 styles × 10 palettes.
+
+**Style pool:** Auto-selection draws exclusively from the premium pool. All styles are available via explicit `--style_id`.
+
+| Tier | Styles |
+|------|--------|
+| Premium (default auto-pool) | `aurora-gradient`, `glassmorphism`, `ultraviolet`, `neobrutalism`, `biomimetic` |
+| Standard | `minimal-zen`, `data-dense`, `soft-ui` |
+| Basic | `editorial`, `brutalist`, `retro-terminal` |
+
+**Palettes (10):** `midnight-ink` · `chalk-board` · `neon-city` · `nordic-frost` · `terracotta-sun` · `deep-forest` · `sakura-bloom` · `volcanic-night` · `arctic-monochrome` · `ultraviolet`
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
