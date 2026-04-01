@@ -60,10 +60,9 @@ def _list_artifacts(job_dir: Path) -> List[ArtifactInfo]:
                 continue
             try:
                 stat = fpath.stat()
-                is_fp = any(
-                    rel == fp or rel.startswith(pfx)
-                    for fp in FINISHED_PRODUCT_PATHS
-                    for pfx in FINISHED_PRODUCT_PREFIXES
+                is_fp = (
+                    any(rel == fp for fp in FINISHED_PRODUCT_PATHS)
+                    or any(rel.startswith(pfx) for pfx in FINISHED_PRODUCT_PREFIXES)
                 )
                 artifacts.append(ArtifactInfo(
                     path=rel,
@@ -113,11 +112,29 @@ def list_jobs() -> List[JobSummary]:
     return sorted(jobs, key=lambda j: j.created or 0, reverse=True)
 
 
-def get_job(job_id: str) -> Optional[JobDetail]:
+def _safe_job_dir(job_id: str) -> Optional[Path]:
+    """Validate job_id and return the resolved job directory path, or None if invalid.
+
+    Uses both a strict allowlist regex AND os.path.basename() to prevent any
+    path traversal. Then resolves the path and confirms it is a direct child of
+    JOBS_DIR (containment check).
+    """
     if not re.match(r'^[a-zA-Z0-9_\-]{1,128}$', job_id):
         return None
-    job_dir = JOBS_DIR / job_id
-    if not job_dir.is_dir():
+    # os.path.basename strips any directory separators that might slip through
+    safe_name = os.path.basename(job_id)
+    if not safe_name or safe_name != job_id:
+        return None
+    candidate = (JOBS_DIR / safe_name).resolve()
+    # Containment: must be a direct child of JOBS_DIR
+    if candidate.parent != JOBS_DIR.resolve():
+        return None
+    return candidate
+
+
+def get_job(job_id: str) -> Optional[JobDetail]:
+    job_dir = _safe_job_dir(job_id)
+    if job_dir is None or not job_dir.is_dir():
         return None
     summary = _make_summary(job_id, job_dir)
     state = _read_state(job_dir)
@@ -132,26 +149,24 @@ def get_job(job_id: str) -> Optional[JobDetail]:
 
 
 def list_artifacts(job_id: str) -> Optional[List[ArtifactInfo]]:
-    if not re.match(r'^[a-zA-Z0-9_\-]{1,128}$', job_id):
-        return None
-    job_dir = JOBS_DIR / job_id
-    if not job_dir.is_dir():
+    job_dir = _safe_job_dir(job_id)
+    if job_dir is None or not job_dir.is_dir():
         return None
     return _list_artifacts(job_dir)
 
 
 def read_artifact(job_id: str, artifact_path: str) -> Optional[bytes]:
-    if not re.match(r'^[a-zA-Z0-9_\-]{1,128}$', job_id):
+    job_dir = _safe_job_dir(job_id)
+    if job_dir is None or not job_dir.is_dir():
         return None
+    # Normalise artifact path; reject traversal segments
     clean_path = os.path.normpath(artifact_path).lstrip("/").lstrip("\\")
     if ".." in clean_path:
         return None
-    job_dir = JOBS_DIR / job_id
-    if not job_dir.is_dir():
-        return None
-    full_path = job_dir / clean_path
+    full_path = (job_dir / clean_path).resolve()
+    # Containment check: resolved artifact path must stay within job_dir
     try:
-        full_path.resolve().relative_to(job_dir.resolve())
+        full_path.relative_to(job_dir)
     except ValueError:
         return None
     if not full_path.is_file():

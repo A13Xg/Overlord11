@@ -123,7 +123,7 @@
       <select id="settingsProvider"></select>
     </div>
     <div class="mb-4">
-      <label class="block text-xs mb-1" style="color:var(--muted);">Model <span class="fp-badge ml-1">recommended: gemini-3.1-flash-lite-preview</span></label>
+      <label class="block text-xs mb-1" style="color:var(--muted);">Model <span class="fp-badge ml-1" id="recommendedModelBadge"></span></label>
       <select id="settingsModel"></select>
     </div>
     <div class="text-xs mt-2" style="color:var(--muted);">
@@ -360,7 +360,7 @@ function renderEvents(j) {
 }
 
 function safeB64(path) {
-  return btoa(unescape(encodeURIComponent(path))).replace(/[^a-z0-9]/gi, '');
+  return btoa(encodeURIComponent(path)).replace(/[^a-z0-9]/gi, '');
 }
 
 function renderArtifacts(j, fpOnly) {
@@ -475,12 +475,14 @@ function populateSettings() {
 function updateModelSelect(provider) {
   if (!providerConfig) return;
   const mSel = document.getElementById('settingsModel');
+  const badge = document.getElementById('recommendedModelBadge');
   const pCfg = providerConfig.providers[provider] || {};
   const models = Object.entries(pCfg.available_models || {});
   const current = pCfg.model;
   mSel.innerHTML = models.map(([m, desc]) =>
     `<option value="${escAttr(m)}" ${m === current ? 'selected' : ''}>${escHtml(m)}${desc ? ' — ' + escHtml(desc) : ''}</option>`
   ).join('');
+  if (badge) badge.textContent = current ? `recommended: ${current}` : '';
 }
 
 // ─── Filters ──────────────────────────────────────────────────────────────────
