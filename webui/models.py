@@ -21,6 +21,7 @@ class JobStatus(str, Enum):
     PAUSED = "PAUSED"
     COMPLETE = "COMPLETE"
     FAILED = "FAILED"
+    STOPPED = "STOPPED"
 
 
 # ---------------------------------------------------------------------------
@@ -52,7 +53,17 @@ class CreateJobRequest(BaseModel):
 class DirectiveRequest(BaseModel):
     """Payload for POST /jobs/{job_id}/directive — injects user feedback mid-run."""
 
-    message: str = Field(..., description="Feedback or instruction from the user.")
+    text: str = Field(..., description="Feedback or instruction from the user.")
+    severity: str = Field("normal", description="normal | high")
+    tags: list[str] = Field(default_factory=list, description="Optional classification tags.")
+
+
+class ArtifactMeta(BaseModel):
+    """Artifact file metadata returned by the artifact list endpoint."""
+
+    path: str = Field(..., description="Relative path within the job's artifacts/ directory.")
+    size: int = Field(..., description="File size in bytes.")
+    mtime: float = Field(..., description="Modification time as a UNIX timestamp.")
 
 
 # ---------------------------------------------------------------------------
@@ -61,6 +72,8 @@ class DirectiveRequest(BaseModel):
 
 class JobState(BaseModel):
     """Persisted job state snapshot — written to workspace/jobs/<id>/state.json."""
+
+    model_config = ConfigDict(use_enum_values=True)
 
     job_id: str
     goal: str
@@ -84,11 +97,17 @@ class JobState(BaseModel):
     last_verify_passed: Optional[bool] = None
     last_verify_output: Optional[str] = None
 
+    # directives — injected by user, consumed at iteration start
+    pending_directives: list[dict[str, Any]] = Field(default_factory=list)
+    applied_directives: list[dict[str, Any]] = Field(default_factory=list)
+
+    # self-healing venv state (Milestone C)
+    venv_path: Optional[str] = None
+    installed_packages: list[str] = Field(default_factory=list)
+    last_repair: Optional[str] = None
+
     # misc
     assumptions: list[str] = Field(default_factory=list)
-    directives: list[dict[str, Any]] = Field(default_factory=list)
-
-    model_config = ConfigDict(use_enum_values=True)
 
 
 class JobSummary(BaseModel):

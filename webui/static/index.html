@@ -395,22 +395,36 @@ header {
 .ev-JOB_STARTING   { color: var(--cyan); }
 .ev-COMPLETE       { color: var(--green); }
 .ev-FAILED         { color: var(--red); }
+.ev-STOPPED        { color: var(--red); }
 .ev-VERIFY_RESULT  { color: var(--amber); }
+.ev-VERIFY_RETRY   { color: var(--amber); }
 .ev-REPAIR_START   { color: var(--amber); }
 .ev-REPAIR_RESULT  { color: var(--amber); }
+.ev-DEP_INSTALL_START  { color: #ffd700; }
+.ev-DEP_INSTALL_RESULT { color: #ffd700; }
 .ev-USER_DIRECTIVE { color: #c878ff; }
+.ev-DIRECTIVES_APPLIED { color: #c878ff; }
 .ev-ASSUMPTION_LOG { color: var(--text-dim); }
 .ev-ITERATION      { color: #6af; }
 .ev-PAUSED         { color: var(--amber); }
 .ev-RESUMED        { color: var(--green); }
 .ev-LLM_CALL_START { color: #7af0ff; }
 .ev-LLM_CALL_END   { color: #7af0ff; }
+.ev-LLM_UNAVAILABLE { color: var(--amber); }
+.ev-PLAN_CREATED   { color: #7af0ff; }
+.ev-STEP_START     { color: #aff; }
+.ev-STEP_END       { color: #aff; }
+.ev-PATCH_APPLY_START  { color: #7cf; }
+.ev-PATCH_APPLY_RESULT { color: #7cf; }
 .ev-TOOL_START     { color: #aff; }
 .ev-TOOL_END       { color: #aff; }
+.ev-ARTIFACT_WRITTEN { color: var(--text-dim); }
 .ev-STATUS         { color: var(--text-dim); }
 .ev-VERIFY_START   { color: var(--text-dim); }
 .ev-REVIEW_START   { color: var(--text-dim); }
 .ev-REVIEW_RESULT  { color: var(--cyan); }
+.ev-TIME_BUDGET_EXCEEDED    { color: var(--red); }
+.ev-ITERATION_BUDGET_EXCEEDED { color: var(--red); }
 .ev-error          { background: rgba(255,45,45,0.07); }
 .ev-warn           { background: rgba(255,153,0,0.05); }
 
@@ -688,6 +702,13 @@ header {
       <textarea class="form-textarea" id="directive-input"
         placeholder="Enter feedback or correction…"
         style="min-height:56px; margin-bottom:6px;"></textarea>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+        <label style="font-size:10px;color:var(--text-dim);">SEVERITY</label>
+        <select id="directive-severity" class="form-input" style="width:80px;font-size:10px;padding:2px 4px;">
+          <option value="normal">normal</option>
+          <option value="high">high</option>
+        </select>
+      </div>
       <button class="btn btn-sm btn-primary" onclick="sendDirective()">⊕ TRANSMIT</button>
     </div>
   </div>
@@ -905,14 +926,32 @@ function renderDetail(state) {
       <div id="artifact-list"><div style="font-size:10px;color:var(--text-dim);">Loading…</div></div>
     </div>
 
-    ${state.directives && state.directives.length ? `
+    ${(state.pending_directives && state.pending_directives.length) || (state.applied_directives && state.applied_directives.length) ? `
     <div class="detail-section">
-      <div class="detail-title">Directives (${state.directives.length})</div>
-      ${state.directives.slice(-3).map(d => `
-        <div style="font-size:10px;color:#c878ff;margin-bottom:4px;padding:4px 6px;background:rgba(200,120,255,0.07);border:1px solid rgba(200,120,255,0.2);border-radius:2px;">
-          ${escHtml(d.message)}
+      <div class="detail-title">Directives</div>
+      ${(state.pending_directives||[]).map(d => `
+        <div style="font-size:10px;color:#c878ff;margin-bottom:4px;padding:4px 6px;background:rgba(200,120,255,0.07);border:1px solid rgba(200,120,255,0.3);border-radius:2px;">
+          ⏳ [${d.severity||'normal'}] ${escHtml((d.text||'').slice(0,100))}
         </div>
       `).join('')}
+      ${(state.applied_directives||[]).slice(-2).map(d => `
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:4px;padding:4px 6px;background:rgba(100,120,100,0.07);border:1px solid rgba(100,120,100,0.2);border-radius:2px;">
+          ✓ [${d.severity||'normal'}] ${escHtml((d.text||'').slice(0,100))}
+        </div>
+      `).join('')}
+    </div>
+    ` : ''}
+
+    ${state.venv_path || (state.installed_packages && state.installed_packages.length) ? `
+    <div class="detail-section">
+      <div class="detail-title">Self-Heal Venv</div>
+      <div style="font-size:10px;color:var(--green);">
+        ${state.venv_path ? `Path: ${escHtml(state.venv_path.split('/').slice(-3).join('/'))}` : ''}
+      </div>
+      ${state.installed_packages && state.installed_packages.length ? `
+      <div style="font-size:10px;color:var(--text-dim);margin-top:4px;">
+        Installed: ${state.installed_packages.map(p => `<span style="color:var(--cyan);">${escHtml(p)}</span>`).join(', ')}
+      </div>` : ''}
     </div>
     ` : ''}
   `;
@@ -935,21 +974,32 @@ async function loadArtifacts(jobId) {
       el.innerHTML = '<div style="font-size:10px;color:var(--text-dim);">No artifacts yet</div>';
       return;
     }
-    el.innerHTML = arts.map(name => `
+    // arts is now [{path, size, mtime}, …]
+    el.innerHTML = arts.map(a => {
+      const p = a.path || a;  // support both object and legacy string
+      const sz = a.size ? ` <span style="color:var(--text-dim);font-size:9px;">${formatBytes(a.size)}</span>` : '';
+      return `
       <div class="artifact-item">
-        <span class="artifact-name">${escHtml(name)}</span>
-        <span class="artifact-view" onclick="viewArtifact('${escHtml(jobId)}','${escHtml(name)}')">VIEW →</span>
-      </div>
-    `).join('');
+        <span class="artifact-name">${escHtml(p)}${sz}</span>
+        <span class="artifact-view" onclick="viewArtifact('${escHtml(jobId)}','${escHtml(p)}')">VIEW →</span>
+      </div>`;
+    }).join('');
   } catch(e) {}
 }
 
+function formatBytes(b) {
+  if (b < 1024) return b + 'B';
+  if (b < 1048576) return (b/1024).toFixed(1) + 'KB';
+  return (b/1048576).toFixed(1) + 'MB';
+}
+
 // ── View artifact in modal ───────────────────────────────────────────────────
-async function viewArtifact(jobId, name) {
+async function viewArtifact(jobId, path) {
   try {
-    const res = await fetch(`${API}/api/jobs/${jobId}/artifacts/${encodeURIComponent(name)}`);
+    // path may contain subdirectory (e.g. 'verify/iter_001.log')
+    const res = await fetch(`${API}/api/jobs/${jobId}/artifacts/${path}`);
     const data = await res.json();
-    document.getElementById('modal-title').textContent = `ARTIFACT: ${name}`;
+    document.getElementById('modal-title').textContent = `ARTIFACT: ${path}`;
     document.getElementById('modal-body').textContent = data.content || '(empty)';
     document.getElementById('modal').style.display = 'flex';
   } catch(e) { alert('Failed to load artifact'); }
@@ -958,22 +1008,31 @@ async function viewArtifact(jobId, name) {
 function closeModal() { document.getElementById('modal').style.display = 'none'; }
 
 // ── SSE streaming ────────────────────────────────────────────────────────────
+let sseSince = 0;  // byte offset for reconnect
+
 function startSSE(jobId) {
   if (sseSource) { sseSource.close(); sseSource = null; }
   allEvents = [];
+  sseSince = 0;
   document.getElementById('events-list').innerHTML = '';
 
-  sseSource = new EventSource(`${API}/api/jobs/${jobId}/events`);
-  sseSource.onmessage = e => {
-    try {
-      const ev = JSON.parse(e.data);
-      allEvents.push(ev);
-      appendEventRow(ev);
-    } catch (_) {}
-  };
-  sseSource.onerror = () => {
-    // SSE will auto-reconnect; no action needed
-  };
+  function connect() {
+    const url = `${API}/api/jobs/${jobId}/events${sseSince ? '?since='+sseSince : ''}`;
+    sseSource = new EventSource(url);
+    sseSource.onmessage = e => {
+      try {
+        const ev = JSON.parse(e.data);
+        allEvents.push(ev);
+        appendEventRow(ev);
+        // Track approximate byte offset for reconnect
+        sseSince += new TextEncoder().encode(e.data + '\n').length;
+      } catch (_) {}
+    };
+    sseSource.onerror = () => {
+      // EventSource auto-reconnects using sseSince offset
+    };
+  }
+  connect();
 }
 
 function appendEventRow(ev) {
@@ -1008,26 +1067,40 @@ function appendEventRow(ev) {
 
 function formatEventMsg(ev) {
   switch(ev.type) {
-    case 'JOB_CREATED':    return `Goal: ${escHtml((ev.goal||'').slice(0,80))}`;
-    case 'JOB_STARTING':   return `Starting runner for goal: ${escHtml((ev.goal||'').slice(0,60))}`;
-    case 'ITERATION':      return `Iteration ${ev.iteration}/${ev.max_iterations} — elapsed ${ev.elapsed_s}s`;
-    case 'VERIFY_START':   return 'Running verify gate…';
-    case 'VERIFY_RESULT':  return `Verify ${ev.passed ? '✓ PASSED' : '✗ FAILED'} (exit ${ev.returncode})`;
-    case 'REPAIR_START':   return `Repair triggered`;
-    case 'REPAIR_RESULT':  return `Repair attempt ${ev.attempt}: ${ev.success ? 'SUCCESS' : 'FAILED'} ${ev.reason||''}`;
-    case 'REVIEW_START':   return 'Running reviewer gate…';
-    case 'REVIEW_RESULT':  return `${ev.summary||'Review done'} — ${(ev.findings||[]).length} finding(s)`;
-    case 'LLM_CALL_START': return `→ ${ev.provider}/${ev.model}`;
-    case 'LLM_CALL_END':   return `← ${ev.provider}/${ev.model} in ${ev.elapsed_s}s`;
-    case 'TOOL_START':     return `⚙ ${ev.tool} starting`;
-    case 'TOOL_END':       return `⚙ ${ev.tool} ${ev.success ? '✓' : '✗'} — ${escHtml((ev.output||'').slice(0,80))}`;
-    case 'USER_DIRECTIVE': return `💬 ${escHtml((ev.message||'').slice(0,100))}`;
-    case 'ASSUMPTION_LOG': return `ℹ ${escHtml((ev.message||'').slice(0,120))}`;
-    case 'STATUS':         return escHtml(ev.message||ev.status||JSON.stringify(ev).slice(0,80));
-    case 'COMPLETE':       return `✓ ${escHtml((ev.summary||'Complete').slice(0,120))}`;
-    case 'FAILED':         return `✗ ${escHtml((ev.reason||'Failed').slice(0,120))}`;
-    case 'PAUSED':         return `Paused at iteration ${ev.iteration}`;
-    case 'RESUMED':        return `Resumed at iteration ${ev.iteration}`;
+    case 'JOB_CREATED':         return `Goal: ${escHtml((ev.goal||'').slice(0,80))}`;
+    case 'JOB_STARTING':        return `Starting runner for goal: ${escHtml((ev.goal||'').slice(0,60))}`;
+    case 'ITERATION':           return `Iteration ${ev.iteration}/${ev.max_iterations} — elapsed ${ev.elapsed_s}s`;
+    case 'DIRECTIVES_APPLIED':  return `Applied ${ev.count} directive(s)`;
+    case 'VERIFY_START':        return 'Running verify gate…';
+    case 'VERIFY_RESULT':       return `Verify ${ev.passed ? '✓ PASSED' : '✗ FAILED'} (exit ${ev.returncode})` + (ev.artifact_ref ? ` [${ev.artifact_ref}]` : '');
+    case 'VERIFY_RETRY':        return `Verify retry after: ${escHtml(ev.reason||'')}`;
+    case 'DEP_INSTALL_START':   return `Installing package: ${escHtml(ev.package||'')}`;
+    case 'DEP_INSTALL_RESULT':  return `Install ${ev.package}: ${ev.success ? '✓ OK' : '✗ FAILED'}`;
+    case 'REPAIR_START':        return `Repair triggered (iter ${ev.iteration||'?'})`;
+    case 'REPAIR_RESULT':       return `Repair attempt ${ev.attempt}: ${ev.success ? 'SUCCESS' : 'FAILED'} ${ev.reason||''} ${ev.method?'['+ev.method+']':''}`;
+    case 'REVIEW_START':        return 'Running reviewer gate…';
+    case 'REVIEW_RESULT':       return `${ev.summary||'Review done'} — ${(ev.findings||[]).length} finding(s)`;
+    case 'LLM_CALL_START':      return `→ LLM: ${ev.provider}/${ev.model}`;
+    case 'LLM_CALL_END':        return `← LLM: ${ev.provider}/${ev.model} in ${ev.elapsed_s}s (${ev.output_tokens||0} tok)`;
+    case 'LLM_UNAVAILABLE':     return `⚠ LLM unavailable: ${escHtml(ev.reason||'')} [dry-run]`;
+    case 'PLAN_CREATED':        return `StepPlan created → ${escHtml(ev.artifact_ref||'')}`;
+    case 'STEP_START':          return `Step: ${escHtml(ev.tool||'')} starting`;
+    case 'STEP_END':            return `Step: ${escHtml(ev.tool||'')} ${ev.success ? '✓' : '✗'}`;
+    case 'PATCH_APPLY_START':   return `Applying patch (iter ${ev.iteration||'?'})`;
+    case 'PATCH_APPLY_RESULT':  return `Patch apply: ${ev.success ? '✓ OK' : '✗ FAILED'} ${ev.reason ? '— '+escHtml(ev.reason) : ''}`;
+    case 'TOOL_START':          return `⚙ ${ev.tool||'?'} starting`;
+    case 'TOOL_END':            return `⚙ ${ev.tool||'?'} ${ev.success ? '✓' : '✗'} — ${escHtml((ev.output||'').slice(0,80))}`;
+    case 'USER_DIRECTIVE':      return `💬 [${ev.severity||'normal'}] ${escHtml((ev.text||ev.message||'').slice(0,100))}`;
+    case 'ASSUMPTION_LOG':      return `ℹ ${escHtml((ev.message||'').slice(0,120))}`;
+    case 'ARTIFACT_WRITTEN':    return `📄 ${escHtml(ev.artifact_ref||'')}`;
+    case 'STATUS':              return escHtml(ev.status || ev.message || JSON.stringify(ev).slice(0,80));
+    case 'COMPLETE':            return `✓ ${escHtml((ev.reason||ev.summary||'Complete').slice(0,120))}`;
+    case 'FAILED':              return `✗ ${escHtml((ev.reason||'Failed').slice(0,120))}`;
+    case 'STOPPED':             return `■ ${escHtml((ev.reason||'Stopped').slice(0,120))}`;
+    case 'PAUSED':              return `⏸ Paused at iteration ${ev.iteration}`;
+    case 'RESUMED':             return `▶ Resumed at iteration ${ev.iteration}`;
+    case 'TIME_BUDGET_EXCEEDED': return `⏱ ${escHtml(ev.reason||'Time budget exceeded')}`;
+    case 'ITERATION_BUDGET_EXCEEDED': return `🔁 ${escHtml(ev.reason||'Iteration budget exceeded')}`;
     default: return escHtml(JSON.stringify(ev).slice(0,120));
   }
 }
@@ -1062,13 +1135,19 @@ function clearEvents() {
 }
 
 // ── Job controls ───────────────────────────────────────────────────────────────
-async function ctrlJob(action) {
+async function ctrlJob(userAction) {
   if (!activeJobId) return;
   try {
-    const res = await fetch(`${API}/api/jobs/${activeJobId}/${action}`, { method: 'POST' });
+    let url;
+    // Pause/resume use ?pause=true|false per API contract
+    if (userAction === 'pause')  url = `${API}/api/jobs/${activeJobId}/pause?pause=true`;
+    else if (userAction === 'resume') url = `${API}/api/jobs/${activeJobId}/pause?pause=false`;
+    else url = `${API}/api/jobs/${activeJobId}/${userAction}`;
+
+    const res = await fetch(url, { method: 'POST' });
     if (!res.ok) { const e = await res.json(); alert(e.detail || 'Error'); return; }
     await loadJobs();
-    if (action === 'start') startSSE(activeJobId);
+    if (userAction === 'start') startSSE(activeJobId);
   } catch(e) { alert('Request failed: ' + e.message); }
 }
 
@@ -1105,12 +1184,14 @@ async function sendDirective() {
   if (!activeJobId) { alert('Select a mission first'); return; }
   const msg = document.getElementById('directive-input').value.trim();
   if (!msg) { document.getElementById('directive-input').focus(); return; }
+  const severityEl = document.getElementById('directive-severity');
+  const severity = severityEl ? severityEl.value : 'normal';
 
   try {
     const res = await fetch(`${API}/api/jobs/${activeJobId}/directive`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg }),
+      body: JSON.stringify({ text: msg, severity: severity, tags: [] }),
     });
     if (!res.ok) { const e = await res.json(); alert(e.detail || 'Error'); return; }
     document.getElementById('directive-input').value = '';

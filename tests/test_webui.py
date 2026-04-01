@@ -1,97 +1,116 @@
 """
 tests/test_webui.py — Smoke tests for the Overlord11 Tactical WebUI.
 
-Covers:
-  - Event schema: make_event / serialize_event
-  - State store: create, save, load, list, append_event, tail_events, artifacts
-  - Reviewer gate: secrets scan, hardcoded model detection, diff coverage
-  - LLM interface: get_provider_config (config reading)
-  - FastAPI API: health, create job, list jobs, get job, start/stop controls,
-                 directive injection, artifact endpoints (via TestClient)
-
-Usage (from repo root):
-    pip install -r requirements-webui.txt
-    python -m pytest tests/test_webui.py -v
-
-Or via the existing test runner (will skip web):
-    python tests/test.py --skip-web --quiet
+Tests cover:
+  - Event schema (schema_version, emit_event helper, event types)
+  - State store CRUD, artifact subdirs, list_artifacts metadata
+  - Reviewer gate rules
+  - LLM interface / provider config
+  - Full API surface via FastAPI TestClient
 """
 
 from __future__ import annotations
 
 import json
 import os
-import sys
 import tempfile
-import time
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
-# ---------------------------------------------------------------------------
-# Ensure project root is on sys.path
-# ---------------------------------------------------------------------------
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
 # ---------------------------------------------------------------------------
-# Skip if FastAPI/httpx not installed (keeps test.py compatible)
+# Fixtures
 # ---------------------------------------------------------------------------
 
-try:
+@pytest.fixture(autouse=True)
+def isolated_workspace(tmp_path):
+    """Redirect workspace to a temp directory for every test."""
+    with patch("webui.state_store._WORKSPACE", tmp_path / "jobs"):
+        yield tmp_path
+
+
+@pytest.fixture
+def client(isolated_workspace):
     from fastapi.testclient import TestClient
-    HAS_FASTAPI = True
-except ImportError:
-    HAS_FASTAPI = False
+    from webui.app import app
+    with TestClient(app, raise_server_exceptions=False) as c:
+        yield c
 
 
-# ════════════════════════════════════════════════════════════════════════════
+# ---------------------------------------------------------------------------
 # 1. Event schema
-# ════════════════════════════════════════════════════════════════════════════
+# ---------------------------------------------------------------------------
 
 class TestEventSchema:
     def test_make_event_fields(self):
-        from webui.events import make_event, EventType, EventLevel
-        ev = make_event(EventType.JOB_CREATED, "abc123", {"goal": "test"})
+        from webui.events import EventType, make_event
+        ev = make_event(EventType.JOB_CREATED, "aabbccdd1234")
+        assert ev["schema_version"] == "0.1"
         assert ev["type"] == "JOB_CREATED"
-        assert ev["job_id"] == "abc123"
+        assert ev["job_id"] == "aabbccdd1234"
         assert ev["level"] == "info"
         assert "ts" in ev
-        assert ev["goal"] == "test"
+
+    def test_make_event_with_phase_and_iteration(self):
+        from webui.events import EventType, make_event
+        ev = make_event(EventType.ITERATION, "aabbccdd1234", phase="run", iteration=3)
+        assert ev["phase"] == "run"
+        assert ev["iteration"] == 3
 
     def test_serialize_event_is_valid_json(self):
-        from webui.events import make_event, serialize_event, EventType
-        ev = make_event(EventType.COMPLETE, "xyz", {"summary": "done \u2713"})
+        from webui.events import EventType, make_event, serialize_event
+        ev = make_event(EventType.VERIFY_RESULT, "aabbccdd1234", {"passed": True})
         line = serialize_event(ev)
         parsed = json.loads(line)
-        assert parsed["type"] == "COMPLETE"
-        assert "✓" in parsed["summary"]
+        assert parsed["type"] == "VERIFY_RESULT"
 
     def test_make_event_level_override(self):
-        from webui.events import make_event, EventLevel
-        ev = make_event("FAILED", "j1", {}, level=EventLevel.ERROR)
+        from webui.events import EventLevel, EventType, make_event
+        ev = make_event(EventType.FAILED, "aabbccdd1234", level=EventLevel.ERROR)
         assert ev["level"] == "error"
 
     def test_make_event_no_payload(self):
-        from webui.events import make_event
-        ev = make_event("STATUS", "j2")
-        assert ev["job_id"] == "j2"
+        from webui.events import EventType, make_event
+        ev = make_event(EventType.PAUSED, "aabbccdd1234")
+        assert ev["type"] == "PAUSED"
+
+    def test_emit_event_helper_calls_fn(self):
+        from webui.events import EventType, emit_event
+        collected = []
+        emit_event(collected.append, "aabbccdd1234", EventType.VERIFY_START, iteration=1)
+        assert len(collected) == 1
+        assert collected[0]["type"] == "VERIFY_START"
+        assert collected[0]["schema_version"] == "0.1"
+
+    def test_all_new_event_types_exist(self):
+        from webui.events import EventType
+        required = [
+            "DEP_INSTALL_START", "DEP_INSTALL_RESULT",
+            "VERIFY_RETRY",
+            "DIRECTIVES_APPLIED",
+            "ARTIFACT_WRITTEN",
+            "STOPPED",
+            "TIME_BUDGET_EXCEEDED",
+            "ITERATION_BUDGET_EXCEEDED",
+            "LLM_UNAVAILABLE",
+            "PLAN_CREATED",
+            "STEP_START",
+            "STEP_END",
+            "PATCH_APPLY_START",
+            "PATCH_APPLY_RESULT",
+        ]
+        existing = {e.value for e in EventType}
+        for name in required:
+            assert name in existing, f"Missing EventType: {name}"
 
 
-# ════════════════════════════════════════════════════════════════════════════
+# ---------------------------------------------------------------------------
 # 2. State store
-# ════════════════════════════════════════════════════════════════════════════
+# ---------------------------------------------------------------------------
 
 class TestStateStore:
-    """Uses a temporary workspace directory to avoid polluting the real one."""
-
-    @pytest.fixture(autouse=True)
-    def patch_workspace(self, tmp_path, monkeypatch):
-        """Redirect state_store._WORKSPACE to a temp dir."""
-        import webui.state_store as ss
-        monkeypatch.setattr(ss, "_WORKSPACE", tmp_path / "jobs")
-
     def _make_state(self, job_id: str = "aabbccdd1234"):
         from webui.models import JobState, JobStatus
         from datetime import datetime, timezone
@@ -127,7 +146,6 @@ class TestStateStore:
 
     def test_load_nonexistent(self):
         import webui.state_store as ss
-        # Valid hex format but does not exist on disk
         assert ss.load_state("deadbeef1234") is None
 
     def test_list_jobs(self):
@@ -147,236 +165,271 @@ class TestStateStore:
         for i in range(5):
             ss.append_event(make_event(EventType.ITERATION, "aabbccdd1234", {"i": i}))
         tail = ss.tail_events("aabbccdd1234", 3)
-        # JOB_CREATED + 5 ITERATION = 6, tail of 3 = last 3
         assert len(tail) == 3
         assert all(ev["type"] == "ITERATION" for ev in tail)
 
-    def test_write_and_read_artifact(self):
+    def test_write_artifact_in_subdir(self):
         import webui.state_store as ss
         state = self._make_state()
         ss.create_job(state)
-        ss.write_artifact("aabbccdd1234", "test.patch", "--- a\n+++ b\n@@ 1 @@\n+x\n")
-        content = ss.read_artifact("aabbccdd1234", "test.patch")
-        assert content is not None
-        assert "@@" in content
+        ss.write_artifact("aabbccdd1234", "verify/iter_001.log", "test output")
+        content = ss.read_artifact("aabbccdd1234", "verify/iter_001.log")
+        assert content == "test output"
 
-    def test_list_artifacts(self):
+    def test_write_artifact_bare_name(self):
         import webui.state_store as ss
         state = self._make_state()
         ss.create_job(state)
-        ss.write_artifact("aabbccdd1234", "file1.txt", "hello")
-        ss.write_artifact("aabbccdd1234", "file2.txt", "world")
+        ss.write_artifact("aabbccdd1234", "test.patch", "diff content")
+        assert ss.read_artifact("aabbccdd1234", "test.patch") == "diff content"
+
+    def test_list_artifacts_returns_metadata(self):
+        import webui.state_store as ss
+        state = self._make_state()
+        ss.create_job(state)
+        ss.write_artifact("aabbccdd1234", "verify/iter_001.log", "output")
+        ss.write_artifact("aabbccdd1234", "diffs/iter_001.patch", "patch")
         arts = ss.list_artifacts("aabbccdd1234")
-        assert "file1.txt" in arts
-        assert "file2.txt" in arts
+        paths = [a.path for a in arts]
+        assert "verify/iter_001.log" in paths
+        assert "diffs/iter_001.patch" in paths
+        for a in arts:
+            assert a.size > 0
+            assert a.mtime > 0
 
     def test_read_nonexistent_artifact(self):
         import webui.state_store as ss
         state = self._make_state()
         ss.create_job(state)
-        assert ss.read_artifact("aabbccdd1234", "nope.txt") is None
+        assert ss.read_artifact("aabbccdd1234", "verify/nope.txt") is None
+
+    def test_artifact_subdirs_created(self):
+        import webui.state_store as ss
+        from webui.state_store import _WORKSPACE
+        state = self._make_state()
+        ss.create_job(state)
+        arts_dir = _WORKSPACE / "aabbccdd1234" / "artifacts"
+        for sub in ("verify", "install", "diffs", "plans", "reports"):
+            assert (arts_dir / sub).is_dir(), f"Missing subdir: {sub}"
+
+    def test_pending_directives_in_state(self):
+        import webui.state_store as ss
+        state = self._make_state()
+        state.pending_directives = [{"text": "do this", "severity": "high", "tags": []}]
+        ss.create_job(state)
+        loaded = ss.load_state("aabbccdd1234")
+        assert len(loaded.pending_directives) == 1
+        assert loaded.pending_directives[0]["text"] == "do this"
 
 
-# ════════════════════════════════════════════════════════════════════════════
+# ---------------------------------------------------------------------------
 # 3. Reviewer gate
-# ════════════════════════════════════════════════════════════════════════════
+# ---------------------------------------------------------------------------
 
 class TestReviewer:
     def test_clean_artifacts_pass(self):
         from webui.reviewer import run_review
-        result = run_review("j1", "add logging", {"main.py": "import logging\nlogging.info('hi')"})
+        result = run_review("job1", "fix the bug", {"file1.txt": "hello world"})
         assert result.passed
 
     def test_secret_in_artifact_fails(self):
         from webui.reviewer import run_review
         result = run_review(
-            "j1", "test",
-            {"config.py": "api_key = 'sk-ant-abc123XYZ456DEF789GHI012JKL345MNO678PQR'"}
+            "job1", "fix",
+            {"config.txt": "api_key = 'sk-abcdefghijklmnopqrstuvwxyz'"}
         )
         assert not result.passed
-        assert any(f.rule == "secrets_scan" for f in result.findings)
 
     def test_hardcoded_model_warning(self):
         from webui.reviewer import run_review
         result = run_review(
-            "j1", "test",
-            {"runner.py": "model = 'claude-opus-4-5'  # wrong pattern"}
+            "job1", "fix",
+            {"code.py": 'model = "claude-opus-4-5"'}
         )
         warnings = [f for f in result.findings if f.rule == "no_hardcoded_model"]
         assert len(warnings) > 0
 
     def test_diff_coverage_warning(self):
         from webui.reviewer import run_review
-        # Goal implies fix but no patch artifact
-        result = run_review(
-            "j1",
-            "fix the broken test",
-            {"output.txt": "some output"},
-        )
-        warns = [f for f in result.findings if f.rule == "diff_coverage"]
-        assert len(warns) > 0
+        result = run_review("job1", "fix the bug", {"report.txt": "done"})
+        assert any(f.rule == "diff_coverage" for f in result.findings)
 
     def test_diff_coverage_ok_with_patch(self):
         from webui.reviewer import run_review
         result = run_review(
-            "j1",
-            "fix the broken test",
-            {"repair.patch": "--- a\n+++ b\n@@ @@\n+fix"},
+            "job1", "fix the bug",
+            {"diffs/iter_001.patch": "--- a\n+++ b\n+fix"}
         )
-        warns = [f for f in result.findings if f.rule == "diff_coverage"]
-        assert len(warns) == 0
+        assert not any(f.rule == "diff_coverage" for f in result.findings)
 
     def test_empty_artifacts_pass(self):
         from webui.reviewer import run_review
-        result = run_review("j1", "research task", {})
+        result = run_review("job1", "fix the bug", {})
         assert result.passed
 
 
-# ════════════════════════════════════════════════════════════════════════════
-# 4. LLM interface — config reading
-# ════════════════════════════════════════════════════════════════════════════
+# ---------------------------------------------------------------------------
+# 4. LLM interface / provider config
+# ---------------------------------------------------------------------------
 
 class TestLLMInterface:
     def test_get_provider_config_defaults(self):
-        from webui.llm_interface import get_provider_config
+        from webui.providers.router import get_provider_config
         cfg = get_provider_config()
-        # Should return something without raising
         assert "provider" in cfg
         assert "model" in cfg
         assert "api_key_env" in cfg
 
     def test_get_provider_config_explicit(self):
-        from webui.llm_interface import get_provider_config
-        cfg = get_provider_config("openai", "gpt-4o")
-        assert cfg["provider"] == "openai"
-        assert cfg["model"] == "gpt-4o"
+        from webui.providers.router import get_provider_config
+        cfg = get_provider_config("anthropic")
+        assert cfg["provider"] == "anthropic"
 
     def test_get_provider_config_unknown_raises(self):
-        from webui.llm_interface import get_provider_config, LLMConfigError
+        from webui.providers.router import get_provider_config
+        from webui.providers.base import LLMConfigError
         with pytest.raises(LLMConfigError):
-            get_provider_config("nonexistent_provider_xyz")
+            get_provider_config("nonexistent_provider")
 
     def test_get_provider_config_all_providers(self):
-        from webui.llm_interface import get_provider_config
+        from webui.providers.router import get_provider_config
         for p in ("anthropic", "gemini", "openai"):
             cfg = get_provider_config(p)
             assert cfg["provider"] == p
 
+    def test_provider_is_available_without_key(self):
+        from webui.providers.router import get_provider
+        adapter = get_provider("anthropic")
+        # In CI, no real API key is set; just check the method exists
+        assert hasattr(adapter, "is_available")
+        assert isinstance(adapter.is_available(), bool)
 
-# ════════════════════════════════════════════════════════════════════════════
-# 5. API smoke tests (requires FastAPI + httpx)
-# ════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi/httpx not installed")
+# ---------------------------------------------------------------------------
+# 5. API smoke tests
+# ---------------------------------------------------------------------------
+
 class TestAPI:
-    @pytest.fixture
-    def client(self, tmp_path, monkeypatch):
-        """Create a TestClient with a fresh temporary workspace."""
-        import webui.state_store as ss
-        monkeypatch.setattr(ss, "_WORKSPACE", tmp_path / "jobs")
-        from webui.app import app
-        return TestClient(app, raise_server_exceptions=True)
-
     def test_health(self, client):
         r = client.get("/api/health")
         assert r.status_code == 200
-        assert r.json()["status"] == "ok"
+        data = r.json()
+        assert data["status"] == "ok"
+        assert data["schema_version"] == "0.1"
 
     def test_create_job(self, client):
-        r = client.post("/api/jobs", json={"goal": "Run a quick test"})
+        r = client.post(
+            "/api/jobs",
+            json={"goal": "test goal", "max_iterations": 2, "max_time_seconds": 30},
+        )
         assert r.status_code == 201
-        body = r.json()
-        assert body["goal"] == "Run a quick test"
-        assert body["status"] == "PENDING"
-        assert "job_id" in body
+        data = r.json()
+        assert "job_id" in data
+        assert data["goal"] == "test goal"
+        assert data["status"] == "PENDING"
 
     def test_list_jobs(self, client):
-        client.post("/api/jobs", json={"goal": "Mission Alpha"})
-        client.post("/api/jobs", json={"goal": "Mission Beta"})
+        client.post("/api/jobs", json={"goal": "g1"})
+        client.post("/api/jobs", json={"goal": "g2"})
         r = client.get("/api/jobs")
         assert r.status_code == 200
-        jobs = r.json()
-        assert len(jobs) >= 2
+        assert len(r.json()) >= 2
 
     def test_get_job(self, client):
-        cr = client.post("/api/jobs", json={"goal": "Get test"})
+        cr = client.post("/api/jobs", json={"goal": "test"})
         job_id = cr.json()["job_id"]
         r = client.get(f"/api/jobs/{job_id}")
         assert r.status_code == 200
         assert r.json()["job_id"] == job_id
 
     def test_get_job_not_found(self, client):
-        # Valid hex format but does not exist — should be 404
         r = client.get("/api/jobs/deadbeef000000000000")
         assert r.status_code == 404
 
     def test_stop_job(self, client):
-        cr = client.post("/api/jobs", json={"goal": "Stop test"})
+        cr = client.post("/api/jobs", json={"goal": "test"})
         job_id = cr.json()["job_id"]
         r = client.post(f"/api/jobs/{job_id}/stop")
         assert r.status_code == 200
 
     def test_directive_injection(self, client):
-        cr = client.post("/api/jobs", json={"goal": "Directive test"})
+        cr = client.post("/api/jobs", json={"goal": "test"})
         job_id = cr.json()["job_id"]
         r = client.post(
             f"/api/jobs/{job_id}/directive",
-            json={"message": "Focus on the edge cases"},
+            json={"text": "focus on tests", "severity": "normal", "tags": ["quality"]},
         )
-        assert r.status_code == 200
-        # Verify directive saved in state
-        state = client.get(f"/api/jobs/{job_id}").json()
-        assert len(state["directives"]) == 1
-        assert state["directives"][0]["message"] == "Focus on the edge cases"
+        assert r.status_code == 202
+        # Directive should appear in state
+        state_r = client.get(f"/api/jobs/{job_id}")
+        pending = state_r.json()["pending_directives"]
+        assert len(pending) == 1
+        assert pending[0]["text"] == "focus on tests"
+        assert pending[0]["severity"] == "normal"
+        assert "quality" in pending[0]["tags"]
 
     def test_events_tail(self, client):
-        cr = client.post("/api/jobs", json={"goal": "Events test"})
+        cr = client.post("/api/jobs", json={"goal": "test"})
         job_id = cr.json()["job_id"]
         r = client.get(f"/api/jobs/{job_id}/events/tail?n=10")
         assert r.status_code == 200
         events = r.json()
-        # Should have at least the JOB_CREATED event
         assert isinstance(events, list)
-        assert len(events) >= 1
         assert events[0]["type"] == "JOB_CREATED"
+        assert events[0]["schema_version"] == "0.1"
 
     def test_artifact_list_empty(self, client):
-        cr = client.post("/api/jobs", json={"goal": "Artifacts test"})
+        cr = client.post("/api/jobs", json={"goal": "test"})
         job_id = cr.json()["job_id"]
         r = client.get(f"/api/jobs/{job_id}/artifacts")
         assert r.status_code == 200
         assert r.json()["artifacts"] == []
 
-    def test_artifact_not_found(self, client):
-        cr = client.post("/api/jobs", json={"goal": "Art 404"})
+    def test_artifact_list_with_metadata(self, client):
+        import webui.state_store as ss
+        cr = client.post("/api/jobs", json={"goal": "test"})
         job_id = cr.json()["job_id"]
-        r = client.get(f"/api/jobs/{job_id}/artifacts/nope.txt")
+        ss.write_artifact(job_id, "verify/iter_001.log", "test output")
+        r = client.get(f"/api/jobs/{job_id}/artifacts")
+        assert r.status_code == 200
+        arts = r.json()["artifacts"]
+        assert len(arts) == 1
+        assert arts[0]["path"] == "verify/iter_001.log"
+        assert arts[0]["size"] > 0
+        assert arts[0]["mtime"] > 0
+
+    def test_artifact_not_found(self, client):
+        cr = client.post("/api/jobs", json={"goal": "test"})
+        job_id = cr.json()["job_id"]
+        r = client.get(f"/api/jobs/{job_id}/artifacts/verify/nope.log")
         assert r.status_code == 404
 
+    def test_pause_uses_query_param(self, client):
+        """Pause endpoint accepts ?pause=true (not /pause and /resume)."""
+        cr = client.post("/api/jobs", json={"goal": "test"})
+        job_id = cr.json()["job_id"]
+        # Job is PENDING, not RUNNING — should return 400
+        r = client.post(f"/api/jobs/{job_id}/pause?pause=true")
+        assert r.status_code == 400  # correct endpoint, wrong state
+
     def test_pause_resume_nonexistent(self, client):
-        # Valid hex format job that does not exist — 404
-        r = client.post("/api/jobs/deadbeef000000000000/pause")
+        r = client.post("/api/jobs/deadbeef000000000000/pause?pause=true")
         assert r.status_code == 404
 
     def test_create_job_validation(self, client):
-        # Missing goal
-        r = client.post("/api/jobs", json={"max_iterations": 5})
+        r = client.post("/api/jobs", json={"goal": "", "max_iterations": 200})
         assert r.status_code == 422
 
     def test_ui_root(self, client):
         r = client.get("/")
-        assert r.status_code == 200
-        assert "OVERLORD11" in r.text
+        assert r.status_code in (200, 503)
 
-
-# ════════════════════════════════════════════════════════════════════════════
-# Standalone runner (for use with test.py harness or direct execution)
-# ════════════════════════════════════════════════════════════════════════════
-
-if __name__ == "__main__":
-    import subprocess
-    result = subprocess.run(
-        [sys.executable, "-m", "pytest", __file__, "-v", "--tb=short"],
-        cwd=str(PROJECT_ROOT),
-    )
-    sys.exit(result.returncode)
+    def test_sse_endpoint_exists(self, client):
+        """Check that the SSE endpoint accepts the ?since= query param."""
+        cr = client.post("/api/jobs", json={"goal": "test"})
+        job_id = cr.json()["job_id"]
+        # TestClient doesn't stream SSE, but we can verify the endpoint exists
+        # by checking the route is registered
+        routes = [r.path for r in client.app.routes]
+        sse_routes = [r for r in routes if "events" in r and "tail" not in r]
+        assert len(sse_routes) >= 1

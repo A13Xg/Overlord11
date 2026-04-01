@@ -1,57 +1,56 @@
 """
 webui/runner.py — Autonomous runner loop for Overlord11 Tactical WebUI.
 
-Each job runs in its own asyncio task.  The runner:
+Implements:
+  - Milestone A: iteration loop, budgets, verify gate, pause/stop/resume
+  - Milestone B: DIRECTIVES_APPLIED, ARTIFACT_WRITTEN events
+  - Milestone C: self-healing venv repair (ModuleNotFoundError detection)
+  - Milestone D: provider interface, StepPlan, safe patch apply
 
-  1. Emits JOB_STARTING and sets status → RUNNING.
-  2. Runs up to max_iterations, checking wall-clock budget each loop.
-  3. Each iteration:
-       a. Calls the LLM (orchestrator-driven step planning).
-       b. Executes the action returned (tool_call | patch | complete).
-       c. Runs the verify gate: `python tests/test.py --skip-web --quiet`.
-       d. On verify failure: triggers repair loop (up to 3 attempts).
-       e. On verify pass or after repair: runs reviewer gate.
-       f. On reviewer pass: marks COMPLETE.
-  4. If budgets exceeded without COMPLETE: marks FAILED with reason.
-
-Pause/resume/stop are cooperative: the runner checks `_control_flags[job_id]`
-at the top of each iteration.
-
-All significant events are emitted via `_emit(event)` which:
-  - appends to events.jsonl (via state_store.append_event)
-  - broadcasts to all SSE subscribers via the job's asyncio.Queue
+Runner lifecycle:
+  JOB_STARTING → (iterations) → COMPLETE | FAILED | STOPPED
+                              | TIME_BUDGET_EXCEEDED
+                              | ITERATION_BUDGET_EXCEEDED
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
+import re
 import subprocess
 import sys
 import time
+import venv as _venv_mod
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from .events import EventLevel, EventType, make_event
-from .llm_interface import LLMCallError, LLMConfigError, get_provider_config, llm_call
+from .events import EventLevel, EventType, emit_event, make_event
+from .llm_interface import LLMCallError, LLMConfigError, llm_call
 from .models import JobState, JobStatus
+from .providers.router import get_provider_config
 from .reviewer import run_review
 from . import state_store
 
 # ---------------------------------------------------------------------------
-# Control flags: "pause" | "resume" | "stop" | None
+# Control flags and SSE queues
 # ---------------------------------------------------------------------------
 
 _control_flags: dict[str, str | None] = {}
-
-# SSE broadcast queues: job_id → list of asyncio.Queue
 _sse_queues: dict[str, list[asyncio.Queue]] = {}
-
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+# Regex to detect missing module errors in verify output
+_MISSING_MODULE_RE = re.compile(
+    r"ModuleNotFoundError: No module named '([^']+)'", re.IGNORECASE
+)
+
+# Max packages that can be auto-installed per job
+_MAX_AUTO_PACKAGES = 20
+
 # ---------------------------------------------------------------------------
-# Public control API (called by HTTP endpoints)
+# Public control API
 # ---------------------------------------------------------------------------
 
 def set_control(job_id: str, flag: str) -> None:
@@ -85,7 +84,14 @@ def _emit(event: dict[str, Any]) -> None:
         try:
             q.put_nowait(event)
         except asyncio.QueueFull:
-            pass  # drop if consumer is too slow
+            pass
+
+
+def _emit_ev(job_id: str, ev_type: EventType, level=EventLevel.INFO, **payload) -> dict:
+    """Convenience wrapper: build + emit + return event."""
+    ev = make_event(ev_type, job_id, payload=payload or None, level=level)
+    _emit(ev)
+    return ev
 
 
 # ---------------------------------------------------------------------------
@@ -93,10 +99,7 @@ def _emit(event: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 
 async def run_job(job_id: str) -> None:
-    """
-    Async task that executes the full autonomous runner loop for *job_id*.
-    Must be launched via asyncio.create_task(run_job(job_id)).
-    """
+    """Async task that executes the full autonomous runner loop for *job_id*."""
     state = state_store.load_state(job_id)
     if state is None:
         return
@@ -104,15 +107,14 @@ async def run_job(job_id: str) -> None:
     _control_flags[job_id] = None
     start_wall = time.monotonic()
 
-    # -----------------------------------------------------------------------
     # Transition → RUNNING
-    # -----------------------------------------------------------------------
     state.status = JobStatus.RUNNING
     state.started_at = datetime.now(timezone.utc).isoformat()
     state_store.save_state(state)
-    _emit(make_event(EventType.JOB_STARTING, job_id, {"goal": state.goal}))
+    _emit_ev(job_id, EventType.STATUS, status="RUNNING")
+    _emit_ev(job_id, EventType.JOB_STARTING, goal=state.goal)
 
-    # Resolve provider config (log assumption if using default)
+    # Resolve provider config (log assumption if missing key)
     try:
         pcfg = get_provider_config(state.provider, state.model)
         state.provider = pcfg["provider"]
@@ -120,123 +122,144 @@ async def run_job(job_id: str) -> None:
         if not pcfg["api_key"]:
             _emit_assumption(
                 job_id,
-                f"No API key found for provider '{state.provider}' "
-                f"(env: {pcfg['api_key_env']}). Running in stub mode.",
+                f"No API key for provider '{state.provider}' "
+                f"(env: {pcfg['api_key_env']}). Running in dry-run mode.",
             )
-    except (LLMConfigError, Exception) as exc:
+    except Exception as exc:
         state.provider = state.provider or "anthropic"
-        _emit_assumption(job_id, f"Provider config error: {exc}. Defaulting to stub mode.")
+        _emit_assumption(job_id, f"Provider config error: {exc}. Defaulting to dry-run mode.")
 
     state_store.save_state(state)
 
-    # -----------------------------------------------------------------------
-    # Main iteration loop
-    # -----------------------------------------------------------------------
     try:
         for iteration in range(1, state.max_iterations + 1):
+            # ----------------------------------------------------------------
             # Budget: time
+            # ----------------------------------------------------------------
             elapsed = time.monotonic() - start_wall
             if elapsed >= state.max_time_seconds:
-                await _fail(
+                await _finish(
                     state,
+                    JobStatus.FAILED,
                     f"Time budget exceeded ({elapsed:.0f}s ≥ {state.max_time_seconds}s)",
+                    ev_type=EventType.TIME_BUDGET_EXCEEDED,
                 )
                 return
 
-            # Cooperative pause/stop check
+            # ----------------------------------------------------------------
+            # Cooperative pause / stop check
+            # ----------------------------------------------------------------
             flag = _control_flags.get(job_id)
             if flag == "stop":
-                await _fail(state, "Stopped by user request")
+                await _finish(state, JobStatus.STOPPED, "Stopped by user", ev_type=EventType.STOPPED)
                 return
             if flag == "pause":
                 state.status = JobStatus.PAUSED
                 state_store.save_state(state)
-                _emit(make_event(EventType.PAUSED, job_id, {"iteration": iteration}))
+                _emit_ev(job_id, EventType.PAUSED, iteration=iteration)
                 while _control_flags.get(job_id) == "pause":
                     await asyncio.sleep(0.5)
                 if _control_flags.get(job_id) == "stop":
-                    await _fail(state, "Stopped while paused")
+                    await _finish(state, JobStatus.STOPPED, "Stopped while paused", ev_type=EventType.STOPPED)
                     return
                 state.status = JobStatus.RUNNING
                 state_store.save_state(state)
-                _emit(make_event(EventType.RESUMED, job_id, {"iteration": iteration}))
+                _emit_ev(job_id, EventType.RESUMED, iteration=iteration)
 
             # ----------------------------------------------------------------
-            # Emit ITERATION event
+            # Apply pending directives
+            # ----------------------------------------------------------------
+            if state.pending_directives:
+                applied = state.pending_directives[:]
+                state.applied_directives.extend(applied)
+                state.pending_directives = []
+                state_store.save_state(state)
+                _emit_ev(
+                    job_id,
+                    EventType.DIRECTIVES_APPLIED,
+                    count=len(applied),
+                    directives=[d.get("text", "") for d in applied],
+                )
+
+            # ----------------------------------------------------------------
+            # ITERATION event
             # ----------------------------------------------------------------
             state.iteration = iteration
-            _emit(
-                make_event(
-                    EventType.ITERATION,
-                    job_id,
-                    {
-                        "iteration": iteration,
-                        "max_iterations": state.max_iterations,
-                        "elapsed_s": round(elapsed, 1),
-                    },
-                )
+            _emit_ev(
+                job_id,
+                EventType.ITERATION,
+                iteration=iteration,
+                max_iterations=state.max_iterations,
+                elapsed_s=round(elapsed, 1),
             )
 
             # ----------------------------------------------------------------
-            # Step planning: call LLM to decide what to do next
+            # Step planning (LLM)
             # ----------------------------------------------------------------
             action = await _plan_step(state, iteration)
 
-            # ----------------------------------------------------------------
-            # Execute action
-            # ----------------------------------------------------------------
             if action.get("action") == "complete":
                 summary = action.get("summary", "Goal achieved.")
-                await _complete(state, summary)
-                return
+                # Still run verify before accepting COMPLETE
+                passed, output = await _run_verify(state)
+                state.last_verify_passed = passed
+                state.last_verify_output = output[-2000:]
+                state_store.save_state(state)
+                if passed:
+                    review_passed = await _run_review_gate(state)
+                    if review_passed:
+                        await _finish(state, JobStatus.COMPLETE, summary, ev_type=EventType.COMPLETE)
+                        return
+                    # Reviewer failed — continue iterating
+                else:
+                    repaired = await _repair_loop(state, output)
+                    if repaired:
+                        review_passed = await _run_review_gate(state)
+                        if review_passed:
+                            await _finish(state, JobStatus.COMPLETE, f"Repaired and verified on iteration {iteration}", ev_type=EventType.COMPLETE)
+                            return
+                continue
 
-            elif action.get("action") == "patch":
-                await _apply_patch(state, action)
+            elif action.get("action") in ("patch", "repair"):
+                await _apply_patch(state, action, iteration)
 
             elif action.get("action") == "tool_call":
                 await _execute_tool(state, action)
-
-            elif action.get("action") == "repair":
-                await _apply_patch(state, action)
 
             # ----------------------------------------------------------------
             # Verify gate
             # ----------------------------------------------------------------
             passed, output = await _run_verify(state)
             state.last_verify_passed = passed
-            state.last_verify_output = output[-2000:] if output else ""
+            state.last_verify_output = output[-2000:]
             state_store.save_state(state)
 
             if passed:
-                # Run reviewer gate
                 review_passed = await _run_review_gate(state)
                 if review_passed:
-                    await _complete(state, f"Verify gate passed on iteration {iteration}")
+                    await _finish(state, JobStatus.COMPLETE, f"Verify gate passed on iteration {iteration}", ev_type=EventType.COMPLETE)
                     return
-                # else reviewer found errors — continue iterating
-
             else:
-                # Repair loop
                 repaired = await _repair_loop(state, output)
                 if repaired:
                     review_passed = await _run_review_gate(state)
                     if review_passed:
-                        await _complete(
-                            state, f"Repaired and verified on iteration {iteration}"
-                        )
+                        await _finish(state, JobStatus.COMPLETE, f"Repaired and verified on iteration {iteration}", ev_type=EventType.COMPLETE)
                         return
 
         # Max iterations reached
-        await _fail(
+        await _finish(
             state,
-            f"Iteration budget exhausted ({state.max_iterations} iterations) without satisfying verify gate",
+            JobStatus.FAILED,
+            f"Iteration budget exhausted ({state.max_iterations} iterations)",
+            ev_type=EventType.ITERATION_BUDGET_EXCEEDED,
         )
 
     except asyncio.CancelledError:
-        await _fail(state, "Runner task cancelled")
+        await _finish(state, JobStatus.FAILED, "Runner task cancelled")
         raise
     except Exception as exc:
-        await _fail(state, f"Unhandled runner error: {exc}")
+        await _finish(state, JobStatus.FAILED, f"Unhandled runner error: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -244,10 +267,7 @@ async def run_job(job_id: str) -> None:
 # ---------------------------------------------------------------------------
 
 async def _plan_step(state: JobState, iteration: int) -> dict[str, Any]:
-    """
-    Ask the LLM what to do next.  Returns an action dict.
-    Falls back to {"action": "complete", "summary": "..."} on errors.
-    """
+    """Ask the LLM what to do next. Returns an action dict."""
     system = _build_system_prompt()
     history = _build_history(state, iteration)
 
@@ -261,30 +281,35 @@ async def _plan_step(state: JobState, iteration: int) -> dict[str, Any]:
             model=state.model,
             emit=_emit,
         )
-        # Try to parse JSON action
-        return _parse_action(raw, state.job_id)
+        action = _parse_action(raw, state.job_id)
     except (LLMConfigError, LLMCallError) as exc:
-        _emit(
-            make_event(
-                EventType.ASSUMPTION_LOG,
-                state.job_id,
-                {"message": f"LLM call failed ({exc}); defaulting to complete action"},
-                level=EventLevel.WARN,
-            )
+        _emit_assumption(state.job_id, f"LLM call failed ({exc}); defaulting to complete action")
+        action = {"action": "complete", "summary": f"LLM unavailable: {exc}"}
+
+    # Persist StepPlan if it's a structured action
+    if action.get("action") in ("tool_call", "patch", "repair"):
+        plan_artifact = f"plans/step_{iteration:03d}.json"
+        state_store.write_artifact(state.job_id, plan_artifact, json.dumps(action, ensure_ascii=False, indent=2))
+        _emit_ev(
+            state.job_id,
+            EventType.PLAN_CREATED,
+            iteration=iteration,
+            artifact_ref=plan_artifact,
         )
-        return {"action": "complete", "summary": f"LLM unavailable: {exc}"}
+        _emit_artifact_written(state.job_id, plan_artifact)
+
+    return action
 
 
 def _build_system_prompt() -> str:
     return (
         "You are Overlord11, an autonomous coding assistant. "
-        "Your job is to complete the user's goal by proposing actions. "
-        "Respond ONLY with a JSON object (no markdown fences) with one of these shapes:\n"
+        "Respond ONLY with a JSON object (no markdown fences) with one of:\n"
         '  {"action":"tool_call","tool":"<name>","args":{...}}\n'
         '  {"action":"patch","diff":"<unified diff>","rationale":"<why>"}\n'
         '  {"action":"repair","diff":"<unified diff>","rationale":"<why>"}\n'
         '  {"action":"complete","summary":"<what was achieved>"}\n'
-        "Be concise, prefer minimal diffs, never hardcode API keys or model names."
+        "Be concise. Prefer minimal diffs. Never hardcode API keys or model names."
     )
 
 
@@ -296,25 +321,33 @@ def _build_history(state: JobState, iteration: int) -> list[dict[str, str]]:
     else:
         verify_line = "n/a"
 
-    messages: list[dict[str, str]] = [
+    directives_text = ""
+    if state.applied_directives:
+        directives_text = "\n".join(
+            d.get("text", "") for d in state.applied_directives[-3:]
+        )
+    elif state.pending_directives:
+        directives_text = "\n".join(
+            d.get("text", "") for d in state.pending_directives[-3:]
+        )
+
+    return [
         {
             "role": "user",
             "content": (
                 f"GOAL: {state.goal}\n\n"
                 f"ITERATION: {iteration}/{state.max_iterations}\n"
                 f"LAST VERIFY: {verify_line}\n"
-                f"DIRECTIVES: {json.dumps(state.directives, ensure_ascii=False) if state.directives else 'none'}\n\n"
+                f"DIRECTIVES: {directives_text or 'none'}\n\n"
                 "What is the next action?"
             ),
         }
     ]
-    return messages
 
 
 def _parse_action(raw: str, job_id: str) -> dict[str, Any]:
     """Parse LLM response into an action dict."""
     raw = raw.strip()
-    # Strip markdown code fences if present
     if raw.startswith("```"):
         lines = raw.split("\n")
         raw = "\n".join(lines[1:-1]) if len(lines) > 2 else raw
@@ -324,7 +357,6 @@ def _parse_action(raw: str, job_id: str) -> dict[str, Any]:
             return data
     except json.JSONDecodeError:
         pass
-    # Fallback: treat as complete
     return {"action": "complete", "summary": raw[:500]}
 
 
@@ -332,23 +364,30 @@ def _parse_action(raw: str, job_id: str) -> dict[str, Any]:
 # Action executors
 # ---------------------------------------------------------------------------
 
-async def _apply_patch(state: JobState, action: dict[str, Any]) -> None:
+async def _apply_patch(state: JobState, action: dict[str, Any], iteration: int) -> None:
     """Apply a unified diff patch to the repo."""
     diff = action.get("diff", "")
     rationale = action.get("rationale", "")
-    _emit(
-        make_event(
-            EventType.TOOL_START,
-            state.job_id,
-            {"tool": "apply_patch", "rationale": rationale[:200]},
-        )
-    )
+
+    _emit_ev(state.job_id, EventType.PATCH_APPLY_START, iteration=iteration, rationale=rationale[:200])
 
     if diff:
-        artifact_name = f"patch_iter{state.iteration:03d}.patch"
-        state_store.write_artifact(state.job_id, artifact_name, diff)
+        artifact_path = f"diffs/iter_{iteration:03d}.patch"
+        state_store.write_artifact(state.job_id, artifact_path, diff)
+        _emit_artifact_written(state.job_id, artifact_path)
 
-        # Apply via `patch` command
+        # Reject patches that target paths outside the repo root
+        if _patch_escapes_root(diff):
+            _emit_ev(
+                state.job_id,
+                EventType.PATCH_APPLY_RESULT,
+                iteration=iteration,
+                success=False,
+                reason="Patch rejected: targets path outside repo root",
+                level=EventLevel.ERROR,
+            )
+            return
+
         result = await asyncio.to_thread(
             _run_shell,
             ["patch", "-p1", "--forward", "--batch"],
@@ -356,36 +395,37 @@ async def _apply_patch(state: JobState, action: dict[str, Any]) -> None:
             cwd=str(_PROJECT_ROOT),
         )
         success = result["returncode"] == 0
-        _emit(
-            make_event(
-                EventType.TOOL_END,
-                state.job_id,
-                {
-                    "tool": "apply_patch",
-                    "success": success,
-                    "output": result["stdout"][-500:],
-                    "artifact": artifact_name,
-                },
-            )
+        _emit_ev(
+            state.job_id,
+            EventType.PATCH_APPLY_RESULT,
+            iteration=iteration,
+            success=success,
+            output=result["stdout"][-500:],
+            artifact_ref=artifact_path,
         )
     else:
-        _emit(make_event(EventType.TOOL_END, state.job_id, {"tool": "apply_patch", "success": False, "output": "empty diff"}))
+        _emit_ev(state.job_id, EventType.PATCH_APPLY_RESULT, iteration=iteration, success=False, reason="empty diff")
+
+
+def _patch_escapes_root(diff: str) -> bool:
+    """Return True if the patch tries to write outside the project root."""
+    for line in diff.splitlines():
+        if line.startswith("+++ ") or line.startswith("--- "):
+            path_part = line[4:].split("\t")[0].strip()
+            # Normalize: strip a/ or b/ prefix added by git
+            path_part = re.sub(r'^[ab]/', '', path_part)
+            if ".." in path_part:
+                return True
+    return False
 
 
 async def _execute_tool(state: JobState, action: dict[str, Any]) -> None:
-    """Execute a named tool_call action (stub — logs the call)."""
+    """Execute a named tool_call action (structured placeholder)."""
     tool_name = action.get("tool", "unknown")
     args = action.get("args", {})
-    _emit(make_event(EventType.TOOL_START, state.job_id, {"tool": tool_name, "args": args}))
+    _emit_ev(state.job_id, EventType.STEP_START, tool=tool_name, args=args)
     # Real tool dispatch would route to tools/python/<tool>.py here.
-    # For Phase 1 this is a structured placeholder.
-    _emit(
-        make_event(
-            EventType.TOOL_END,
-            state.job_id,
-            {"tool": tool_name, "success": True, "output": "[stub] tool dispatched"},
-        )
-    )
+    _emit_ev(state.job_id, EventType.STEP_END, tool=tool_name, success=True, output="[stub] tool dispatched")
 
 
 # ---------------------------------------------------------------------------
@@ -393,69 +433,125 @@ async def _execute_tool(state: JobState, action: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 
 async def _run_verify(state: JobState) -> tuple[bool, str]:
-    """Run `python tests/test.py --skip-web --quiet` and return (passed, output)."""
-    _emit(make_event(EventType.VERIFY_START, state.job_id, {}))
+    """
+    Run `python tests/test.py --skip-web --quiet`.
+    Uses venv python if one exists for this job.
+    """
+    _emit_ev(state.job_id, EventType.VERIFY_START, iteration=state.iteration)
 
+    python_cmd = _get_python_cmd(state)
     result = await asyncio.to_thread(
         _run_shell,
-        [sys.executable, "tests/test.py", "--skip-web", "--quiet"],
+        [python_cmd, "tests/test.py", "--skip-web", "--quiet"],
         cwd=str(_PROJECT_ROOT),
     )
     passed = result["returncode"] == 0
     output = (result["stdout"] + result["stderr"])[-3000:]
 
-    # Save as artifact
-    artifact_name = f"verify_iter{state.iteration:03d}.txt"
-    state_store.write_artifact(state.job_id, artifact_name, output)
+    artifact_path = f"verify/iter_{state.iteration:03d}.log"
+    state_store.write_artifact(state.job_id, artifact_path, output)
+    _emit_artifact_written(state.job_id, artifact_path)
 
-    _emit(
-        make_event(
-            EventType.VERIFY_RESULT,
-            state.job_id,
-            {
-                "passed": passed,
-                "returncode": result["returncode"],
-                "output_tail": output[-500:],
-                "artifact": artifact_name,
-            },
-            level=EventLevel.INFO if passed else EventLevel.WARN,
-        )
+    _emit_ev(
+        state.job_id,
+        EventType.VERIFY_RESULT,
+        iteration=state.iteration,
+        passed=passed,
+        returncode=result["returncode"],
+        output_tail=output[-500:],
+        artifact_ref=artifact_path,
+        level=EventLevel.INFO if passed else EventLevel.WARN,
     )
     return passed, output
 
 
+def _get_python_cmd(state: JobState) -> str:
+    """Return the python executable to use: venv python if available, else sys.executable."""
+    if state.venv_path:
+        venv = Path(state.venv_path)
+        candidates = [venv / "bin" / "python", venv / "Scripts" / "python.exe"]
+        for c in candidates:
+            if c.exists():
+                return str(c)
+    return sys.executable
+
+
 # ---------------------------------------------------------------------------
-# Repair loop
+# Self-healing venv repair loop (Milestone C)
 # ---------------------------------------------------------------------------
 
 async def _repair_loop(state: JobState, verify_output: str) -> bool:
     """
-    Attempt up to 3 repair iterations after a verify failure.
+    Attempt repair after a verify failure.
+
+    1. Look for ModuleNotFoundError → install into job-scoped venv.
+    2. Re-run verify with venv python.
+    3. If still failing, try LLM-driven patch repair (up to 3 attempts).
 
     Returns True if verify eventually passes.
     """
-    _emit(
-        make_event(
-            EventType.REPAIR_START,
-            state.job_id,
-            {"verify_output_tail": verify_output[-500:]},
-        )
+    _emit_ev(
+        state.job_id,
+        EventType.REPAIR_START,
+        iteration=state.iteration,
+        verify_output_tail=verify_output[-500:],
     )
+    state.last_repair = f"Repair started at iteration {state.iteration}"
+    state_store.save_state(state)
 
+    # ----------------------------------------------------------------
+    # Phase 1: deterministic venv install
+    # ----------------------------------------------------------------
+    missing = _MISSING_MODULE_RE.findall(verify_output)
+    if missing:
+        for pkg in missing:
+            # Use the top-level package name as the pip install target.
+            # Note: import names don't always match PyPI names (e.g. 'PIL' → 'pillow',
+            # 'cv2' → 'opencv-python').  For common mismatches, the pip install may still
+            # succeed if the package registers the import name as a provided extra.
+            # A known-mappings dict can be added here if specific cases are needed.
+            pkg = pkg.split(".")[0]  # e.g. 'foo.bar' → 'foo'
+            if len(state.installed_packages) >= _MAX_AUTO_PACKAGES:
+                _emit_assumption(
+                    state.job_id,
+                    f"Max auto-install limit ({_MAX_AUTO_PACKAGES}) reached. Skipping '{pkg}'.",
+                )
+                break
+            if pkg in state.installed_packages:
+                _emit_assumption(
+                    state.job_id,
+                    f"Package '{pkg}' was already installed but still missing — skipping re-install.",
+                )
+                break
+
+            installed = await _venv_install(state, pkg)
+            if installed:
+                # Re-run verify with venv python (VERIFY_RETRY)
+                _emit_ev(state.job_id, EventType.VERIFY_RETRY, iteration=state.iteration, reason=f"Installed {pkg}")
+                passed, output = await _run_verify(state)
+                state.last_verify_passed = passed
+                state.last_verify_output = output[-2000:]
+                state_store.save_state(state)
+                if passed:
+                    _emit_ev(state.job_id, EventType.REPAIR_RESULT, iteration=state.iteration, success=True, method="venv_install", package=pkg)
+                    return True
+                verify_output = output  # use fresh output for next phase
+
+    # ----------------------------------------------------------------
+    # Phase 2: LLM-driven patch repair (up to 3 attempts)
+    # ----------------------------------------------------------------
     for attempt in range(1, 4):
         repair_system = (
-            "You are a repair agent. The verify gate failed. "
-            "Analyze the failure output and propose a MINIMAL unified diff to fix it. "
-            "Respond ONLY with: "
+            "You are a repair agent. Analyze the verify failure and propose a MINIMAL "
+            "unified diff to fix it. Respond ONLY with: "
             '{"action":"repair","diff":"<unified diff>","rationale":"<explanation>"}'
         )
         repair_messages = [
             {
                 "role": "user",
                 "content": (
-                    f"VERIFY FAILURE OUTPUT:\n{verify_output[-1500:]}\n\n"
-                    f"GOAL: {state.goal}\n\n"
-                    "Propose a minimal repair diff."
+                    f"VERIFY FAILURE:\n{verify_output[-1500:]}\n\n"
+                    f"GOAL: {state.goal}\n\nPropose a minimal repair diff."
                 ),
             }
         ]
@@ -472,49 +568,136 @@ async def _repair_loop(state: JobState, verify_output: str) -> bool:
             )
             action = _parse_action(raw, state.job_id)
         except Exception as exc:
-            _emit(
-                make_event(
-                    EventType.REPAIR_RESULT,
-                    state.job_id,
-                    {
-                        "attempt": attempt,
-                        "success": False,
-                        "reason": f"LLM error: {exc}",
-                    },
-                    level=EventLevel.WARN,
-                )
+            _emit_ev(
+                state.job_id, EventType.REPAIR_RESULT,
+                iteration=state.iteration,
+                attempt=attempt, success=False, reason=f"LLM error: {exc}",
+                level=EventLevel.WARN,
             )
             break
 
         if action.get("action") in ("repair", "patch") and action.get("diff"):
-            await _apply_patch(state, action)
+            await _apply_patch(state, action, state.iteration)
             passed, output = await _run_verify(state)
             state.last_verify_passed = passed
             state.last_verify_output = output[-2000:]
+            state.last_repair = f"LLM repair attempt {attempt} at iteration {state.iteration}"
             state_store.save_state(state)
-            _emit(
-                make_event(
-                    EventType.REPAIR_RESULT,
-                    state.job_id,
-                    {"attempt": attempt, "success": passed},
-                )
+            _emit_ev(
+                state.job_id, EventType.REPAIR_RESULT,
+                iteration=state.iteration,
+                attempt=attempt, success=passed,
             )
             if passed:
                 return True
             verify_output = output
         else:
-            # No diff — nothing to apply
-            _emit(
-                make_event(
-                    EventType.REPAIR_RESULT,
-                    state.job_id,
-                    {"attempt": attempt, "success": False, "reason": "No diff in response"},
-                    level=EventLevel.WARN,
-                )
+            _emit_ev(
+                state.job_id, EventType.REPAIR_RESULT,
+                iteration=state.iteration,
+                attempt=attempt, success=False, reason="No diff in LLM response",
+                level=EventLevel.WARN,
             )
             break
 
     return False
+
+
+async def _venv_install(state: JobState, pkg: str) -> bool:
+    """
+    Create a job-scoped venv (if it doesn't exist) and pip-install *pkg*.
+    Updates state.venv_path and state.installed_packages.
+    Returns True on success.
+    """
+    job_dir = Path(state_store._job_dir(state.job_id))
+    venv_path = job_dir / ".venv"
+
+    _emit_ev(
+        state.job_id,
+        EventType.DEP_INSTALL_START,
+        iteration=state.iteration,
+        package=pkg,
+        venv_path=str(venv_path),
+    )
+
+    # Create venv if missing
+    if not venv_path.exists():
+        try:
+            await asyncio.to_thread(_create_venv, str(venv_path))
+        except Exception as exc:
+            _emit_ev(
+                state.job_id, EventType.DEP_INSTALL_RESULT,
+                iteration=state.iteration,
+                package=pkg, success=False,
+                reason=f"venv creation failed: {exc}",
+                level=EventLevel.ERROR,
+            )
+            return False
+
+    # Find pip inside the venv
+    venv = Path(venv_path)
+    pip_candidates = [
+        venv / "bin" / "pip",
+        venv / "Scripts" / "pip.exe",
+        venv / "bin" / "pip3",
+    ]
+    pip_cmd: list[str] | None = None
+    for c in pip_candidates:
+        if c.exists():
+            pip_cmd = [str(c)]
+            break
+    if not pip_cmd:
+        # Fallback: use python -m pip as a list of args
+        python_candidates = [venv / "bin" / "python", venv / "Scripts" / "python.exe"]
+        for c in python_candidates:
+            if c.exists():
+                pip_cmd = [str(c), "-m", "pip"]
+                break
+
+    if not pip_cmd:
+        _emit_ev(
+            state.job_id, EventType.DEP_INSTALL_RESULT,
+            iteration=state.iteration,
+            package=pkg, success=False,
+            reason="pip not found in venv",
+            level=EventLevel.ERROR,
+        )
+        return False
+
+    # Run pip install (pip_cmd is always a list now)
+    cmd_parts = pip_cmd + ["install", pkg]
+
+    result = await asyncio.to_thread(
+        _run_shell, cmd_parts, cwd=str(_PROJECT_ROOT), timeout=120
+    )
+    success = result["returncode"] == 0
+    output = (result["stdout"] + result["stderr"])[-2000:]
+
+    artifact_path = f"install/iter_{state.iteration:03d}_{pkg}.log"
+    state_store.write_artifact(state.job_id, artifact_path, output)
+    _emit_artifact_written(state.job_id, artifact_path)
+
+    if success:
+        state.venv_path = str(venv_path)
+        state.installed_packages.append(pkg)
+        state_store.save_state(state)
+
+    _emit_ev(
+        state.job_id,
+        EventType.DEP_INSTALL_RESULT,
+        iteration=state.iteration,
+        package=pkg,
+        success=success,
+        output_tail=output[-300:],
+        artifact_ref=artifact_path,
+        level=EventLevel.INFO if success else EventLevel.ERROR,
+    )
+    return success
+
+
+def _create_venv(path: str) -> None:
+    """Create a Python virtual environment at *path* (blocking)."""
+    _venv_mod.create(path, with_pip=True, clear=False)
 
 
 # ---------------------------------------------------------------------------
@@ -523,36 +706,37 @@ async def _repair_loop(state: JobState, verify_output: str) -> bool:
 
 async def _run_review_gate(state: JobState) -> bool:
     """Run the reviewer gate over job artifacts."""
-    _emit(make_event(EventType.REVIEW_START, state.job_id, {}))
+    _emit_ev(state.job_id, EventType.REVIEW_START, iteration=state.iteration)
 
-    # Load all text artifacts
     artifacts: dict[str, str] = {}
-    for name in state_store.list_artifacts(state.job_id):
-        content = state_store.read_artifact(state.job_id, name)
+    for meta in state_store.list_artifacts(state.job_id):
+        content = state_store.read_artifact(state.job_id, meta.path)
         if content:
-            artifacts[name] = content
+            artifacts[meta.path] = content
 
     review = await asyncio.to_thread(run_review, state.job_id, state.goal, artifacts)
 
-    _emit(
-        make_event(
-            EventType.REVIEW_RESULT,
-            state.job_id,
-            {
-                "passed": review.passed,
-                "summary": review.summary(),
-                "findings": [
-                    {
-                        "severity": f.severity,
-                        "rule": f.rule,
-                        "detail": f.detail,
-                        "file": f.file,
-                    }
-                    for f in review.findings
-                ],
-            },
-            level=EventLevel.INFO if review.passed else EventLevel.WARN,
-        )
+    artifact_path = f"reports/review_iter_{state.iteration:03d}.json"
+    report = {
+        "passed": review.passed,
+        "summary": review.summary(),
+        "findings": [
+            {"severity": f.severity, "rule": f.rule, "detail": f.detail, "file": f.file}
+            for f in review.findings
+        ],
+    }
+    state_store.write_artifact(state.job_id, artifact_path, json.dumps(report, ensure_ascii=False, indent=2))
+    _emit_artifact_written(state.job_id, artifact_path)
+
+    _emit_ev(
+        state.job_id,
+        EventType.REVIEW_RESULT,
+        iteration=state.iteration,
+        passed=review.passed,
+        summary=review.summary(),
+        findings=report["findings"],
+        artifact_ref=artifact_path,
+        level=EventLevel.INFO if review.passed else EventLevel.WARN,
     )
     return review.passed
 
@@ -561,31 +745,27 @@ async def _run_review_gate(state: JobState) -> bool:
 # Terminal state helpers
 # ---------------------------------------------------------------------------
 
-async def _complete(state: JobState, summary: str) -> None:
-    state.status = JobStatus.COMPLETE
-    state.finished_at = datetime.now(timezone.utc).isoformat()
-    state.stop_reason = summary
-    state_store.save_state(state)
-    _emit(make_event(EventType.COMPLETE, state.job_id, {"summary": summary}))
-
-
-async def _fail(state: JobState, reason: str) -> None:
-    state.status = JobStatus.FAILED
+async def _finish(
+    state: JobState,
+    status: JobStatus,
+    reason: str,
+    ev_type: EventType = EventType.FAILED,
+) -> None:
+    state.status = status
     state.finished_at = datetime.now(timezone.utc).isoformat()
     state.stop_reason = reason
     state_store.save_state(state)
-    _emit(
-        make_event(
-            EventType.FAILED,
-            state.job_id,
-            {"reason": reason},
-            level=EventLevel.ERROR,
-        )
-    )
+    level = EventLevel.INFO if status == JobStatus.COMPLETE else EventLevel.ERROR
+    _emit_ev(state.job_id, ev_type, reason=reason, level=level)
+    _emit_ev(state.job_id, EventType.STATUS, status=str(status), reason=reason)
 
 
 def _emit_assumption(job_id: str, message: str) -> None:
-    _emit(make_event(EventType.ASSUMPTION_LOG, job_id, {"message": message}))
+    _emit_ev(job_id, EventType.ASSUMPTION_LOG, message=message, level=EventLevel.WARN)
+
+
+def _emit_artifact_written(job_id: str, artifact_ref: str) -> None:
+    _emit_ev(job_id, EventType.ARTIFACT_WRITTEN, artifact_ref=artifact_ref)
 
 
 # ---------------------------------------------------------------------------
@@ -598,9 +778,6 @@ def _run_shell(
     input_text: str | None = None,
     timeout: int = 120,
 ) -> dict[str, Any]:
-    """
-    Run a subprocess synchronously.  Returns dict with returncode, stdout, stderr.
-    """
     try:
         proc = subprocess.run(
             cmd,

@@ -1,81 +1,90 @@
 """
 webui/app.py — FastAPI application for the Overlord11 Tactical WebUI.
 
-Endpoints
----------
-POST   /api/jobs                   Create a new job
-GET    /api/jobs                   List all jobs
-GET    /api/jobs/{id}              Get job state snapshot
-POST   /api/jobs/{id}/start        Start (or restart) a job
-POST   /api/jobs/{id}/pause        Pause a running job
-POST   /api/jobs/{id}/resume       Resume a paused job
-POST   /api/jobs/{id}/stop         Stop a job
-POST   /api/jobs/{id}/directive    Inject user feedback mid-run
-GET    /api/jobs/{id}/events       SSE stream of job events
-GET    /api/jobs/{id}/events/tail  Last N events (JSON array)
-GET    /api/jobs/{id}/artifacts    List artifacts
-GET    /api/jobs/{id}/artifacts/{name}  Read artifact text
-
-GET    /                           Serve the single-page tactical UI
+API contract (per TacticalWebUI_MasterPlan.md):
+    POST   /api/jobs                         Create job
+    GET    /api/jobs                         List jobs
+    GET    /api/jobs/{id}                    Get state snapshot
+    POST   /api/jobs/{id}/start              Start job
+    POST   /api/jobs/{id}/pause?pause=true   Pause job
+    POST   /api/jobs/{id}/pause?pause=false  Resume job
+    POST   /api/jobs/{id}/stop               Stop job
+    POST   /api/jobs/{id}/directive          Inject directive (text, severity, tags)
+    GET    /api/jobs/{id}/events?since=N     SSE stream (byte-offset resume)
+    GET    /api/jobs/{id}/events/tail?n=N    Last N events as JSON array
+    GET    /api/jobs/{id}/artifacts          List artifacts (path/size/mtime)
+    GET    /api/jobs/{id}/artifacts/<path>   Fetch artifact content
+    GET    /api/health                       Health check
+    GET    /                                 Serve tactical WebUI
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
+import secrets
+import time
 import uuid
+from asyncio import Queue
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator, Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .events import EventType, make_event
-from .models import CreateJobRequest, DirectiveRequest, JobState, JobStatus, JobSummary
+from .models import (
+    ArtifactMeta,
+    CreateJobRequest,
+    DirectiveRequest,
+    JobState,
+    JobStatus,
+    JobSummary,
+)
 from . import runner as runner_module
 from . import state_store
-from .state_store import _safe_artifact_name
+from .state_store import _safe_artifact_path, _safe_job_id
 
 # ---------------------------------------------------------------------------
-# App factory
+# App setup
 # ---------------------------------------------------------------------------
-
-_STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 app = FastAPI(
     title="Overlord11 Tactical WebUI",
-    description="Autonomous mission runner with live event streaming",
-    version="1.0.0",
+    description="Autonomous mission runner with live SSE telemetry.",
+    version="0.1.0",
 )
 
-# Serve static files (frontend)
-if _STATIC_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+_STATIC = Path(__file__).parent / "static"
+if _STATIC.exists():
+    app.mount("/static", StaticFiles(directory=str(_STATIC)), name="static")
+
+# Length in bytes of generated job IDs (hex chars = 2× this value)
+_JOB_ID_BYTES = 6
+
 
 # ---------------------------------------------------------------------------
-# Root — serve the UI
+# UI
 # ---------------------------------------------------------------------------
 
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/", include_in_schema=False)
 async def serve_ui():
-    index = _STATIC_DIR / "index.html"
+    index = _STATIC / "index.html"
     if index.exists():
-        return HTMLResponse(content=index.read_text(encoding="utf-8"))
-    return HTMLResponse(
-        content="<h1>Overlord11 Tactical WebUI</h1><p>Frontend not found.</p>"
-    )
+        return FileResponse(str(index))
+    return HTMLResponse("<h1>Overlord11 WebUI — static files not found</h1>", status_code=503)
 
 
 # ---------------------------------------------------------------------------
 # Jobs — CRUD
 # ---------------------------------------------------------------------------
 
-@app.post("/api/jobs", response_model=JobState, status_code=201)
+@app.post("/api/jobs", status_code=201)
 async def create_job(req: CreateJobRequest):
-    """Create a new job and persist it to disk."""
-    job_id = uuid.uuid4().hex[:12]
+    """Create and persist a new job."""
+    job_id = secrets.token_hex(_JOB_ID_BYTES)
     state = JobState(
         job_id=job_id,
         goal=req.goal,
@@ -88,126 +97,123 @@ async def create_job(req: CreateJobRequest):
         autonomous=req.autonomous,
     )
     state_store.create_job(state)
-    return state
+    return state.model_dump()
 
 
-@app.get("/api/jobs", response_model=list[JobSummary])
+@app.get("/api/jobs")
 async def list_jobs():
-    """Return a summary list of all jobs."""
-    summaries = []
+    """Return a lightweight summary list of all jobs."""
+    result = []
     for jid in state_store.list_jobs():
         s = state_store.load_state(jid)
         if s:
-            summaries.append(
+            result.append(
                 JobSummary(
                     job_id=s.job_id,
-                    goal=s.goal[:120],
-                    status=s.status,
+                    goal=s.goal,
+                    status=str(s.status),
                     created_at=s.created_at,
                     iteration=s.iteration,
                     stop_reason=s.stop_reason,
-                )
+                ).model_dump()
             )
-    return summaries
+    return result
 
 
-@app.get("/api/jobs/{job_id}", response_model=JobState)
+@app.get("/api/jobs/{job_id}")
 async def get_job(job_id: str):
-    """Return the full state snapshot for a job."""
+    """Return full state snapshot for a job."""
+    _assert_exists(job_id)
     state = state_store.load_state(job_id)
-    if state is None:
-        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
-    return state
+    return state.model_dump()
 
 
 # ---------------------------------------------------------------------------
-# Job control
+# Jobs — lifecycle control
 # ---------------------------------------------------------------------------
 
-@app.post("/api/jobs/{job_id}/start", response_model=JobState)
+@app.post("/api/jobs/{job_id}/start", status_code=202)
 async def start_job(job_id: str):
-    """Start a PENDING job (or restart a FAILED/COMPLETE one)."""
+    """Start (or restart) a job."""
+    _assert_exists(job_id)
     state = state_store.load_state(job_id)
-    if state is None:
-        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
-    if state.status == JobStatus.RUNNING:
-        raise HTTPException(status_code=409, detail="Job is already running")
-
-    # Reset for restart if previously terminal
-    if state.status in (JobStatus.COMPLETE, JobStatus.FAILED):
-        state.status = JobStatus.PENDING
-        state.iteration = 0
-        state.last_verify_passed = None
-        state.last_verify_output = None
-        state.stop_reason = None
-        state.started_at = None
-        state.finished_at = None
-        state_store.save_state(state)
-
+    if state.status not in (JobStatus.PENDING, JobStatus.FAILED, JobStatus.STOPPED):
+        raise HTTPException(400, f"Job is already {state.status}")
     asyncio.create_task(runner_module.run_job(job_id))
-    return state_store.load_state(job_id)
+    return {"job_id": job_id, "message": "started"}
 
 
 @app.post("/api/jobs/{job_id}/pause")
-async def pause_job(job_id: str):
-    """Signal a running job to pause at the next iteration boundary."""
-    _assert_exists(job_id)
-    runner_module.set_control(job_id, "pause")
-    return {"status": "pause_requested", "job_id": job_id}
+async def pause_or_resume_job(job_id: str, pause: bool = Query(True)):
+    """
+    Pause (pause=true) or resume (pause=false) a running job.
 
-
-@app.post("/api/jobs/{job_id}/resume")
-async def resume_job(job_id: str):
-    """Resume a paused job."""
+    Maps to POST /jobs/{id}/pause?pause=true|false per the MasterPlan API contract.
+    """
     _assert_exists(job_id)
-    runner_module.set_control(job_id, "resume")
-    return {"status": "resume_requested", "job_id": job_id}
+    state = state_store.load_state(job_id)
+    if pause:
+        if state.status != JobStatus.RUNNING:
+            raise HTTPException(400, f"Job is not running (status={state.status})")
+        runner_module.set_control(job_id, "pause")
+        return {"job_id": job_id, "message": "pause requested"}
+    else:
+        if state.status != JobStatus.PAUSED:
+            raise HTTPException(400, f"Job is not paused (status={state.status})")
+        runner_module.set_control(job_id, "resume")
+        return {"job_id": job_id, "message": "resume requested"}
 
 
 @app.post("/api/jobs/{job_id}/stop")
 async def stop_job(job_id: str):
-    """Signal a running/paused job to stop."""
+    """Stop a running or paused job."""
     _assert_exists(job_id)
     runner_module.set_control(job_id, "stop")
-    return {"status": "stop_requested", "job_id": job_id}
+    return {"job_id": job_id, "message": "stop requested"}
 
 
 # ---------------------------------------------------------------------------
-# Directives (user feedback injection)
+# Directives
 # ---------------------------------------------------------------------------
 
-@app.post("/api/jobs/{job_id}/directive")
+@app.post("/api/jobs/{job_id}/directive", status_code=202)
 async def post_directive(job_id: str, req: DirectiveRequest):
     """
-    Inject a user directive mid-run.  The event is recorded and the runner
-    picks it up at the next iteration.
+    Inject a user directive mid-run.
+
+    Persists to pending_directives[] in state.json and broadcasts a
+    USER_DIRECTIVE event to all live SSE clients immediately.
     """
+    _assert_exists(job_id)
     state = state_store.load_state(job_id)
-    if state is None:
-        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
 
     directive = {
+        "text": req.text,
+        "severity": req.severity,
+        "tags": req.tags,
         "ts": datetime.now(timezone.utc).isoformat(),
-        "message": req.message,
     }
-    state.directives.append(directive)
+    state.pending_directives.append(directive)
     state_store.save_state(state)
 
-    event = make_event(
+    ev = make_event(
         EventType.USER_DIRECTIVE,
         job_id,
-        {"message": req.message},
+        {
+            "text": req.text,
+            "severity": req.severity,
+            "tags": req.tags,
+        },
     )
-    state_store.append_event(event)
-
+    state_store.append_event(ev)
     # Broadcast to live SSE clients
     for q in list(runner_module._sse_queues.get(job_id, [])):
         try:
-            q.put_nowait(event)
+            q.put_nowait(ev)
         except asyncio.QueueFull:
             pass
 
-    return {"status": "directive_accepted", "job_id": job_id}
+    return {"job_id": job_id, "message": "directive queued"}
 
 
 # ---------------------------------------------------------------------------
@@ -217,26 +223,26 @@ async def post_directive(job_id: str, req: DirectiveRequest):
 @app.get("/api/jobs/{job_id}/events")
 async def stream_events(
     job_id: str,
-    offset: int = Query(0, ge=0, description="Byte offset in events.jsonl to resume from"),
+    since: int = Query(0, description="Byte offset to resume from (from events.jsonl)"),
 ):
     """
-    Server-Sent Events stream for a job.
+    Server-Sent Events stream.
 
-    Sends all historical events (from *offset*) first, then stays open and
-    pushes new events as they arrive.  Use `offset` to resume after disconnect.
+    Replays persisted events from *since* byte offset, then streams live
+    events in real time.  Use `since=<last_offset>` to resume after disconnect.
     """
     _assert_exists(job_id)
 
     async def _generate() -> AsyncGenerator[str, None]:
         q = runner_module.subscribe_sse(job_id)
         try:
-            # 1. Replay historical events
+            # 1. Replay historical events from disk
             from . import state_store as ss
             path = Path(ss._events_path(job_id))
             if path.exists():
                 with open(path, "r", encoding="utf-8") as fh:
-                    if offset:
-                        fh.seek(offset)
+                    if since:
+                        fh.seek(since)
                     for line in fh:
                         line = line.strip()
                         if line:
@@ -248,8 +254,8 @@ async def stream_events(
                     event = await asyncio.wait_for(q.get(), timeout=30.0)
                     yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
                 except asyncio.TimeoutError:
-                    # Send keepalive comment
-                    yield ": keepalive\n\n"
+                    yield ": keepalive\n\n"  # SSE keepalive comment
+
         finally:
             runner_module.unsubscribe_sse(job_id, q)
 
@@ -266,11 +272,11 @@ async def stream_events(
 @app.get("/api/jobs/{job_id}/events/tail")
 async def tail_events(
     job_id: str,
-    n: int = Query(50, ge=1, le=500),
+    n: int = Query(50, ge=1, le=500, description="Number of events to return."),
 ):
     """Return the last *n* events as a JSON array."""
     _assert_exists(job_id)
-    return JSONResponse(content=state_store.tail_events(job_id, n))
+    return state_store.tail_events(job_id, n)
 
 
 # ---------------------------------------------------------------------------
@@ -279,23 +285,27 @@ async def tail_events(
 
 @app.get("/api/jobs/{job_id}/artifacts")
 async def list_artifacts(job_id: str):
-    """List artifact filenames for a job."""
+    """List artifact files with path, size, and mtime."""
     _assert_exists(job_id)
-    return {"job_id": job_id, "artifacts": state_store.list_artifacts(job_id)}
+    artifacts = state_store.list_artifacts(job_id)
+    return {
+        "job_id": job_id,
+        "artifacts": [a.model_dump() for a in artifacts],
+    }
 
 
-@app.get("/api/jobs/{job_id}/artifacts/{artifact_name}")
-async def get_artifact(job_id: str, artifact_name: str):
+@app.get("/api/jobs/{job_id}/artifacts/{artifact_path:path}")
+async def get_artifact(job_id: str, artifact_path: str):
     """Return the text content of a named artifact."""
     _assert_exists(job_id)
     try:
-        _safe_artifact_name(artifact_name)
+        _safe_artifact_path(artifact_path)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid artifact name")
-    content = state_store.read_artifact(job_id, artifact_name)
+        raise HTTPException(status_code=400, detail="Invalid artifact path")
+    content = state_store.read_artifact(job_id, artifact_path)
     if content is None:
-        raise HTTPException(status_code=404, detail=f"Artifact '{artifact_name}' not found")
-    return {"job_id": job_id, "name": artifact_name, "content": content}
+        raise HTTPException(status_code=404, detail=f"Artifact '{artifact_path}' not found")
+    return {"job_id": job_id, "path": artifact_path, "content": content}
 
 
 # ---------------------------------------------------------------------------
@@ -304,7 +314,7 @@ async def get_artifact(job_id: str, artifact_name: str):
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "overlord11-webui"}
+    return {"status": "ok", "service": "overlord11-webui", "schema_version": "0.1"}
 
 
 # ---------------------------------------------------------------------------
