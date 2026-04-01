@@ -149,7 +149,7 @@ Use for: persistent configuration and conventions that all agents need.
 - **Created**: 2026-01-12
 - **TTL**: persistent
 - **Status**: ACTIVE
-- **Context**: Active provider is set in config.json. Supports anthropic (claude-opus-4-5), gemini (gemini-2.5-pro), openai (gpt-4o).
+- **Context**: Active provider is set in config.json. Default: gemini (gemini-3.1-flash-lite-preview). Also supports openai (gpt-4o) and anthropic (claude-opus-4-5). Fallback order: gemini → openai → anthropic.
 - **Action**: Use config.json for all provider/model selection.
 ```
 

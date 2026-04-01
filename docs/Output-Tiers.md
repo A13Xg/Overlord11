@@ -70,9 +70,17 @@ The Orchestrator documents its tier decision in the delegation plan before invok
 
 ## Publisher HTML Themes
 
-The Publisher agent selects a visual theme using `publisher_tool`. The `auto` theme auto-selects based on the report title and content.
+The Publisher agent selects a visual theme using `publisher_tool`. The `auto` theme auto-selects based on the report title and content. **Premium themes are preferred** — they receive double weight in auto-detection and are used as the default when no keywords match.
 
-### Theme Reference
+### Premium Themes (preferred — auto-selected first)
+
+| Theme | Primary Use Case | Color Palette | Best For |
+|-------|-----------------|---------------|----------|
+| `ultraviolet` | AI / Agents / SaaS / Automation | Deep purple + electric lavender | AI reports, platform dashboards, agent outputs |
+| `aurora` | Dashboards / Analytics / Monitoring | Dark deep-blue gradient, electric teal | Data ops, live metrics, infographics |
+| `neobrutalism` | Startups / Product / Brands | Bold offset shadows, saturated primaries | Pitch decks, product launches, brand reports |
+
+### Standard Themes
 
 | Theme | Primary Use Case | Color Palette | Best For |
 |-------|-----------------|---------------|----------|
@@ -81,29 +89,29 @@ The Publisher agent selects a visual theme using `publisher_tool`. The `auto` th
 | `informative` | Research & Academia | Clean white, neutral accents | Data science, research papers |
 | `contemporary` | Science & Health | Light, nature-inspired | Health, environment, science |
 | `abstract` | Arts & Culture | Bold, expressive | Arts, creative projects |
-| `modern` | Product & Startups | Clean gradients, sans-serif | Marketing, product, SaaS |
+| `modern` | Product & Startups | Clean gradients, sans-serif | Marketing, product, SaaS (non-premium) |
 | `colorful` | Education | Vibrant multicolor | Learning materials, children's |
 | `tactical` | Security & Defense | Dark, high-contrast | Security audits, risk reports |
 | `editorial` | Journalism & History | Paper-like, typographic | News, historical, narrative |
-| `auto` | Any | (auto-selected) | Let the tool choose the best fit |
+| `auto` | Any | (auto-selected — prefers premium) | Let the tool choose the best fit |
 
 ### Generating a Report via CLI
 
 ```bash
-# With explicit theme
+# With explicit premium theme
 python tools/python/publisher_tool.py \
-  --title "Q1 Revenue Analysis" \
-  --content analysis.md \
-  --theme classic \
-  --output reports/q1_revenue.html
+  --title "AI Agent Benchmark" \
+  --content benchmark.md \
+  --theme ultraviolet \
+  --output reports/ai_benchmark.html
 
-# With auto theme detection
+# With auto theme detection (premium preferred)
 python tools/python/publisher_tool.py \
   --title "Security Audit: Production Systems" \
   --content audit.txt \
   --output reports/security_audit.html
 
-# Techno theme for a code review
+# Explicit standard theme for a code review
 python tools/python/publisher_tool.py \
   --title "Code Review: Authentication Module" \
   --content review_notes.md \

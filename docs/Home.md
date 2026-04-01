@@ -1,6 +1,6 @@
 # Overlord11 Wiki — Home
 
-> **Provider-agnostic multi-agent LLM toolset** · v2.2.0
+> **Provider-agnostic multi-agent LLM toolset** · v2.3.1
 
 Welcome to the Overlord11 documentation. This wiki covers everything you need to understand, configure, use, and extend the framework.
 
@@ -12,12 +12,13 @@ Overlord11 is a structured multi-agent framework that coordinates **eight specia
 
 - A **task routing layer** (the Orchestrator) that decomposes requests and delegates to the right specialists
 - **Eight specialist agents**, each with a distinct role and quality checklist
-- **Twenty-eight built-in tools** for file I/O, web research, code analysis, project scanning, scaffolding, task management, and report generation
+- **Twenty-eight built-in tools** for file I/O, web research, code analysis, project scanning, scaffolding, task management, session management, logging, and report generation
 - A **shared memory system** (`Consciousness.md`) for cross-agent, cross-session context
 - **Provider-agnostic design** — no provider-specific code in agent definitions or tool schemas
 - **Three output tiers** — inline text, Markdown documents, or styled self-contained HTML reports
 - **Encoding safety by default** — all agents enforce UTF-8 file I/O, `safe_str()` output guards, and Windows console protection
-- **81-test suite** — covering all 28 modules with encoding, ripgrep/fallback, Unicode, and CI-friendly output modes
+- **Tactical WebUI** — FastAPI browser dashboard (port 8844) with live provider health, model picker, and Gemini rate-limit fallback chain
+- **81-test suite** — covering all tool modules with encoding, ripgrep/fallback, Unicode, and CI-friendly output modes; plus 31 WebUI-specific tests
 
 ---
 
@@ -28,11 +29,12 @@ Overlord11 is a structured multi-agent framework that coordinates **eight specia
 | [Getting Started](Getting-Started.md) | Installation, setup, first run, and verification |
 | [Architecture](Architecture.md) | System design, agent roles, data flow, and component interactions |
 | [Agents Reference](Agents-Reference.md) | All 8 agents — identities, workflows, tools, and quality checklists |
-| [Tools Reference](Tools-Reference.md) | All 28 tools — parameters, return values, and CLI examples |
+| [Tools Reference](Tools-Reference.md) | All 30 tools — parameters, return values, and CLI examples |
 | [Configuration Reference](Configuration-Reference.md) | Every field in `config.json` explained |
 | [Providers](Providers.md) | LLM provider guide: models, costs, switching, and fallbacks |
 | [Memory System](Memory-System.md) | `Consciousness.md` format, rules, priority levels, and best practices |
 | [Output Tiers](Output-Tiers.md) | Tier 0/1/2 decision logic, Publisher themes, and examples |
+| [WebUI](WebUI.md) | Tactical dashboard — jobs, provider health, model picker, API |
 | [Extension Guide](Extension-Guide.md) | How to add new agents, tools, and LLM providers |
 | [Development](Development.md) | Contributing, testing, linting, and dev environment setup |
 | [Troubleshooting](Troubleshooting.md) | FAQ, common errors, and debugging tips |
@@ -78,14 +80,17 @@ Overlord11 is a structured multi-agent framework that coordinates **eight specia
 Overlord11/
 ├── agents/          # 8 agent system prompts (.md files)
 ├── tools/
-│   ├── defs/        # 28 tool JSON schemas (provider-agnostic)
+│   ├── defs/        # 30 tool JSON schemas (provider-agnostic)
 │   └── python/      # Tool Python implementations
 ├── directives/      # Behavioral instruction files for AI sessions
 ├── docs/            # This wiki
 ├── skills/          # UI/UX design system datasets
 ├── tests/
-│   ├── test.py              # 81-test suite
+│   ├── test.py              # 81-test suite (tool modules)
+│   ├── test_webui.py        # 31-test WebUI suite
 │   └── test_results.json    # Machine-readable results (auto-generated)
+├── webui/           # Tactical WebUI (FastAPI, port 8844)
+├── scripts/         # Launcher scripts (run_webui.py)
 ├── config.json      # Unified configuration
 ├── Consciousness.md # Shared agent memory
 ├── ONBOARDING.md    # Universal LLM onboarding guide

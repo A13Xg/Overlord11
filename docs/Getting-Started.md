@@ -77,23 +77,25 @@ You only need **one key** — the one for your active provider.
 
 ## Step 4 — Set the Active Provider
 
-Open `config.json` and set `providers.active` to your provider:
+Open `config.json` and set `providers.active` to your provider. The default is `"gemini"`:
 
 ```json
 {
   "providers": {
-    "active": "anthropic"
+    "active": "gemini"
   }
 }
 ```
 
-Valid values: `"anthropic"`, `"gemini"`, `"openai"`.
+Valid values: `"gemini"`, `"openai"`, `"anthropic"`.
+
+The fallback order (used when the active provider fails) is `gemini → openai → anthropic`. Edit `orchestration.fallback_provider_order` to change it.
 
 To also change the model within a provider, update the `model` field:
 
 ```json
-"anthropic": {
-  "model": "claude-opus-4-5"
+"gemini": {
+  "model": "gemini-3.1-flash-lite-preview"
 }
 ```
 
@@ -101,59 +103,47 @@ See [Providers](Providers.md) for a full model list and cost comparison.
 
 ---
 
-## Step 5 — Verify Your Setup
+## Step 5 — (Optional) Launch the Tactical WebUI
 
-Run the test suite to confirm all tools are working:
+The Tactical WebUI provides a browser dashboard to monitor jobs, browse artifacts, and configure provider/model selection.
 
 ```bash
-# Full suite (requires internet for web tests)
-python tests/test.py
+# Install WebUI dependencies
+pip install -r requirements-webui.txt
 
-# Skip internet-dependent tests (fast, offline-safe)
-python tests/test.py --skip-web
-
-# Summary output only — ideal for a quick pass/fail check
-python tests/test.py --skip-web --quiet
+# Start the server
+python scripts/run_webui.py
 ```
 
-Expected output when all 81 tests pass:
+Open **http://127.0.0.1:8844** in your browser. The interactive API docs are at **http://127.0.0.1:8844/docs**.
 
-```
-  Overlord11 Tool Test Suite
-  Session: 20260224_213345_test
-  Workspace: tests\test_workspace
-
-  Running: read_file ... 7/7
-  Running: write_file ... 6/6
-  Running: list_directory ... 3/3
-  Running: glob ... 4/4
-  Running: search_file_content ... 7/7
-  ...
-
-  SUMMARY:  81/81 tests passed  |  16 tools tested  |  Total time: 4823ms
-```
-
-| Mode | Tests | Use When |
-|------|-------|----------|
-| Full suite | **81** | Final verification, CI pipelines with internet |
-| `--skip-web` | **72** | Offline development, fast local checks |
-
-### Test CLI Flags
-
-| Flag | Description |
-|------|-------------|
-| `--skip-web` | Skip internet-dependent tests |
-| `--tool NAME` | Run tests for one tool only (e.g. `--tool calculator`) |
-| `--tool A,B,C` | Run tests for multiple tools (comma-separated) |
-| `--quiet` / `-q` | Summary and failures only — LLM/CI friendly |
-| `--no-color` | Disable ANSI colour codes (also: `NO_COLOR=1`) |
-| `--output PATH` | Write JSON results to a custom file path |
-| `--list` | Print all testable tool names and exit |
-| `--fail-fast` | Stop immediately on the first failure |
+Features:
+- Live provider health indicators — green/yellow/red status per provider
+- Clickable model picker — select any available model for the next job
+- Gemini rate-limit fallback — auto-degrades through lighter models on `429 RESOURCE_EXHAUSTED`
+- Job list, events log, artifact browser with inline Markdown preview
+- Structured JSONL logs: `logs/webui.jsonl` and `logs/agents.jsonl`
 
 ---
 
-## Step 6 — Load an Agent as a System Prompt
+## Step 6 — Verify Your Setup
+
+Run the WebUI test suite to confirm all endpoints are working:
+
+```bash
+python -m pytest tests/test_webui.py -v
+```
+
+Or run the core tool test suite:
+
+```bash
+# Skip internet-dependent tests (fast, offline-safe)
+python tests/test.py --skip-web --quiet
+```
+
+---
+
+## Step 7 — Load an Agent as a System Prompt
 
 Each file in `agents/` is a complete system prompt. Load it in your LLM client:
 
@@ -175,7 +165,7 @@ print(response.content[0].text)
 
 ---
 
-## Step 7 — Run a Task End-to-End
+## Step 8 — Run a Task End-to-End
 
 The typical flow is:
 

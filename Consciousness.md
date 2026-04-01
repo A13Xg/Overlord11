@@ -77,7 +77,7 @@ _No active signals._
 - **Created**: 2026-01-12
 - **TTL**: persistent
 - **Status**: ACTIVE
-- **Context**: Active provider is set in `config.json` under `providers.active`. Supports `anthropic` (claude-opus-4-5), `gemini` (gemini-2.5-pro), and `openai` (gpt-4o). Fallback order defined in `orchestration.fallback_provider_order`.
+- **Context**: Active provider is set in `config.json` under `providers.active`. Default: `gemini` (gemini-3.1-flash-lite-preview). Also supports `openai` (gpt-4o) and `anthropic` (claude-opus-4-5). Fallback order: gemini → openai → anthropic. Never hardcode provider or model names.
 - **Action**: All agents should use the configured provider from `config.json`. Do not hardcode provider or model names.
 
 ### [PERSISTENT] Workspace Conventions

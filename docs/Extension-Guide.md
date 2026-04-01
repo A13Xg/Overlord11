@@ -309,7 +309,7 @@ Add the new provider to the fallback chain in `config.json` if desired:
 
 ```json
 "orchestration": {
-  "fallback_provider_order": ["anthropic", "gemini", "openai", "my_provider"]
+  "fallback_provider_order": ["gemini", "openai", "anthropic", "my_provider"]
 }
 ```
 

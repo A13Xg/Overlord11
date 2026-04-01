@@ -8,7 +8,7 @@ Complete reference for every field in `config.json`.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `version` | string | Framework version (e.g., `"2.2.0"`) |
+| `version` | string | Framework version (e.g., `"2.3.1"`) |
 | `name` | string | Framework name (`"Overlord11"`) |
 | `description` | string | One-line description |
 | `providers` | object | LLM provider configuration |
@@ -18,6 +18,7 @@ Complete reference for every field in `config.json`.
 | `quality` | object | Code and output quality thresholds |
 | `workspace` | object | Session workspace settings |
 | `logging` | object | Log output settings |
+| `ui_defaults` | object | UI/UX output quality controls (applies to all AI providers) |
 
 ---
 
@@ -26,10 +27,10 @@ Complete reference for every field in `config.json`.
 ### `providers.active`
 
 ```json
-"active": "anthropic"
+"active": "gemini"
 ```
 
-Sets the currently active LLM provider. Valid values: `"anthropic"`, `"gemini"`, `"openai"`.
+Sets the currently active LLM provider. Valid values: `"gemini"`, `"openai"`, `"anthropic"`. Default is `"gemini"`.
 
 ### Per-Provider Fields
 
@@ -147,6 +148,19 @@ Each tool entry maps a tool name to its schema and implementation:
 
 > Tools with `"impl": null` (like `replace`) are implemented directly by the LLM agent, not as standalone Python scripts.
 
+The framework currently registers **30 tools**. All entries use the `def`/`impl` format. The two utility tools (`session_manager`, `log_manager`) follow the same format:
+
+```json
+"session_manager": {
+  "def": "tools/defs/session_manager.json",
+  "impl": "tools/python/session_manager.py"
+},
+"log_manager": {
+  "def": "tools/defs/log_manager.json",
+  "impl": "tools/python/log_manager.py"
+}
+```
+
 ---
 
 ## `orchestration`
@@ -157,7 +171,7 @@ Each tool entry maps a tool name to its schema and implementation:
 | `max_retries_per_agent` | integer | Retry count if an agent produces insufficient output (default: 3) |
 | `retry_on_empty_output` | boolean | Retry automatically if an agent returns empty output (default: `true`) |
 | `always_review_before_delivery` | boolean | Always invoke Reviewer before final output (default: `true`) |
-| `fallback_provider_order` | array | Provider fallback chain on API failure (e.g., `["anthropic", "gemini", "openai"]`) |
+| `fallback_provider_order` | array | Provider fallback chain on API failure — default: `["gemini", "openai", "anthropic"]` |
 | `phases` | array | Ordered workflow phases: `["intake", "research", "planning", "execution", "review", "delivery"]` |
 | `memory_file` | string | Path to shared memory file (default: `"Consciousness.md"`) |
 | `log_sessions` | boolean | Enable session logging (default: `true`) |
@@ -200,6 +214,41 @@ Each tool entry maps a tool name to its schema and implementation:
 | `include_agent_outputs` | boolean | Log full agent output text (default: `true`) |
 | `rotate_daily` | boolean | Rotate log files daily (default: `true`) |
 | `max_log_files` | integer | Number of log files to retain (default: 30) |
+
+The WebUI produces two separate log streams:
+
+| File | Content |
+|------|---------|
+| `logs/webui.jsonl` | HTTP requests, provider health probes, config changes |
+| `logs/agents.jsonl` | Tool invocations, LLM decisions, agent switches, job events |
+
+---
+
+## `ui_defaults`
+
+Controls UI/UX output quality. Applies to **all AI providers** (Gemini, OpenAI, Anthropic).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `design_system_required` | boolean | Coder must call `ui_design_system` before any HTML/CSS work (default: `true`) |
+| `preferred_styles` | array | Premium style pool — auto-selection draws exclusively from these: `aurora-gradient`, `glassmorphism`, `ultraviolet`, `neobrutalism`, `biomimetic` |
+| `fallback_styles` | array | Standard and basic styles available via explicit `style_id` parameter |
+| `publisher_preferred_themes` | array | Publisher `publisher_tool` premium themes: `aurora`, `ultraviolet`, `neobrutalism` |
+| `no_basic_generic_html` | boolean | Block plain/generic HTML output — styled design system required (default: `true`) |
+| `verbose_ui_required` | boolean | Require rich, verbose HTML layouts with multiple sections, metrics, and visual hierarchy (default: `true`) |
+
+**Example:**
+
+```json
+"ui_defaults": {
+  "design_system_required": true,
+  "preferred_styles": ["aurora-gradient", "glassmorphism", "ultraviolet", "neobrutalism", "biomimetic"],
+  "fallback_styles": ["minimal-zen", "data-dense", "soft-ui", "editorial", "brutalist", "retro-terminal"],
+  "publisher_preferred_themes": ["aurora", "ultraviolet", "neobrutalism"],
+  "no_basic_generic_html": true,
+  "verbose_ui_required": true
+}
+```
 
 ---
 

@@ -316,14 +316,12 @@
       "impl": "tools/python/vision_tool.py"
     },
     "session_manager": {
-      "file": "tools/python/session_manager.py",
-      "schema": "tools/defs/session_manager.json",
-      "description": "Work session lifecycle management — create, track, and close sessions with file-change and agent-usage logging"
+      "def": "tools/defs/session_manager.json",
+      "impl": "tools/python/session_manager.py"
     },
     "log_manager": {
-      "file": "tools/python/log_manager.py",
-      "schema": "tools/defs/log_manager.json",
-      "description": "Central JSONL logger for tool invocations, LLM decisions, agent switches, and errors — AI-parseable for self-healing diagnostics"
+      "def": "tools/defs/log_manager.json",
+      "impl": "tools/python/log_manager.py"
     }
   },
   "orchestration": {

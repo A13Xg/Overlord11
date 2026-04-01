@@ -32,7 +32,7 @@ cp .env.example .env
 
 ## Running Tests
 
-The test suite is in `tests/test.py`. It exercises all 28 modules with real-world scenarios and produces verbose expected-vs-actual output.
+The test suite is in `tests/test.py`. It exercises all 28 core tool modules with real-world scenarios and produces verbose expected-vs-actual output. A separate WebUI suite (`tests/test_webui.py`) covers 31 endpoint tests for the Tactical WebUI.
 
 ```bash
 # Run all tests (includes live web calls)
@@ -288,7 +288,7 @@ test: add publisher_tool theme coverage tests
 Overlord11/
 ├── agents/          # 8 agent system prompts — edit carefully
 ├── tools/
-│   ├── defs/        # 28 JSON Schema tool definitions
+│   ├── defs/        # 30 JSON Schema tool definitions
 │   └── python/      # Tool Python implementations
 ├── directives/      # Behavioral instruction files for AI sessions
 ├── docs/            # Wiki documentation

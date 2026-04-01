@@ -582,7 +582,7 @@ Complete documentation is available in the [`docs/`](docs/) directory:
 | [Getting Started](docs/Getting-Started.md) | Installation, setup, and first run |
 | [Architecture](docs/Architecture.md) | System design, data flow, and component interactions |
 | [Agents Reference](docs/Agents-Reference.md) | All 8 agents — identities, workflows, and quality checklists |
-| [Tools Reference](docs/Tools-Reference.md) | All 28 tools — parameters, examples, and return values |
+| [Tools Reference](docs/Tools-Reference.md) | All 30 tools — parameters, examples, and return values |
 | [Configuration Reference](docs/Configuration-Reference.md) | Complete `config.json` field reference |
 | [Providers](docs/Providers.md) | LLM provider guide: models, costs, switching, and fallbacks |
 | [Memory System](docs/Memory-System.md) | `Consciousness.md` format, rules, and best practices |
