@@ -56,3 +56,4 @@ tests/test_workspace/
 
 # Temporary files
 *.tmp
+__pycache__/
