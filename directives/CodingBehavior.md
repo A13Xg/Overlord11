@@ -340,6 +340,35 @@ Tests must verify behavior from a direction that is **independent of the impleme
 
 ---
 
+## UI/UX Design System — Mandatory Rules
+
+> These rules apply to **every AI provider** (Gemini, OpenAI, Anthropic, and any future providers). Inconsistent UI/UX output across providers is a known failure mode. These rules eliminate it.
+
+### Before Writing Any UI Code
+
+1. **Check for existing design system**: Look for `design-system/MASTER.md` in the project workspace.
+   - If found: read it completely before writing any HTML/CSS/JS.
+   - If not found: call `ui_design_system(persist=True)` to generate and persist it **before writing a single line of UI code**.
+
+2. **Default to premium styles**: The `ui_design_system` tool automatically selects a premium style (aurora-gradient, glassmorphism, ultraviolet, neobrutalism, or biomimetic). These styles must be used unless the user has explicitly requested a simpler theme.
+   - ✅ **Do**: Use the generated tokens, layout rules, typography, and component shapes verbatim.
+   - ❌ **Never**: Produce plain, unstyled, generic, or "default browser" HTML.
+   - ❌ **Never**: Hardcode hex color values, font names, or spacing values — all must come from the design system tokens.
+
+3. **Publisher tool themes**: When using `publisher_tool`, the themes `ultraviolet`, `aurora`, and `neobrutalism` are the preferred premium themes. The auto-detection (`--theme auto`) will prefer these. Only fall back to `techno`, `modern`, `editorial` etc. if no premium theme keyword matches.
+
+### What "Verbose and Inclusive" Means for UI
+
+When building interactive UIs (dashboards, WebUIs, command interfaces):
+- Show the user what is happening at all times (loading states, status indicators, error messages).
+- Log important events in an activity feed or console panel.
+- Use color-coded indicators (green=ok, yellow=warning, red=error, gray=checking) consistently.
+- Provide inline help text, tooltips, and contextual notes.
+- Use toast notifications for async action results.
+- Progressive disclosure: show summary first, detail on demand.
+
+---
+
 ## Code Style & Quality Standards
 
 ### Naming

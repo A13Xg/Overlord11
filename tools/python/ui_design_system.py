@@ -73,10 +73,34 @@ def _load_json(rel_path: str) -> list:
 # Default selection (deterministic based on project_name hash)
 # ---------------------------------------------------------------------------
 
-_STYLE_IDS = [
-    "brutalist", "glassmorphism", "neobrutalism", "editorial", "minimal-zen",
-    "data-dense", "soft-ui", "retro-terminal", "biomimetic", "aurora-gradient",
+# Premium/advanced styles — visually impressive, modern, distinctive.
+# These are ALWAYS preferred for automatic style selection.
+# New requirement: prioritize these over basic themes for all providers.
+_PREMIUM_STYLE_IDS = [
+    "aurora-gradient",  # vibrant dark with gradient depth — ideal for dashboards/AI tools
+    "glassmorphism",    # frosted glass panels on rich backgrounds — modern and layered
+    "ultraviolet",      # deep purple with electric lavender — premium AI/SaaS aesthetic
+    "neobrutalism",     # bold offset shadows, chunky, high-energy — great for products
+    "biomimetic",       # organic curves and natural gradients — distinctive and warm
 ]
+
+# Standard styles — polished and content-appropriate, used when explicitly requested
+# or as the fallback pool after premium styles.
+_STANDARD_STYLE_IDS = [
+    "minimal-zen",
+    "data-dense",
+    "soft-ui",
+]
+
+# Basic styles — foundational aesthetics, available on request
+_BASIC_STYLE_IDS = [
+    "editorial",
+    "brutalist",
+    "retro-terminal",
+]
+
+# Full ordered list (premium first) — used for explicit --style=<id> validation
+_STYLE_IDS = _PREMIUM_STYLE_IDS + _STANDARD_STYLE_IDS + _BASIC_STYLE_IDS
 
 _PALETTE_IDS = [
     "midnight-ink", "chalk-board", "neon-city", "nordic-frost", "terracotta-sun",
@@ -100,9 +124,14 @@ _STYLE_PALETTE_AFFINITY: dict[str, list[str]] = {
 
 
 def _default_style(project_name: str) -> str:
-    """Pick a style deterministically from the project name hash."""
+    """Pick a PREMIUM style deterministically from the project name hash.
+
+    Always selects from _PREMIUM_STYLE_IDS so that auto-generated design
+    systems use the most visually impressive, modern styles by default.
+    Standard and basic styles are still available via explicit --style=<id>.
+    """
     h = int(hashlib.md5(project_name.encode("utf-8")).hexdigest(), 16)
-    return _STYLE_IDS[h % len(_STYLE_IDS)]
+    return _PREMIUM_STYLE_IDS[h % len(_PREMIUM_STYLE_IDS)]
 
 
 def _default_palette(style_id: str, project_name: str) -> str:

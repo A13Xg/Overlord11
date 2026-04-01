@@ -83,8 +83,10 @@ Orchestrator → project_docs_init (ensure project files exist)
 ### UI/UX Feature Request
 ```
 Orchestrator → project_docs_init (ensure project files exist)
-             → Coder (call ui_design_system to generate/load design spec; implement UI)
-             → Reviewer (validate UI against design-system/MASTER.md tokens and rules)
+             → Coder (MANDATORY: call ui_design_system(persist=True) if design-system/MASTER.md absent;
+                      use premium style by default — aurora-gradient / glassmorphism / ultraviolet / neobrutalism / biomimetic;
+                      implement UI using design system tokens only — no hardcoded hex or generic styles)
+             → Reviewer (validate UI against design-system/MASTER.md tokens, layout rules, and premium style requirements)
              → Cleanup (pre-deploy scan)
              → Writer (update docs)  [Tier 1]
 ```
@@ -156,7 +158,7 @@ Orchestrator → Researcher (use analyze_content action on target URLs)
 - [ ] `TaskingLog.md` checked for duplicate/completed tasks before starting
 - [ ] Request fully understood before delegation begins
 - [ ] Output tier assessed and documented in the plan
-- [ ] For UI/UX tasks: Coder instructed to call `ui_design_system` first (or read `design-system/MASTER.md` if it exists)
+- [ ] For UI/UX tasks: Coder instructed to call `ui_design_system(persist=True)` first (or read `design-system/MASTER.md` if it exists) — **applies to all providers (Gemini, OpenAI, Anthropic)**; premium style (aurora-gradient/glassmorphism/ultraviolet/neobrutalism/biomimetic) used by default
 - [ ] All required agents identified and invoked
 - [ ] Agent outputs verified against subtask contracts
 - [ ] Reviewer agent always invoked before final delivery

@@ -1,16 +1,18 @@
 """
-Overlord11 - Publisher Tool v1.0
+Overlord11 - Publisher Tool v2.0
 =================================
 Generates fully self-contained styled HTML reports from structured content.
 
 Automatically selects a visual theme based on subject matter and produces
 a single .html file with all CSS and optional inline JS included.
 
-Themes: auto, techno, classic, informative, contemporary, abstract,
-        modern, colorful, tactical, editorial
+Theme priority order (preferred first):
+  Premium:  ultraviolet, aurora, neobrutalism
+  Standard: techno, modern, editorial, tactical, contemporary, abstract
+  Basic:    classic, informative, colorful
 
 Usage:
-    python publisher_tool.py --title "Q1 Analysis" --content report.md --theme modern
+    python publisher_tool.py --title "Q1 Analysis" --content report.md --theme aurora
     python publisher_tool.py --title "Security Audit" --content data.txt --theme tactical --output report.html
     python publisher_tool.py --help
 """
@@ -184,7 +186,7 @@ THEMES = {
         "hero_gradient": "linear-gradient(135deg, #1a0000 0%, #0a0a0a 100%)",
         "metric_bg": "#1a1a1a",
         "metric_accent": "#cc0000",
-        "tag": "CLASSIFIED",
+        "tag": "INTEL",
     },
     "editorial": {
         "bg": "#fdf6e3",
@@ -203,6 +205,59 @@ THEMES = {
         "metric_accent": "#c0392b",
         "tag": "EDITORIAL",
     },
+    # ── Premium themes (from design system skills/uiux) ──────────────────────
+    "ultraviolet": {
+        "bg": "#0e0a1a",
+        "surface": "#150e28",
+        "surface2": "#1e1538",
+        "primary": "#a855f7",
+        "secondary": "#7c3aed",
+        "accent": "#c084fc",
+        "text": "#e8e0f8",
+        "text_muted": "#8070a8",
+        "border": "#2e2050",
+        "heading_font": "'Segoe UI', 'DM Sans', system-ui, sans-serif",
+        "body_font": "'Segoe UI', 'DM Sans', system-ui, sans-serif",
+        "hero_gradient": "linear-gradient(135deg, #0e0a1a 0%, #1e1040 50%, #150e28 100%)",
+        "metric_bg": "#1e1538",
+        "metric_accent": "#a855f7",
+        "tag": "AI",
+    },
+    "aurora": {
+        "bg": "#060b14",
+        "surface": "#0d1626",
+        "surface2": "#142038",
+        "primary": "#38bdf8",
+        "secondary": "#818cf8",
+        "accent": "#34d399",
+        "text": "#e2e8f0",
+        "text_muted": "#64748b",
+        "border": "#1e3a5f",
+        "heading_font": "'Segoe UI', system-ui, sans-serif",
+        "body_font": "'Segoe UI', system-ui, sans-serif",
+        "hero_gradient": "linear-gradient(135deg, #060b14 0%, #0a1628 40%, #0d2040 100%)",
+        "metric_bg": "#0d1e38",
+        "metric_accent": "#38bdf8",
+        "tag": "LIVE",
+    },
+    "neobrutalism": {
+        "bg": "#fffbf5",
+        "surface": "#ffffff",
+        "surface2": "#fef3e2",
+        "primary": "#b84a0c",
+        "secondary": "#d4860a",
+        "accent": "#1a7a4a",
+        "text": "#2d1f0e",
+        "text_muted": "#7a5c3a",
+        "border": "#2d1f0e",
+        "heading_font": "'Arial Black', 'Impact', system-ui, sans-serif",
+        "body_font": "'Segoe UI', system-ui, sans-serif",
+        "hero_gradient": "linear-gradient(135deg, #b84a0c 0%, #d4860a 100%)",
+        "metric_bg": "#fef3e2",
+        "metric_accent": "#b84a0c",
+        "tag": "BOLD",
+        "neobrutalism": True,
+    },
 }
 
 
@@ -211,10 +266,27 @@ THEMES = {
 # ---------------------------------------------------------------------------
 
 _THEME_KEYWORDS = {
+    # ── Premium themes (preferred in auto-detection) ──────────────────────────
+    "ultraviolet": [
+        "ai", "artificial intelligence", "machine learning", "llm", "neural",
+        "agent", "automation", "saas", "platform", "cloud", "api", "tool",
+        "assistant", "copilot", "model", "inference", "generative",
+    ],
+    "aurora": [
+        "dashboard", "analytics", "metrics", "monitoring", "telemetry", "log",
+        "real-time", "live", "stream", "pipeline", "workflow", "orchestration",
+        "ops", "devops", "infrastructure", "observability", "alert", "chart",
+    ],
+    "neobrutalism": [
+        "startup", "product", "launch", "brand", "marketing", "landing",
+        "campaign", "pitch", "deck", "manifesto", "vision", "strategy",
+        "growth", "traction", "mvp", "founder", "venture",
+    ],
+    # ── Standard themes ───────────────────────────────────────────────────────
     "techno": [
-        "code", "software", "programming", "api", "algorithm", "docker", "kubernetes",
+        "code", "software", "programming", "algorithm", "docker", "kubernetes",
         "python", "javascript", "typescript", "rust", "golang", "linux", "server",
-        "database", "sql", "git", "devops", "ci/cd", "microservice", "architecture",
+        "database", "sql", "git", "ci/cd", "microservice", "architecture",
         "engineering", "framework", "library", "terminal", "cli", "debug", "compiler",
     ],
     "classic": [
@@ -238,9 +310,8 @@ _THEME_KEYWORDS = {
         "gallery", "exhibition", "portfolio",
     ],
     "modern": [
-        "startup", "product", "launch", "innovation", "marketing", "brand",
-        "growth", "user", "ux", "ui", "saas", "platform", "app", "mobile",
-        "consumer", "engagement", "conversion", "funnel",
+        "innovation", "user", "ux", "ui", "mobile", "consumer",
+        "engagement", "conversion", "funnel", "product design",
     ],
     "colorful": [
         "education", "kids", "children", "school", "learning", "fun", "game",
@@ -261,16 +332,23 @@ _THEME_KEYWORDS = {
 
 
 def _detect_theme(title: str, content: str) -> str:
-    """Auto-detect the best theme based on keyword frequency in title + content."""
+    """Auto-detect the best theme, preferring premium themes over basic ones.
+
+    Premium themes (ultraviolet, aurora, neobrutalism) receive a 2× score
+    multiplier. When scores tie, the first premium theme wins.  When no
+    keywords match at all, falls back to 'aurora' (visually strong default).
+    """
+    _PREMIUM = {"ultraviolet", "aurora", "neobrutalism"}
     combined = (title + " " + content).lower()
     scores = {theme: 0 for theme in _THEME_KEYWORDS}
     for theme, keywords in _THEME_KEYWORDS.items():
         for kw in keywords:
             if kw in combined:
-                scores[theme] += 1
+                # Premium themes get double weight
+                scores[theme] += 2 if theme in _PREMIUM else 1
     best = max(scores, key=scores.get)
     if scores[best] == 0:
-        return "modern"
+        return "aurora"  # visually impressive default
     return best
 
 
@@ -376,6 +454,24 @@ def _convert_tables(text: str) -> str:
 # ---------------------------------------------------------------------------
 
 def _build_css(t: dict) -> str:
+    # Extra CSS injected for the neobrutalism premium theme
+    neobrutalism_extra = ""
+    if t.get("neobrutalism"):
+        neobrutalism_extra = """
+/* ── Neo-Brutalism overrides ── */
+.section, .card, .exec-summary {
+  border: 2px solid var(--color-border);
+  box-shadow: 5px 5px 0 var(--color-border);
+  border-radius: 4px;
+}
+.section:hover, .card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 7px 7px 0 var(--color-border);
+}
+.btn, button { border: 2px solid var(--color-border); box-shadow: 3px 3px 0 var(--color-border); }
+.btn:hover, button:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--color-border); }
+h1, h2 { text-transform: uppercase; letter-spacing: .04em; }
+"""
     return f"""
 :root {{
   --color-bg:        {t['bg']};
@@ -648,6 +744,7 @@ tr:hover td {{ background: var(--color-surface2); }}
   h1 {{ font-size: 1.8rem; }}
   h2 {{ font-size: 1.35rem; }}
 }}
+{neobrutalism_extra}
 """
 
 

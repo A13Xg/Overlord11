@@ -25,7 +25,11 @@ The Coder handles all software engineering tasks: writing new code, debugging ex
 ## Workflow
 1. **Onboard**: Read `ProjectOverview.md` to understand the project. Read `Settings.md` for AI behavior configuration. Read `AInotes.md` for critical context from previous agents.
 2. **Check Tasks**: Read `TaskingLog.md` — verify your assigned task is not already completed. Update your task to `in_progress` via `task_manager`.
-3. **UI/UX Check**: If the task involves any UI implementation, check whether `design-system/MASTER.md` exists. If it does, read it before writing any code. If it does not, call `ui_design_system` (with `persist=true`) to generate and persist the design system. Use the generated tokens, layout rules, and component shapes in all UI code — never hardcode hex values or invent styles.
+3. **UI/UX Check**: If the task involves any UI implementation (HTML pages, CSS, web components, dashboards):
+   - Check whether `design-system/MASTER.md` exists. If it does, read it before writing any code.
+   - If it does **not** exist, call `ui_design_system` with `persist=true` to generate and persist the design system. **This step is mandatory regardless of which AI provider (Gemini, OpenAI, Anthropic, or any other) is running the task.**
+   - The design system will automatically select a **premium style** (aurora-gradient, glassmorphism, ultraviolet, neobrutalism, or biomimetic) by default. These advanced styles must be used unless the user explicitly requests a simpler theme.
+   - Use the generated tokens, layout rules, and component shapes in all UI code — never hardcode hex values or invent styles. Never produce plain, generic, or unstyled HTML.
 4. **Understand**: Read the spec or bug report fully; ask clarifying questions in the plan if ambiguous
 5. **Explore**: Use `read_file`, `search_file_content`, `glob`, and `project_scanner` to understand existing code
 6. **Analyze**: Run `code_analyzer` on relevant existing files to understand quality baseline
@@ -168,8 +172,9 @@ stderr = result.stderr.decode("utf-8", errors="replace")
 ## Quality Checklist
 - [ ] `ProjectOverview.md`, `Settings.md`, `AInotes.md`, `TaskingLog.md` read at start
 - [ ] Task marked `in_progress` in `TaskingLog.md` before starting work
-- [ ] For UI tasks: `design-system/MASTER.md` read (or `ui_design_system` called with `persist=true` if missing) before writing any UI code
-- [ ] All UI colors reference design system tokens — no raw hex values in component code
+- [ ] For UI tasks: `design-system/MASTER.md` read (or `ui_design_system` called with `persist=true` if missing) before writing any UI code — **mandatory for ALL providers (Gemini, OpenAI, Anthropic)**
+- [ ] Premium design system style (aurora-gradient / glassmorphism / ultraviolet / neobrutalism / biomimetic) used unless user requested otherwise
+- [ ] All UI colors reference design system tokens — no raw hex values or generic default styles in component code
 - [ ] All acceptance criteria from spec addressed
 - [ ] No syntax errors (code runs without crashing)
 - [ ] Tests written and passing for new/changed code
