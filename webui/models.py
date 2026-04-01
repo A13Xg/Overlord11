@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from enum import Enum
 
-VALID_PROVIDERS = ["gemini", "anthropic", "openai"]
+VALID_PROVIDERS = ["gemini", "openai", "anthropic"]
 
 
 class JobStatus(str, Enum):
@@ -38,12 +38,18 @@ class JobDetail(JobSummary):
 
 class CreateJobRequest(BaseModel):
     goal: str
-    provider: Optional[str] = "gemini"
-    model: Optional[str] = "gemini-3.1-flash-lite-preview"
+    provider: Optional[str] = None
+    model: Optional[str] = None
     verify_command: Optional[str] = None
+
+
+class SelectionRequest(BaseModel):
+    provider: Optional[str] = None
+    model: Optional[str] = None
 
 
 class ConfigInfo(BaseModel):
     active_provider: str
     providers: Dict[str, Any]
     default_model: str
+

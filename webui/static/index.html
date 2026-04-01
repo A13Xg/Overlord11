@@ -8,151 +8,414 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     :root {
-      --bg: #0d1117;
-      --surface: #161b22;
-      --surface2: #21262d;
-      --border: #30363d;
-      --accent: #3fb950;
-      --blue: #58a6ff;
-      --text: #c9d1d9;
-      --muted: #8b949e;
-      --orange: #f0883e;
-      --red: #f85149;
-      --yellow: #d29922;
+      --bg:#0d1117; --surface:#161b22; --surface2:#21262d; --surface3:#2d333b;
+      --border:#30363d; --accent:#3fb950; --blue:#58a6ff; --text:#c9d1d9;
+      --muted:#8b949e; --orange:#f0883e; --red:#f85149; --yellow:#d29922; --purple:#bc8cff;
     }
-    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-    .status-running  { color: var(--orange); }
-    .status-completed{ color: var(--accent); }
-    .status-failed   { color: var(--red); }
-    .status-pending  { color: var(--yellow); }
-    .dot-running  { background: var(--orange); }
-    .dot-completed{ background: var(--accent); }
-    .dot-failed   { background: var(--red); }
-    .dot-pending  { background: var(--yellow); }
-    .job-item { border-left: 3px solid transparent; transition: all 0.15s; }
-    .job-item:hover { background: var(--surface2); }
-    .job-item.active { border-left-color: var(--blue); background: var(--surface2); }
-    .tab { border-bottom: 2px solid transparent; transition: all 0.15s; }
-    .tab.active { border-bottom-color: var(--blue); color: var(--blue); }
-    .tab:hover { color: var(--text); }
-    .artifact-row:hover { background: var(--surface2); }
-    .fp-badge { background: #2d333b; color: #d29922; font-size: 11px; padding: 1px 6px; border-radius: 9px; }
-    .md-content h1,.md-content h2,.md-content h3 { color: var(--text); margin: 8px 0 4px; }
-    .md-content code { background: var(--surface2); padding: 1px 4px; border-radius: 3px; font-family: monospace; font-size: 13px; }
-    .md-content pre  { background: var(--surface2); padding: 10px; border-radius: 6px; overflow-x: auto; }
-    .md-content a    { color: var(--blue); }
-    .event-row { border-left: 3px solid var(--border); }
-    .event-row.info    { border-left-color: var(--blue); }
-    .event-row.error   { border-left-color: var(--red); }
-    .event-row.success { border-left-color: var(--accent); }
-    .event-row.warn    { border-left-color: var(--yellow); }
-    .pulse { animation: pulse 2s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.4;} }
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 50; display: flex; align-items: center; justify-content: center; }
-    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; min-width: 360px; max-width: 500px; width: 100%; }
-    select, input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 10px; width: 100%; outline: none; }
-    select:focus, input:focus { border-color: var(--blue); }
-    .btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; transition: opacity .15s; }
-    .btn:hover { opacity: .8; }
-    .btn-primary   { background: var(--blue);    color: #0d1117; }
-    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-    .btn-green     { background: var(--accent);  color: #0d1117; }
-    .filter-btn { color: var(--muted); background: transparent; border: 1px solid transparent; }
-    .filter-btn:hover { background: var(--surface2); }
-    .filter-btn.active-filter { background: var(--surface2); color: var(--text); border-color: var(--border); }
+    *{box-sizing:border-box;}
+    body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;margin:0;}
+    ::-webkit-scrollbar{width:6px;height:6px;}
+    ::-webkit-scrollbar-track{background:var(--bg);}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+    .status-running{color:var(--orange);} .status-completed{color:var(--accent);}
+    .status-failed{color:var(--red);} .status-pending{color:var(--yellow);}
+    .dot-running{background:var(--orange);} .dot-completed{background:var(--accent);}
+    .dot-failed{background:var(--red);} .dot-pending{background:var(--yellow);}
+    .job-item{border-left:3px solid transparent;transition:background .12s;}
+    .job-item:hover{background:var(--surface2);}
+    .job-item.active{border-left-color:var(--blue);background:var(--surface2);}
+    .tab{border-bottom:2px solid transparent;transition:all .15s;cursor:pointer;}
+    .tab.active{border-bottom-color:var(--blue);color:var(--blue);}
+    .tab:hover:not(.active){color:var(--text);}
+    .artifact-row:hover{background:var(--surface2);}
+    .fp-badge{background:var(--surface3);color:var(--yellow);font-size:10px;padding:1px 6px;border-radius:9px;white-space:nowrap;}
+    .api-badge{font-size:10px;padding:1px 5px;border-radius:4px;font-weight:600;white-space:nowrap;}
+    .api-badge.live{background:rgba(63,185,80,.15);color:var(--accent);}
+    .api-badge.cfg{background:rgba(240,136,62,.1);color:var(--orange);}
+    .md-content h1,.md-content h2,.md-content h3{color:var(--text);margin:8px 0 4px;}
+    .md-content code{background:var(--surface2);padding:1px 4px;border-radius:3px;font-family:monospace;font-size:13px;}
+    .md-content pre{background:var(--surface2);padding:10px;border-radius:6px;overflow-x:auto;}
+    .md-content a{color:var(--blue);}
+    .md-content p{margin:4px 0;}
+    .event-row{border-left:3px solid var(--border);padding:6px 10px;border-radius:0 4px 4px 0;margin-bottom:4px;}
+    .event-row.info{border-left-color:var(--blue);}
+    .event-row.error{border-left-color:var(--red);background:rgba(248,81,73,.05);}
+    .event-row.success{border-left-color:var(--accent);}
+    .event-row.warn{border-left-color:var(--yellow);}
+    .pulse{animation:pulse 2s infinite;}
+    @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+    /* Provider pills */
+    .ppill{display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;
+      border:1px solid var(--border);cursor:pointer;transition:all .15s;font-size:11px;
+      user-select:none;color:var(--muted);white-space:nowrap;}
+    .ppill:hover{background:var(--surface2);color:var(--text);}
+    .ppill.active-provider{border-color:var(--blue);color:var(--text);}
+    .ppill.panel-open{background:var(--surface2);color:var(--text);}
+    .ppill-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+    /* Picker panel */
+    .picker-wrap{overflow:hidden;max-height:0;transition:max-height .3s ease;}
+    .picker-wrap.open{max-height:400px;}
+    .model-row{padding:7px 12px;border-radius:6px;cursor:pointer;transition:background .1s;
+      border:1px solid transparent;}
+    .model-row:hover{background:var(--surface2);}
+    .model-row.sel-model{background:rgba(88,166,255,.07);border-color:rgba(88,166,255,.25);}
+    /* Modal */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;
+      display:flex;align-items:center;justify-content:center;}
+    .modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+      padding:24px;width:100%;max-width:520px;}
+    select,input,textarea{background:var(--surface2);border:1px solid var(--border);
+      color:var(--text);border-radius:6px;padding:6px 10px;width:100%;outline:none;
+      font-family:inherit;font-size:13px;}
+    select:focus,input:focus,textarea:focus{border-color:var(--blue);}
+    textarea{resize:vertical;min-height:80px;}
+    .btn{padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer;
+      transition:opacity .15s;border:none;font-family:inherit;}
+    .btn:hover:not(:disabled){opacity:.8;}
+    .btn:disabled{opacity:.4;cursor:not-allowed;}
+    .btn-primary{background:var(--blue);color:#0d1117;}
+    .btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+    .btn-green{background:var(--accent);color:#0d1117;}
+    .btn-red{background:var(--red);color:#fff;}
+    .filter-btn{color:var(--muted);background:transparent;border:1px solid transparent;
+      border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;transition:all .12s;}
+    .filter-btn:hover{background:var(--surface2);}
+    .filter-btn.active-filter{background:var(--surface2);color:var(--text);border-color:var(--border);}
+    /* Activity log */
+    .act-bar{border-top:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+    .act-row{display:flex;align-items:flex-start;gap:8px;padding:2px 0 2px 8px;
+      font-size:11px;border-left:2px solid transparent;font-family:monospace;}
+    .act-row.INFO{border-left-color:var(--blue);}
+    .act-row.SUCCESS{border-left-color:var(--accent);}
+    .act-row.WARN{border-left-color:var(--yellow);}
+    .act-row.ERROR{border-left-color:var(--red);}
+    /* Toasts */
+    .toast-wrap{position:fixed;bottom:16px;right:16px;z-index:200;
+      display:flex;flex-direction:column-reverse;gap:6px;pointer-events:none;}
+    .toast{padding:8px 14px;border-radius:8px;font-size:12px;background:var(--surface2);
+      border:1px solid var(--border);box-shadow:0 4px 18px rgba(0,0,0,.55);
+      min-width:220px;max-width:380px;pointer-events:all;
+      animation:toastIn .2s ease;transition:opacity .3s;}
+    .toast.info{border-left:3px solid var(--blue);}
+    .toast.success{border-left:3px solid var(--accent);}
+    .toast.warn{border-left:3px solid var(--yellow);}
+    .toast.error{border-left:3px solid var(--red);}
+    @keyframes toastIn{from{transform:translateX(20px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+    /* Misc */
+    .kbd{background:var(--surface3);border:1px solid var(--border);border-radius:4px;
+      padding:1px 5px;font-size:11px;font-family:monospace;}
+    .sep{width:1px;height:16px;background:var(--border);flex-shrink:0;}
+    code{background:var(--surface2);padding:1px 4px;border-radius:3px;font-family:monospace;font-size:12px;}
   </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden">
+<body class="flex flex-col" style="height:100vh;overflow:hidden;">
 
-<!-- HEADER -->
-<header class="flex items-center gap-3 px-5 py-3 border-b" style="border-color:var(--border);background:var(--surface);">
-  <span class="text-lg font-bold tracking-widest" style="color:var(--blue);">🎯 OVERLORD11</span>
-  <span class="text-xs tracking-widest" style="color:var(--muted);">TACTICAL COMMAND</span>
-  <div class="flex-1"></div>
-  <div id="apiStatus" class="flex items-center gap-1.5 text-xs" style="color:var(--muted);">
-    <span class="w-2 h-2 rounded-full" id="apiDot" style="background:var(--muted);"></span>
-    <span id="apiStatusText">connecting…</span>
+<!-- ═══ HEADER ════════════════════════════════════════════════════════════════ -->
+<header style="background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;">
+  <!-- Row 1 : Logo + connection status + action buttons -->
+  <div class="flex items-center gap-3 px-4 py-2">
+    <span class="font-bold tracking-widest text-base" style="color:var(--blue);">🎯 OVERLORD11</span>
+    <span class="text-xs tracking-widest hidden sm:inline" style="color:var(--muted);">TACTICAL COMMAND</span>
+    <div class="flex-1"></div>
+    <div id="apiStatus" class="flex items-center gap-1.5 text-xs mr-2" style="color:var(--muted);">
+      <span class="w-2 h-2 rounded-full" id="apiDot" style="background:var(--muted);"></span>
+      <span id="apiStatusText">connecting…</span>
+    </div>
+    <button id="refreshBtn" class="btn btn-secondary text-xs py-1">↺ Refresh</button>
+    <button id="newJobBtn" class="btn btn-green text-xs py-1">＋ New Job</button>
+    <button id="settingsBtn" class="btn btn-secondary text-xs py-1">⚙ Config</button>
   </div>
-  <button id="refreshBtn" class="btn btn-secondary text-xs ml-2">↺ Refresh</button>
-  <button id="settingsBtn" class="btn btn-secondary text-xs ml-1">⚙ Settings</button>
+  <!-- Row 2 : Provider pills + active selection -->
+  <div class="flex items-center gap-2 px-4 py-1.5 border-t text-xs flex-wrap"
+       style="border-color:var(--border);">
+    <span style="color:var(--muted);letter-spacing:.06em;text-transform:uppercase;font-size:10px;">Providers</span>
+    <div id="providerPills" class="flex gap-2 flex-wrap"></div>
+    <div class="sep"></div>
+    <span style="color:var(--muted);">Active:</span>
+    <span id="activeBadge" class="font-mono" style="color:var(--text);">…</span>
+    <button id="clearSelBtn" class="hidden text-xs ml-1" style="color:var(--muted);"
+            title="Reset to config.json default">✕ reset</button>
+    <div class="flex-1"></div>
+    <span id="lastProbeText" class="text-xs" style="color:var(--muted);"></span>
+    <button id="reProbeBtn" class="btn btn-secondary text-xs py-0.5 px-2">🔍 Re-probe</button>
+  </div>
 </header>
 
-<!-- MAIN LAYOUT -->
+<!-- ═══ PROVIDER PICKER PANEL ═════════════════════════════════════════════════ -->
+<div id="pickerWrap" class="picker-wrap" style="background:var(--surface);border-bottom:1px solid transparent;flex-shrink:0;">
+  <div id="pickerContent" class="px-5 py-4 overflow-y-auto" style="max-height:380px;"></div>
+</div>
+
+<!-- ═══ MAIN LAYOUT ═══════════════════════════════════════════════════════════ -->
 <div class="flex flex-1 overflow-hidden">
 
   <!-- SIDEBAR -->
-  <aside style="width:300px;min-width:220px;background:var(--surface);border-right:1px solid var(--border);" class="flex flex-col overflow-hidden">
+  <aside style="width:290px;min-width:220px;background:var(--surface);border-right:1px solid var(--border);"
+         class="flex flex-col overflow-hidden flex-shrink-0">
     <div class="px-3 py-2 border-b" style="border-color:var(--border);">
-      <input id="searchInput" type="text" placeholder="Search jobs…" class="text-sm w-full" style="padding:5px 8px;" />
+      <input id="searchInput" type="search" placeholder="Search jobs…"
+             class="text-sm" style="padding:5px 8px;" autocomplete="off" />
     </div>
-    <div class="flex gap-1 px-3 py-2 border-b text-xs" style="border-color:var(--border);">
-      <button class="filter-btn px-2 py-1 rounded active-filter" data-f="">All</button>
-      <button class="filter-btn px-2 py-1 rounded" data-f="running">Running</button>
-      <button class="filter-btn px-2 py-1 rounded" data-f="completed">Done</button>
-      <button class="filter-btn px-2 py-1 rounded" data-f="failed">Failed</button>
+    <div class="flex gap-1 px-3 py-2 border-b" style="border-color:var(--border);">
+      <button class="filter-btn active-filter" data-f="">All</button>
+      <button class="filter-btn" data-f="running">Running</button>
+      <button class="filter-btn" data-f="completed">Done</button>
+      <button class="filter-btn" data-f="failed">Failed</button>
+      <button class="filter-btn" data-f="pending">Pending</button>
     </div>
     <div id="jobsList" class="flex-1 overflow-y-auto text-sm"></div>
+    <div id="sidebarFooter" class="px-3 py-2 border-t text-xs"
+         style="border-color:var(--border);color:var(--muted);"></div>
   </aside>
 
-  <!-- MAIN PANEL -->
-  <main class="flex-1 flex flex-col overflow-hidden">
-    <div id="mainPanel" class="flex-1 overflow-y-auto p-5">
-      <div id="noSelection" class="flex flex-col items-center justify-center h-full" style="color:var(--muted);">
+  <!-- MAIN + ACTIVITY LOG -->
+  <div class="flex flex-col flex-1 overflow-hidden">
+    <!-- Main panel -->
+    <main id="mainPanel" class="flex-1 overflow-y-auto p-5">
+      <div id="noSelection" class="flex flex-col items-center justify-center h-full"
+           style="color:var(--muted);">
         <div class="text-5xl mb-4">🎯</div>
-        <div class="text-xl font-semibold mb-2" style="color:var(--text);">Tactical Command Center</div>
-        <div class="text-sm">Select a job from the sidebar to view details</div>
-        <div class="text-xs mt-4 opacity-60">Auto-refreshing every 5s · Backend: <span id="backendUrl">http://127.0.0.1:8844</span></div>
+        <div class="text-xl font-semibold mb-1" style="color:var(--text);">Tactical Command Center</div>
+        <div class="text-sm mb-4">Select a job from the sidebar to inspect it.</div>
+        <div id="welcomeProviders" class="text-xs space-y-1 text-center"></div>
+        <div class="mt-4 text-xs" style="color:var(--muted);">
+          Auto-refresh every 5s ·
+          Backend: <span class="font-mono">http://127.0.0.1:8844</span> ·
+          Logs: <span class="font-mono">logs/webui.jsonl</span>
+        </div>
       </div>
       <div id="jobDetail" class="hidden"></div>
+    </main>
+
+    <!-- Activity log bar -->
+    <div class="act-bar">
+      <div class="flex items-center justify-between px-4 py-1.5 cursor-pointer select-none"
+           id="actToggle" onclick="toggleActLog()">
+        <div class="flex items-center gap-2 text-xs" style="color:var(--muted);">
+          <span id="actArrow" style="transition:transform .2s;">▶</span>
+          <span style="letter-spacing:.06em;text-transform:uppercase;font-size:10px;">Activity Log</span>
+          <span id="actCount" class="fp-badge">0</span>
+          <span id="actErrCount" class="hidden" style="background:rgba(248,81,73,.15);color:var(--red);font-size:10px;padding:1px 6px;border-radius:9px;"></span>
+        </div>
+        <div class="flex items-center gap-3 text-xs" style="color:var(--muted);">
+          <span id="actSummary"></span>
+          <button class="text-xs hover:text-red-400" style="color:var(--muted);"
+                  onclick="event.stopPropagation();clearActLog()">Clear</button>
+        </div>
+      </div>
+      <div id="actContent" class="hidden px-4 pb-2 overflow-y-auto space-y-px"
+           style="max-height:180px;"></div>
     </div>
-  </main>
+  </div>
 </div>
 
-<!-- SETTINGS MODAL -->
+<!-- ═══ TOAST CONTAINER ════════════════════════════════════════════════════════ -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- ═══ SETTINGS MODAL ════════════════════════════════════════════════════════ -->
 <div id="settingsModal" class="modal-overlay hidden">
-  <div class="modal">
-    <div class="flex items-center justify-between mb-5">
-      <h2 class="font-bold text-base" style="color:var(--text);">⚙ Settings</h2>
-      <button id="closeSettings" class="text-xl leading-none" style="color:var(--muted);">×</button>
+  <div class="modal" style="max-width:480px;">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-bold text-base" style="color:var(--text);">⚙ Configuration</h2>
+      <button class="closeModalBtn text-xl leading-none" data-modal="settingsModal"
+              style="color:var(--muted);">×</button>
     </div>
-    <div class="mb-4">
-      <label class="block text-xs mb-1" style="color:var(--muted);">Active Provider</label>
-      <select id="settingsProvider"></select>
-    </div>
-    <div class="mb-4">
-      <label class="block text-xs mb-1" style="color:var(--muted);">Model <span class="fp-badge ml-1" id="recommendedModelBadge"></span></label>
-      <select id="settingsModel"></select>
-    </div>
-    <div class="text-xs mt-2" style="color:var(--muted);">
-      <b>Note:</b> This shows the current config. To change defaults, edit <code>config.json</code>.
-    </div>
+    <div id="settingsBody" class="text-xs space-y-3"></div>
     <div class="flex justify-end mt-5">
-      <button id="closeSettings2" class="btn btn-secondary text-sm">Close</button>
+      <button class="btn btn-secondary closeModalBtn text-sm" data-modal="settingsModal">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ NEW JOB MODAL ═════════════════════════════════════════════════════════ -->
+<div id="newJobModal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:530px;">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-bold text-base" style="color:var(--text);">＋ Queue New Job</h2>
+      <button class="closeModalBtn text-xl leading-none" data-modal="newJobModal"
+              style="color:var(--muted);">×</button>
+    </div>
+    <!-- Active provider/model summary -->
+    <div class="rounded-lg p-3 mb-4 flex items-center gap-3"
+         style="background:var(--surface2);border:1px solid var(--border);">
+      <span class="w-2 h-2 rounded-full flex-shrink-0" id="njProvDot" style="background:var(--muted);"></span>
+      <div class="flex-1">
+        <div class="text-xs mb-0.5" style="color:var(--muted);">Provider / Model</div>
+        <div>
+          <span id="njProvider" class="font-mono text-sm" style="color:var(--accent);">—</span>
+          <span style="color:var(--muted);"> / </span>
+          <span id="njModel" class="font-mono text-sm" style="color:var(--text);">—</span>
+        </div>
+      </div>
+      <button onclick="openPickerThenJob()" class="btn btn-secondary text-xs py-0.5 px-2">
+        Change ↗
+      </button>
+    </div>
+    <!-- Goal -->
+    <div class="mb-3">
+      <label class="text-xs mb-1 block" style="color:var(--muted);">
+        Goal / Objective <span style="color:var(--red);">*</span>
+      </label>
+      <textarea id="njGoal" rows="4"
+                placeholder="Describe the task for the agent… be specific."
+                style="background:var(--surface2);border:1px solid var(--border);color:var(--text);
+                       padding:8px 10px;outline:none;border-radius:6px;width:100%;
+                       resize:vertical;font-family:inherit;font-size:13px;min-height:90px;"></textarea>
+    </div>
+    <!-- Verify command -->
+    <div class="mb-4">
+      <label class="text-xs mb-1 block" style="color:var(--muted);">
+        Verify Command <span style="color:var(--muted);">(optional)</span>
+      </label>
+      <input id="njVerify" type="text" placeholder="e.g. python -m pytest tests/ -v" />
+    </div>
+    <div id="njStatus" class="text-xs mb-3 hidden rounded p-2"
+         style="background:var(--surface2);"></div>
+    <div class="flex items-center justify-between">
+      <div class="text-xs" style="color:var(--muted);">
+        Job will be created as <span style="color:var(--yellow);">pending</span> — requires runner to execute.
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn-secondary closeModalBtn" data-modal="newJobModal">Cancel</button>
+        <button id="njSubmitBtn" class="btn btn-primary">▶ Queue Job</button>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
+'use strict';
 // ─── State ────────────────────────────────────────────────────────────────────
-const BASE = '';
-let jobs = [];
-let activeJobId = null;
-let activeJob = null;
-let activeTab = 'overview';
+let jobs         = [];
+let activeJobId  = null;
+let activeJob    = null;
+let activeTab    = 'overview';
 let filterStatus = '';
-let searchQ = '';
-let providerConfig = null;
-let refreshInterval = null;
-let jobRefreshInterval = null;
+let searchQ      = '';
+let providerCfg  = null;   // from GET /api/config
+let providerSt   = {};     // from GET /api/providers/status
+let selection    = {provider: null, model: null, from_prefs: false};
+let openPicker   = null;   // name of provider whose picker is open
+let actLog       = [];     // local activity entries
+let actOpen      = false;
+let refreshIv    = null;
+let jobRefreshIv = null;
 
-// ─── API helpers ──────────────────────────────────────────────────────────────
-async function apiFetch(path) {
-  const r = await fetch(BASE + path);
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-  return r.json();
+// ─── Utilities ────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#x27;');
+}
+function escA(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');
+}
+function fmtTime(ts) {
+  if (!ts) return '—';
+  return new Date(ts * 1000).toLocaleString();
+}
+function fmtRel(ts) {
+  if (!ts) return '';
+  const s = Math.floor((Date.now() - ts * 1000) / 1000);
+  if (s < 60)  return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s/60)}m ago`;
+  if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+  return `${Math.floor(s/86400)}d ago`;
+}
+function fmtBytes(b) {
+  if (b < 1024)     return b + ' B';
+  if (b < 1048576)  return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+function safeId(path) {
+  return btoa(encodeURIComponent(String(path))).replace(/[^a-z0-9]/gi, '');
+}
+function fileIcon(p) {
+  if (/\.(md|markdown)$/i.test(p)) return '📝';
+  if (/\.json$/i.test(p))          return '{}';
+  if (/\.py$/i.test(p))            return '🐍';
+  if (/\.log$/i.test(p))           return '📋';
+  if (/\.txt$/i.test(p))           return '📄';
+  if (/\.html?$/i.test(p))         return '🌐';
+  if (/\.(png|jpe?g|gif|webp)$/i.test(p)) return '🖼';
+  if (/\.(zip|tar|gz|bz2)$/i.test(p))     return '📦';
+  return '📎';
+}
+function dotColor(status) {
+  return status === 'ok'       ? 'var(--accent)'
+       : status === 'no_key'   ? 'var(--yellow)'
+       : status === 'error'    ? 'var(--red)'
+       : status === 'checking' ? 'var(--muted)'
+       : 'var(--muted)';
+}
+function statusLabel(status, models) {
+  if (status === 'ok')       return `${models?.length ?? 0} models`;
+  if (status === 'no_key')   return 'no key';
+  if (status === 'error')    return 'error';
+  if (status === 'checking') return 'checking…';
+  return status;
+}
+
+// ─── Activity log ─────────────────────────────────────────────────────────────
+function addAct(level, msg, detail) {
+  const ts = new Date().toLocaleTimeString();
+  actLog.push({ts, level, msg, detail: detail ?? null});
+  if (actLog.length > 200) actLog.shift();
+  updateActBadge();
+  if (actOpen) renderActContent();
+}
+function updateActBadge() {
+  document.getElementById('actCount').textContent = actLog.length;
+  const errs = actLog.filter(e => e.level === 'ERROR').length;
+  const ec = document.getElementById('actErrCount');
+  if (errs > 0) { ec.textContent = errs + ' errors'; ec.classList.remove('hidden'); }
+  else ec.classList.add('hidden');
+  const last = actLog[actLog.length - 1];
+  if (last) document.getElementById('actSummary').textContent = last.msg.slice(0,60);
+}
+function renderActContent() {
+  const el = document.getElementById('actContent');
+  el.innerHTML = [...actLog].reverse().slice(0, 100).map(e => `
+    <div class="act-row ${esc(e.level)}">
+      <span style="color:var(--muted);min-width:60px;flex-shrink:0;">${esc(e.ts)}</span>
+      <span style="color:${e.level==='ERROR'?'var(--red)':e.level==='WARN'?'var(--yellow)':e.level==='SUCCESS'?'var(--accent)':'var(--blue)'};min-width:54px;flex-shrink:0;">${esc(e.level)}</span>
+      <span style="color:var(--text);">${esc(e.msg)}</span>
+      ${e.detail ? `<span class="ml-2" style="color:var(--muted);">${esc(e.detail)}</span>` : ''}
+    </div>`).join('');
+  el.scrollTop = 0;
+}
+function toggleActLog() {
+  actOpen = !actOpen;
+  document.getElementById('actContent').classList.toggle('hidden', !actOpen);
+  document.getElementById('actArrow').style.transform = actOpen ? 'rotate(90deg)' : '';
+  if (actOpen) renderActContent();
+}
+function clearActLog() {
+  actLog = [];
+  updateActBadge();
+  renderActContent();
+}
+
+// ─── Toasts ───────────────────────────────────────────────────────────────────
+function toast(msg, type = 'info', dur = 3500) {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toastWrap').appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; }, dur - 400);
+  setTimeout(() => el.remove(), dur);
+}
+
+// ─── API helper ───────────────────────────────────────────────────────────────
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) {
+    let msg = `${r.status} ${r.statusText}`;
+    try { const d = await r.json(); msg = d.detail || msg; } catch(_) {}
+    throw new Error(msg);
+  }
+  const ct = r.headers.get('content-type') || '';
+  return ct.includes('application/json') ? r.json() : r.text();
 }
 
 function setApiStatus(ok, msg) {
@@ -160,87 +423,444 @@ function setApiStatus(ok, msg) {
   document.getElementById('apiStatusText').textContent = msg;
 }
 
+// ─── Provider health ──────────────────────────────────────────────────────────
+async function loadProviderStatus(force = false) {
+  addAct('INFO', force ? 'Re-probing all providers…' : 'Loading provider status…');
+  try {
+    const url = '/api/providers/status' + (force ? '?force=true' : '');
+    providerSt = await api(url);
+    renderProviderPills();
+    updateWelcomeProviders();
+    addAct('SUCCESS', 'Provider status loaded', Object.entries(providerSt)
+      .map(([n,v]) => `${n}:${v.status}`).join(' | '));
+    // Update last-probe text
+    const ts = Object.values(providerSt).find(v => v.checked_at)?.checked_at;
+    if (ts) {
+      document.getElementById('lastProbeText').textContent =
+        'Last probed: ' + new Date(ts * 1000).toLocaleTimeString();
+    }
+  } catch(e) {
+    addAct('ERROR', 'Provider status failed', e.message);
+  }
+}
+
+function renderProviderPills() {
+  const order = ['gemini', 'openai', 'anthropic'];
+  const prov = document.getElementById('providerPills');
+  prov.innerHTML = order.map(name => {
+    const ps  = providerSt[name] || {status: 'checking', models: []};
+    const isActive = selection.provider === name;
+    const isOpen   = openPicker === name;
+    const lbl      = statusLabel(ps.status, ps.models);
+    const dot      = dotColor(ps.status);
+    const pulse    = ps.status === 'checking' ? ' pulse' : '';
+    return `
+      <button class="ppill${isActive?' active-provider':''}${isOpen?' panel-open':''}"
+              data-p="${escA(name)}" title="${esc(ps.error || ps.status)}">
+        <span class="ppill-dot${pulse}" style="background:${dot};"></span>
+        <span style="font-weight:600;">${esc(name.charAt(0).toUpperCase()+name.slice(1))}</span>
+        <span style="color:var(--muted);">${esc(lbl)}</span>
+        <span style="color:var(--muted);font-size:10px;">${ps.latency_ms ? ps.latency_ms+'ms' : ''}</span>
+        <span style="color:var(--muted);font-size:10px;">▾</span>
+      </button>`;
+  }).join('');
+  // Event delegation on pills
+  prov.querySelectorAll('.ppill').forEach(btn => {
+    btn.addEventListener('click', () => togglePicker(btn.dataset.p));
+  });
+}
+
+function updateWelcomeProviders() {
+  const el = document.getElementById('welcomeProviders');
+  if (!el) return;
+  const order = ['gemini', 'openai', 'anthropic'];
+  el.innerHTML = order.map(name => {
+    const ps = providerSt[name] || {status: 'checking'};
+    const dot = dotColor(ps.status);
+    const lbl = ps.status === 'ok' ? `online · ${ps.models?.length ?? 0} models`
+              : ps.status === 'no_key' ? 'no API key configured'
+              : ps.status === 'error' ? 'connection error'
+              : 'checking…';
+    return `<div class="flex items-center gap-2 justify-center">
+      <span class="w-2 h-2 rounded-full" style="background:${dot};"></span>
+      <span style="color:var(--text);">${esc(name)}</span>
+      <span style="color:var(--muted);">${esc(lbl)}</span>
+    </div>`;
+  }).join('');
+}
+
+// ─── Picker panel ─────────────────────────────────────────────────────────────
+function togglePicker(name) {
+  if (openPicker === name) {
+    closePicker();
+  } else {
+    openPicker = name;
+    renderProviderPills();
+    renderPickerPanel(name);
+    const wrap = document.getElementById('pickerWrap');
+    wrap.classList.add('open');
+    wrap.style.borderBottomColor = 'var(--border)';
+  }
+}
+function closePicker() {
+  openPicker = null;
+  const wrap = document.getElementById('pickerWrap');
+  wrap.classList.remove('open');
+  wrap.style.borderBottomColor = 'transparent';
+  renderProviderPills();
+}
+
+function renderPickerPanel(name) {
+  const ps      = providerSt[name]  || {status: 'checking', models: [], error: null, latency_ms: null};
+  const cfgProv = providerCfg?.providers?.[name] || {};
+  const cfgModels = cfgProv.available_models || {};
+  const apiKey  = cfgProv.api_key_set;
+  const keyEnv  = cfgProv.api_key_env || '';
+
+  const headerCol = dotColor(ps.status);
+  const headerLbl = ps.status === 'ok'       ? `Online · ${ps.models.length} models from API`
+                  : ps.status === 'no_key'   ? 'API key not configured'
+                  : ps.status === 'error'    ? 'Connection error'
+                  : 'Probing…';
+
+  let body = '';
+
+  if (ps.status === 'no_key') {
+    body = `
+      <div class="rounded-lg p-4 text-sm" style="background:var(--surface2);border:1px solid var(--border);">
+        <div class="font-semibold mb-2" style="color:var(--yellow);">⚠ No API Key</div>
+        <div class="mb-2" style="color:var(--muted);">${esc(ps.error)}</div>
+        <div class="text-xs space-y-1">
+          <div>1. Copy <code>.env.example</code> → <code>.env</code></div>
+          <div>2. Set <code>${esc(keyEnv)}</code> to your API key</div>
+          <div>3. Restart the WebUI server</div>
+          <div>4. Click <strong>Re-probe</strong> to verify</div>
+        </div>
+      </div>`;
+    // Still show config models for reference
+    if (Object.keys(cfgModels).length) {
+      body += `<div class="mt-3 text-xs" style="color:var(--muted);">
+        Config-defined models (available once key is set):</div>`;
+      body += renderModelList(name, [], cfgModels);
+    }
+  } else if (ps.status === 'error') {
+    body = `
+      <div class="rounded-lg p-4 text-sm" style="background:var(--surface2);border:1px solid var(--red);">
+        <div class="font-semibold mb-2" style="color:var(--red);">✗ Connection Error</div>
+        <div class="font-mono text-xs break-all" style="color:var(--muted);">${esc(ps.error)}</div>
+        ${ps.rate_limit_retry_after ? `<div class="mt-2 text-xs" style="color:var(--yellow);">
+          Rate limited — retry after ~${Math.ceil(ps.rate_limit_retry_after)}s</div>` : ''}
+      </div>`;
+    if (Object.keys(cfgModels).length) {
+      body += `<div class="mt-3 text-xs" style="color:var(--muted);">Config-defined models:</div>`;
+      body += renderModelList(name, [], cfgModels);
+    }
+  } else if (ps.status === 'checking') {
+    body = `<div class="text-sm py-4 text-center" style="color:var(--muted);">
+      <span class="pulse">⏳</span> Probing ${esc(name)}…</div>`;
+  } else {
+    // ok — show live models merged with config descriptions
+    body = renderModelList(name, ps.models, cfgModels);
+    // Gemini-specific: show fallback chain info
+    if (name === 'gemini') {
+      body += geminiRateLimitInfo();
+    }
+  }
+
+  const latencyBadge = ps.latency_ms
+    ? `<span style="color:var(--muted);font-size:11px;">${ps.latency_ms}ms</span>` : '';
+  const checkedAt = ps.checked_at
+    ? `<span style="color:var(--muted);font-size:11px;">checked ${new Date(ps.checked_at*1000).toLocaleTimeString()}</span>` : '';
+
+  document.getElementById('pickerContent').innerHTML = `
+    <div class="flex items-center gap-3 mb-4">
+      <span class="w-3 h-3 rounded-full flex-shrink-0" style="background:${headerCol};"></span>
+      <span class="font-bold text-base" style="color:var(--text);">
+        ${esc(name.charAt(0).toUpperCase()+name.slice(1))} Models
+      </span>
+      <span style="color:${headerCol};font-size:12px;">${esc(headerLbl)}</span>
+      <div class="flex-1"></div>
+      ${latencyBadge}
+      ${checkedAt}
+      <button onclick="closePicker()" class="text-lg leading-none ml-2" style="color:var(--muted);">×</button>
+    </div>
+    ${body}`;
+}
+
+function renderModelList(providerName, liveModels, cfgModels) {
+  // Merge: live models first, then config-only models
+  const liveSet = new Set(liveModels);
+  const cfgSet  = new Set(Object.keys(cfgModels));
+  const all     = [...liveSet, ...[...cfgSet].filter(m => !liveSet.has(m))];
+
+  if (!all.length) {
+    return `<div class="text-sm py-2" style="color:var(--muted);">No models available.</div>`;
+  }
+
+  const selProvider = selection.provider;
+  const selModel    = selection.model;
+
+  return `<div class="space-y-1">
+    ${all.map(m => {
+      const isLive   = liveSet.has(m);
+      const isCfg    = cfgSet.has(m);
+      const desc     = cfgModels[m] || (isLive ? 'Available from API' : '');
+      const isActive = selProvider === providerName && selModel === m;
+      return `
+        <div class="model-row${isActive ? ' sel-model' : ''}"
+             data-prov="${escA(providerName)}" data-model="${escA(m)}">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-sm" style="color:${isActive?'var(--blue)':'var(--muted)'};">
+              ${isActive ? '✓' : '○'}
+            </span>
+            <span class="font-mono text-sm flex-1" style="color:var(--text);">${esc(m)}</span>
+            ${isLive ? '<span class="api-badge live">API ✓</span>' : ''}
+            ${!isLive && isCfg ? '<span class="api-badge cfg">config only</span>' : ''}
+            ${isActive ? '<span class="fp-badge">active</span>' : ''}
+            ${!isActive ? `<button class="btn btn-primary text-xs py-0.5 px-3 flex-shrink-0"
+                data-prov="${escA(providerName)}" data-model="${escA(m)}"
+                onclick="event.stopPropagation();selectModel(this.dataset.prov,this.dataset.model)">
+              Select
+            </button>` : ''}
+          </div>
+          ${desc ? `<div class="text-xs mt-0.5 ml-5" style="color:var(--muted);">${esc(desc)}</div>` : ''}
+        </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function geminiRateLimitInfo() {
+  return `
+    <details class="mt-4 text-xs" style="color:var(--muted);">
+      <summary class="cursor-pointer font-semibold" style="color:var(--text);">
+        ⚡ Gemini Rate-Limit Fallback Chain
+      </summary>
+      <div class="mt-2 space-y-1 pl-2">
+        <div>When a 429 RESOURCE_EXHAUSTED error is received, the runner automatically falls
+             back to progressively lighter models:</div>
+        <ol class="list-decimal list-inside space-y-0.5 mt-1 font-mono">
+          <li>gemini-2.5-pro</li>
+          <li>gemini-2.5-flash</li>
+          <li>gemini-2.5-flash-lite</li>
+          <li>gemini-2.0-flash</li>
+          <li>gemini-1.5-flash</li>
+          <li>gemini-1.5-pro</li>
+        </ol>
+        <div class="mt-1">The <code>retryDelay</code> from the 429 response is respected before retrying.</div>
+      </div>
+    </details>`;
+}
+
+document.getElementById('pickerWrap').addEventListener('click', e => {
+  const row = e.target.closest('.model-row');
+  if (row && row.dataset.prov && row.dataset.model) {
+    selectModel(row.dataset.prov, row.dataset.model);
+  }
+});
+
+// ─── Model selection ──────────────────────────────────────────────────────────
+async function selectModel(provider, model) {
+  addAct('INFO', `Selecting ${provider}/${model}…`);
+  try {
+    const result = await api('/api/config/selection', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({provider, model}),
+    });
+    selection = {provider: result.provider, model: result.model, from_prefs: true};
+    updateActiveBadge();
+    renderProviderPills();
+    if (openPicker) renderPickerPanel(openPicker);
+    updateNewJobModal();
+    toast(`Model selected: ${provider} / ${model}`, 'success');
+    addAct('SUCCESS', `Active model: ${provider}/${model}`);
+  } catch(e) {
+    toast('Failed to select model: ' + e.message, 'error');
+    addAct('ERROR', 'selectModel failed', e.message);
+  }
+}
+
+async function clearSelection() {
+  try {
+    const result = await api('/api/config/selection', {method: 'DELETE'});
+    selection = {provider: result.provider, model: result.model, from_prefs: false};
+    updateActiveBadge();
+    renderProviderPills();
+    updateNewJobModal();
+    toast('Selection reset to config defaults', 'info');
+    addAct('INFO', `Selection cleared → ${result.provider}/${result.model}`);
+  } catch(e) {
+    toast('Failed to clear selection: ' + e.message, 'error');
+  }
+}
+
+async function loadSelection() {
+  try {
+    selection = await api('/api/config/selection');
+    updateActiveBadge();
+  } catch(e) {
+    addAct('WARN', 'Could not load selection', e.message);
+  }
+}
+
+function updateActiveBadge() {
+  const badge = document.getElementById('activeBadge');
+  const clearBtn = document.getElementById('clearSelBtn');
+  if (selection.provider) {
+    const ps = providerSt[selection.provider] || {};
+    const dot = dotColor(ps.status || 'checking');
+    badge.innerHTML = `<span class="w-2 h-2 rounded-full mr-1" style="background:${dot};display:inline-block;vertical-align:middle;"></span>`
+      + `<span style="color:var(--accent);">${esc(selection.provider)}</span>`
+      + `<span style="color:var(--muted);"> / </span>`
+      + `<span>${esc(selection.model)}</span>`
+      + (selection.from_prefs ? '' : ` <span style="color:var(--muted);font-size:10px;">(default)</span>`);
+    clearBtn.classList.toggle('hidden', !selection.from_prefs);
+  } else {
+    badge.textContent = '—';
+    clearBtn.classList.add('hidden');
+  }
+}
+
+// ─── Config (settings modal) ─────────────────────────────────────────────────
+async function loadConfig() {
+  try {
+    providerCfg = await api('/api/config');
+    renderSettingsModal();
+  } catch(e) {
+    addAct('WARN', 'Could not load config', e.message);
+  }
+}
+
+function renderSettingsModal() {
+  if (!providerCfg) return;
+  const order = ['gemini', 'openai', 'anthropic'];
+  const rows = order.map(name => {
+    const pc  = providerCfg.providers[name] || {};
+    const ps  = providerSt[name] || {status: 'checking'};
+    const dot = dotColor(ps.status);
+    const keySet = pc.api_key_set;
+    return `
+      <div class="rounded-lg p-3" style="background:var(--surface2);border:1px solid var(--border);">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-2 h-2 rounded-full" style="background:${dot};"></span>
+          <span class="font-semibold" style="color:var(--text);">${esc(name)}</span>
+          <span class="fp-badge">${esc(ps.status)}</span>
+          ${keySet ? '<span class="api-badge live">key ✓</span>' : '<span class="api-badge cfg">no key</span>'}
+          ${ps.latency_ms ? `<span style="color:var(--muted);font-size:10px;">${ps.latency_ms}ms</span>` : ''}
+        </div>
+        <div class="text-xs" style="color:var(--muted);">
+          Config model: <code>${esc(pc.model || '—')}</code>
+          · Env var: <code>${esc(pc.api_key_env || '—')}</code>
+          · API models: ${ps.models?.length ?? 0}
+        </div>
+        ${ps.error ? `<div class="text-xs mt-1 break-all" style="color:var(--red);">${esc(ps.error)}</div>` : ''}
+      </div>`;
+  }).join('');
+
+  document.getElementById('settingsBody').innerHTML = `
+    <div class="text-xs mb-3 p-2 rounded" style="background:var(--surface2);color:var(--muted);">
+      Active: <span class="font-mono" style="color:var(--accent);">${esc(providerCfg.active_provider)}</span>
+      / <span class="font-mono">${esc(providerCfg.default_model)}</span>
+      · Fallback order: gemini → openai → anthropic
+    </div>
+    ${rows}
+    <div class="text-xs mt-2" style="color:var(--muted);">
+      To change defaults, edit <code>config.json</code>. To override for this session, click a provider pill above.
+      Logs: <code>logs/webui.jsonl</code> · <code>logs/agents.jsonl</code>
+    </div>`;
+}
+
 // ─── Jobs list ────────────────────────────────────────────────────────────────
 async function loadJobs() {
   try {
     const params = new URLSearchParams();
     if (filterStatus) params.set('status', filterStatus);
-    if (searchQ) params.set('q', searchQ);
+    if (searchQ)      params.set('q', searchQ);
     const url = '/api/jobs' + (params.toString() ? '?' + params : '');
-    jobs = await apiFetch(url);
+    jobs = await api(url);
     setApiStatus(true, `${jobs.length} job${jobs.length !== 1 ? 's' : ''}`);
     renderJobsList();
+    addAct('INFO', `Jobs list refreshed (${jobs.length} jobs)`);
   } catch(e) {
     setApiStatus(false, 'backend offline');
-    document.getElementById('jobsList').innerHTML =
-      `<div class="px-4 py-6 text-center text-xs" style="color:var(--muted);">Cannot reach backend<br/><span style="color:var(--red);">${e.message}</span></div>`;
+    document.getElementById('jobsList').innerHTML = `
+      <div class="px-4 py-6 text-center text-xs" style="color:var(--muted);">
+        Cannot reach backend<br/>
+        <span style="color:var(--red);">${esc(e.message)}</span>
+      </div>`;
+    addAct('ERROR', 'Jobs load failed', e.message);
   }
-}
-
-function statusDot(status) {
-  return `<span class="inline-block w-2 h-2 rounded-full dot-${status} mr-2 flex-shrink-0"></span>`;
-}
-
-function fmtTime(ts) {
-  if (!ts) return '—';
-  return new Date(ts * 1000).toLocaleString();
-}
-
-function fmtRelTime(ts) {
-  if (!ts) return '';
-  const diff = Date.now() - ts * 1000;
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h/24)}d ago`;
 }
 
 function renderJobsList() {
   const el = document.getElementById('jobsList');
+  // Sidebar footer: counts per status
+  const counts = {running:0, completed:0, failed:0, pending:0};
+  jobs.forEach(j => { if (counts[j.status] !== undefined) counts[j.status]++; });
+  document.getElementById('sidebarFooter').innerHTML =
+    `<span style="color:var(--orange);">${counts.running} running</span> · ` +
+    `<span style="color:var(--accent);">${counts.completed} done</span> · ` +
+    `<span style="color:var(--red);">${counts.failed} failed</span> · ` +
+    `<span style="color:var(--yellow);">${counts.pending} pending</span>`;
+
   if (!jobs.length) {
-    el.innerHTML = `<div class="px-4 py-8 text-center text-xs" style="color:var(--muted);">No jobs found<br/><span class="text-xs mt-1 block">Jobs appear here when created in workspace/jobs/</span></div>`;
+    el.innerHTML = `<div class="px-4 py-8 text-center text-xs" style="color:var(--muted);">
+      No jobs found.<br/>
+      <span class="block mt-1">Jobs appear when created in <code>workspace/jobs/</code>.</span>
+    </div>`;
     return;
   }
   el.innerHTML = jobs.map(j => `
-    <div class="job-item px-3 py-2.5 cursor-pointer ${j.job_id === activeJobId ? 'active' : ''}" onclick="selectJob('${escAttr(j.job_id)}')">
+    <div class="job-item px-3 py-2.5 cursor-pointer ${j.job_id === activeJobId ? 'active' : ''}"
+         data-jid="${escA(j.job_id)}">
       <div class="flex items-center gap-1">
-        ${statusDot(j.status)}
-        <span class="font-mono text-xs" style="color:var(--muted);">${escHtml(j.job_id.slice(0,12))}</span>
-        ${j.status === 'running' ? '<span class="pulse ml-auto text-xs" style="color:var(--orange);">●</span>' : ''}
+        <span class="inline-block w-2 h-2 rounded-full dot-${esc(j.status)} mr-1 flex-shrink-0"></span>
+        <span class="font-mono text-xs truncate flex-1" style="color:var(--muted);">${esc(j.job_id.slice(0,14))}</span>
+        ${j.status === 'running' ? '<span class="pulse text-xs" style="color:var(--orange);">●</span>' : ''}
+        <span class="text-xs capitalize" style="color:${
+          j.status==='running'?'var(--orange)':j.status==='completed'?'var(--accent)':
+          j.status==='failed'?'var(--red)':'var(--yellow)'}">${esc(j.status)}</span>
       </div>
-      <div class="mt-0.5 text-xs leading-tight" style="color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${escHtml(j.goal || '(no goal)')}</div>
-      <div class="mt-1 text-xs" style="color:var(--muted);">${fmtRelTime(j.updated || j.created)}</div>
-    </div>
-  `).join('');
+      <div class="mt-0.5 text-xs leading-tight" style="color:var(--text);
+           display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+        ${esc(j.goal || '(no goal)')}
+      </div>
+      <div class="flex items-center gap-2 mt-1 text-xs" style="color:var(--muted);">
+        ${j.provider ? `<span class="fp-badge">${esc(j.provider)}</span>` : ''}
+        <span>${fmtRel(j.updated || j.created)}</span>
+      </div>
+    </div>`).join('');
+
+  el.querySelectorAll('.job-item[data-jid]').forEach(item =>
+    item.addEventListener('click', () => selectJob(item.dataset.jid))
+  );
 }
 
-// ─── Job detail ───────────────────────────────────────────────────────────────
+// ─── Job detail ────────────────────────────────────────────────────────────────
 async function selectJob(jobId) {
   activeJobId = jobId;
-  activeTab = 'overview';
+  activeTab   = 'overview';
   renderJobsList();
   document.getElementById('noSelection').classList.add('hidden');
-  document.getElementById('jobDetail').classList.remove('hidden');
-  document.getElementById('jobDetail').innerHTML = `<div class="text-center py-12" style="color:var(--muted);">Loading…</div>`;
-
-  if (jobRefreshInterval) clearInterval(jobRefreshInterval);
+  const det = document.getElementById('jobDetail');
+  det.classList.remove('hidden');
+  det.innerHTML = `<div class="py-12 text-center" style="color:var(--muted);">Loading…</div>`;
+  if (jobRefreshIv) clearInterval(jobRefreshIv);
   await loadJobDetail();
-
-  jobRefreshInterval = setInterval(async () => {
-    if (activeJob && activeJob.status === 'running') await loadJobDetail();
+  jobRefreshIv = setInterval(async () => {
+    if (activeJob?.status === 'running') await loadJobDetail();
   }, 3000);
+  addAct('INFO', `Selected job: ${jobId}`);
 }
 
 async function loadJobDetail() {
   try {
-    activeJob = await apiFetch(`/api/jobs/${encodeURIComponent(activeJobId)}`);
+    activeJob = await api(`/api/jobs/${encodeURIComponent(activeJobId)}`);
     renderJobDetail();
   } catch(e) {
     document.getElementById('jobDetail').innerHTML =
-      `<div class="py-8 text-center" style="color:var(--red);">Error loading job: ${escHtml(e.message)}</div>`;
+      `<div class="py-8 text-center" style="color:var(--red);">Error loading job: ${esc(e.message)}</div>`;
+    addAct('ERROR', `Job detail load failed: ${activeJobId}`, e.message);
   }
 }
 
@@ -249,43 +869,49 @@ function renderJobDetail() {
   const j = activeJob;
   const tabs = ['overview','events','artifacts','products'];
   const tabLabels = {
-    overview: 'Overview',
-    events: `Events (${j.events?.length || 0})`,
+    overview:  'Overview',
+    events:    `Events (${j.events?.length || 0})`,
     artifacts: `Artifacts (${j.artifacts?.length || 0})`,
-    products: '⭐ Finished Products',
+    products:  '⭐ Products',
   };
+  const ps = providerSt[j.provider] || {};
 
   document.getElementById('jobDetail').innerHTML = `
     <div class="mb-5">
       <div class="flex items-center gap-3 mb-1 flex-wrap">
-        ${statusDot(j.status)}
-        <span class="font-bold text-lg" style="color:var(--text);">${escHtml(j.goal || j.job_id)}</span>
-        <span class="status-${j.status} text-sm font-semibold capitalize">${escHtml(j.status)}</span>
+        <span class="inline-block w-3 h-3 rounded-full dot-${esc(j.status)}"></span>
+        <span class="font-bold text-lg" style="color:var(--text);">${esc(j.goal || j.job_id)}</span>
+        <span class="status-${esc(j.status)} text-sm font-semibold capitalize">${esc(j.status)}</span>
+        ${j.status === 'running' ? '<span class="pulse text-sm" style="color:var(--orange);">●</span>' : ''}
       </div>
-      <div class="text-xs font-mono" style="color:var(--muted);">ID: ${escHtml(j.job_id)}</div>
+      <div class="flex items-center gap-3 text-xs flex-wrap" style="color:var(--muted);">
+        <span class="font-mono">ID: ${esc(j.job_id)}</span>
+        ${j.provider ? `<span class="fp-badge">${esc(j.provider)}</span>` : ''}
+        ${j.model ? `<code>${esc(j.model)}</code>` : ''}
+        <span>Created: ${fmtTime(j.created)}</span>
+        <span>Updated: ${fmtTime(j.updated)}</span>
+      </div>
     </div>
-
-    <div class="flex gap-0 border-b mb-5 text-sm" style="border-color:var(--border);">
+    <div class="flex border-b mb-5 text-sm" style="border-color:var(--border);">
       ${tabs.map(t => `
         <button class="tab px-4 py-2 ${activeTab===t?'active':''}"
-          style="color:${activeTab===t?'var(--blue)':'var(--muted)'};"
-          onclick="switchTab('${t}')">${escHtml(tabLabels[t])}</button>
-      `).join('')}
+                style="color:${activeTab===t?'var(--blue)':'var(--muted)'};"
+                data-tab="${escA(t)}">${esc(tabLabels[t])}</button>`).join('')}
     </div>
+    <div id="tabContent"></div>`;
 
-    <div id="tabContent"></div>
-  `;
+  document.querySelectorAll('.tab[data-tab]').forEach(btn =>
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab))
+  );
   renderTab();
 }
 
 function switchTab(tab) {
   activeTab = tab;
-  document.querySelectorAll('.tab').forEach(b => {
-    const m = b.getAttribute('onclick').match(/'(\w+)'/);
-    if (!m) return;
-    const t = m[1];
-    b.classList.toggle('active', t === tab);
-    b.style.color = t === tab ? 'var(--blue)' : 'var(--muted)';
+  document.querySelectorAll('.tab[data-tab]').forEach(btn => {
+    const active = btn.dataset.tab === tab;
+    btn.classList.toggle('active', active);
+    btn.style.color = active ? 'var(--blue)' : 'var(--muted)';
   });
   renderTab();
 }
@@ -293,74 +919,80 @@ function switchTab(tab) {
 function renderTab() {
   const el = document.getElementById('tabContent');
   if (!el || !activeJob) return;
-  if      (activeTab === 'overview')   el.innerHTML = renderOverview(activeJob);
-  else if (activeTab === 'events')     el.innerHTML = renderEvents(activeJob);
-  else if (activeTab === 'artifacts')  el.innerHTML = renderArtifacts(activeJob, false);
-  else if (activeTab === 'products')   el.innerHTML = renderArtifacts(activeJob, true);
+  if      (activeTab === 'overview')  el.innerHTML = renderOverview(activeJob);
+  else if (activeTab === 'events')    el.innerHTML = renderEvents(activeJob);
+  else if (activeTab === 'artifacts') el.innerHTML = renderArtifacts(activeJob, false);
+  else if (activeTab === 'products')  el.innerHTML = renderArtifacts(activeJob, true);
 }
 
 function renderOverview(j) {
   const rows = [
-    ['Job ID',   `<span class="font-mono text-xs">${escHtml(j.job_id)}</span>`],
-    ['Status',   `<span class="status-${j.status} font-semibold capitalize">${escHtml(j.status)}</span>`],
-    ['Goal',     escHtml(j.goal || '—')],
-    ['Provider', escHtml(j.provider || '—')],
-    ['Model',    escHtml(j.model || '—')],
-    ['Created',  escHtml(fmtTime(j.created))],
-    ['Updated',  escHtml(fmtTime(j.updated))],
+    ['Job ID',   `<span class="font-mono text-xs">${esc(j.job_id)}</span>`],
+    ['Status',   `<span class="status-${esc(j.status)} font-semibold capitalize">${esc(j.status)}</span>`],
+    ['Goal',     esc(j.goal || '—')],
+    ['Provider', esc(j.provider || '—')],
+    ['Model',    `<code>${esc(j.model || '—')}</code>`],
+    ['Created',  esc(fmtTime(j.created))],
+    ['Updated',  esc(fmtTime(j.updated))],
   ];
   if (j.verify_summary) {
-    rows.push(['Verify', `<pre class="text-xs mt-1 p-2 rounded overflow-x-auto" style="background:var(--surface2);">${escHtml(j.verify_summary)}</pre>`]);
+    rows.push(['Verify', `<pre class="text-xs mt-1 p-2 rounded overflow-x-auto whitespace-pre-wrap"
+      style="background:var(--surface2);">${esc(j.verify_summary)}</pre>`]);
+  }
+  const fp = (j.artifacts || []).filter(a => a.is_finished_product);
+  if (fp.length) {
+    rows.push(['Products', fp.map(a =>
+      `<span class="fp-badge mr-1">${esc(a.path)}</span>`).join('')]);
   }
 
   let stateSection = '';
   if (j.state && Object.keys(j.state).length) {
     stateSection = `
       <div class="mt-5">
-        <h3 class="text-sm font-semibold mb-2" style="color:var(--muted);">State Snapshot</h3>
-        <pre class="text-xs p-3 rounded overflow-x-auto" style="background:var(--surface2);color:var(--text);">${escHtml(JSON.stringify(j.state, null, 2))}</pre>
+        <div class="text-xs font-semibold mb-2" style="color:var(--muted);">State Snapshot</div>
+        <pre class="text-xs p-3 rounded overflow-x-auto whitespace-pre-wrap"
+             style="background:var(--surface2);color:var(--text);">${esc(JSON.stringify(j.state, null, 2))}</pre>
       </div>`;
   }
 
   return `
     <div class="rounded-lg p-4" style="background:var(--surface2);border:1px solid var(--border);">
       <table class="w-full text-sm">
-        ${rows.map(([k,v]) => `
-          <tr>
-            <td class="py-1.5 pr-4 text-xs font-semibold align-top" style="color:var(--muted);width:120px;">${k}</td>
-            <td class="py-1.5">${v}</td>
-          </tr>`).join('')}
+        ${rows.map(([k,v]) => `<tr>
+          <td class="py-1.5 pr-4 text-xs font-semibold align-top" style="color:var(--muted);width:100px;">${k}</td>
+          <td class="py-1.5">${v}</td>
+        </tr>`).join('')}
       </table>
     </div>
     ${stateSection}`;
 }
 
 function renderEvents(j) {
-  if (!j.events || !j.events.length) {
-    return `<div class="py-8 text-center text-sm" style="color:var(--muted);">No events recorded for this job.</div>`;
+  if (!j.events?.length) {
+    return `<div class="py-8 text-center text-sm" style="color:var(--muted);">
+      No events recorded for this job.</div>`;
   }
-  return `
-    <div class="space-y-2">
-      ${j.events.slice().reverse().map(ev => {
-        const type = (ev.type || ev.event || '').toLowerCase();
-        const cls = type.includes('error') ? 'error'
-                  : type.includes('success') || type.includes('complete') ? 'success'
-                  : type.includes('warn') ? 'warn' : 'info';
-        const ts = ev.timestamp || ev.ts || ev.time;
-        const msg = ev.message || ev.msg || ev.content || JSON.stringify(ev);
-        return `<div class="event-row ${cls} pl-3 py-2 rounded-r text-xs" style="background:var(--surface2);">
-          <div class="flex items-start gap-2">
-            <span class="font-mono flex-shrink-0" style="color:var(--muted);min-width:80px;">${ts ? new Date(ts*1000).toLocaleTimeString() : ''}</span>
-            <span class="uppercase text-xs font-semibold flex-shrink-0" style="color:var(--muted);min-width:60px;">${escHtml(ev.type || ev.event || 'event')}</span>
-            <span style="color:var(--text);word-break:break-word;">${escHtml(String(msg))}</span>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`;
-}
-
-function safeB64(path) {
-  return btoa(encodeURIComponent(path)).replace(/[^a-z0-9]/gi, '');
+  return `<div class="space-y-2">
+    ${[...j.events].reverse().map(ev => {
+      const type = String(ev.type || ev.event || '').toLowerCase();
+      const cls  = type.includes('error') ? 'error'
+                 : type.includes('success') || type.includes('complete') ? 'success'
+                 : type.includes('warn') ? 'warn' : 'info';
+      const ts  = ev.timestamp || ev.ts || ev.time;
+      const msg = ev.message || ev.msg || ev.content || JSON.stringify(ev);
+      return `<div class="event-row ${cls} text-xs" style="background:var(--surface2);">
+        <div class="flex items-start gap-2">
+          <span class="font-mono flex-shrink-0" style="color:var(--muted);min-width:72px;">
+            ${ts ? new Date(ts*1000).toLocaleTimeString() : ''}
+          </span>
+          <span class="uppercase font-semibold flex-shrink-0" style="color:var(--muted);min-width:56px;">
+            ${esc(ev.type || ev.event || 'event')}
+          </span>
+          <span style="color:var(--text);word-break:break-word;">${esc(String(msg))}</span>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 function renderArtifacts(j, fpOnly) {
@@ -368,36 +1000,42 @@ function renderArtifacts(j, fpOnly) {
   if (fpOnly) arts = arts.filter(a => a.is_finished_product);
   if (!arts.length) {
     return fpOnly
-      ? `<div class="py-8 text-center text-sm" style="color:var(--muted);">No finished products detected.<br/><span class="text-xs">Place files in artifacts/deliverables/ or artifacts/reports/</span></div>`
-      : `<div class="py-8 text-center text-sm" style="color:var(--muted);">No artifacts found for this job.</div>`;
+      ? `<div class="py-8 text-center text-sm" style="color:var(--muted);">
+          No finished products detected.<br/>
+          <span class="text-xs">Place files in <code>artifacts/deliverables/</code> or <code>artifacts/reports/</code></span>
+         </div>`
+      : `<div class="py-8 text-center text-sm" style="color:var(--muted);">No artifacts found.</div>`;
   }
-  const jid = escAttr(activeJobId);
-  return `
-    <div class="rounded-lg overflow-hidden" style="border:1px solid var(--border);">
-      ${arts.map(a => {
-        const key = 'prev_' + safeB64(a.path);
-        const encPath = encodeURIComponent(a.path);
-        return `
-          <div class="artifact-row flex items-center gap-3 px-4 py-2.5 border-b text-sm cursor-pointer"
-               style="border-color:var(--border);"
-               onclick="viewArtifact('${jid}','${escAttr(a.path)}')">
-            <span class="text-base flex-shrink-0">${fileIcon(a.path)}</span>
-            <span class="flex-1 font-mono text-xs truncate">${escHtml(a.path)}</span>
-            ${a.is_finished_product ? '<span class="fp-badge flex-shrink-0">⭐ product</span>' : ''}
-            <span class="text-xs flex-shrink-0" style="color:var(--muted);">${fmtBytes(a.size)}</span>
-            <a href="/api/jobs/${jid}/artifacts/${encPath}" download
-               class="btn btn-secondary text-xs py-0.5 px-2 ml-1 flex-shrink-0"
-               onclick="event.stopPropagation()">↓</a>
-          </div>
-          <div class="artifact-preview hidden px-4 py-3" id="${key}"
-               style="background:var(--surface2);border-bottom:1px solid var(--border);max-height:400px;overflow-y:auto;"></div>
-        `;
-      }).join('')}
-    </div>`;
+  const jid = encodeURIComponent(activeJobId);
+  return `<div class="rounded-lg overflow-hidden" style="border:1px solid var(--border);">
+    ${arts.map(a => {
+      const key = 'prev_' + safeId(a.path);
+      const enc = encodeURIComponent(a.path);
+      return `
+        <div class="artifact-row flex items-center gap-3 px-4 py-2.5 border-b text-sm cursor-pointer"
+             style="border-color:var(--border);" data-art="${escA(a.path)}">
+          <span class="text-base flex-shrink-0">${fileIcon(a.path)}</span>
+          <span class="flex-1 font-mono text-xs truncate">${esc(a.path)}</span>
+          ${a.is_finished_product ? '<span class="fp-badge">⭐ product</span>' : ''}
+          <span class="text-xs flex-shrink-0" style="color:var(--muted);">${fmtBytes(a.size)}</span>
+          <span class="text-xs flex-shrink-0" style="color:var(--muted);">${fmtRel(a.mtime)}</span>
+          <a href="/api/jobs/${jid}/artifacts/${enc}" download
+             class="btn btn-secondary text-xs py-0.5 px-2 flex-shrink-0"
+             onclick="event.stopPropagation()">↓</a>
+        </div>
+        <div class="artifact-preview hidden px-4 py-3" id="${key}"
+             style="background:var(--surface2);border-bottom:1px solid var(--border);
+                    max-height:420px;overflow-y:auto;"></div>`;
+    }).join('')}
+  </div>`;
 }
 
-async function viewArtifact(jobId, path) {
-  const key = 'prev_' + safeB64(path);
+// Artifact preview click delegation
+document.addEventListener('click', async e => {
+  const row = e.target.closest('.artifact-row[data-art]');
+  if (!row || !activeJobId) return;
+  const path = row.dataset.art;
+  const key  = 'prev_' + safeId(path);
   const prev = document.getElementById(key);
   if (!prev) return;
   if (!prev.classList.contains('hidden')) {
@@ -407,85 +1045,96 @@ async function viewArtifact(jobId, path) {
   prev.classList.remove('hidden');
   prev.innerHTML = '<div class="text-xs py-2" style="color:var(--muted);">Loading…</div>';
   try {
-    const r = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/artifacts/${encodeURIComponent(path)}`);
+    const r = await fetch(`/api/jobs/${encodeURIComponent(activeJobId)}/artifacts/${encodeURIComponent(path)}`);
     if (!r.ok) throw new Error(r.statusText);
     const text = await r.text();
-    if (path.endsWith('.md') || path.endsWith('.markdown')) {
+    if (/\.(md|markdown)$/i.test(path)) {
       prev.innerHTML = `<div class="md-content text-sm" style="color:var(--text);">${marked.parse(text)}</div>`;
     } else {
-      prev.innerHTML = `<pre class="text-xs overflow-x-auto whitespace-pre-wrap" style="color:var(--text);">${escHtml(text)}</pre>`;
+      prev.innerHTML = `<pre class="text-xs overflow-x-auto whitespace-pre-wrap" style="color:var(--text);">${esc(text)}</pre>`;
     }
-  } catch(e) {
-    prev.innerHTML = `<div class="text-xs" style="color:var(--red);">Error: ${escHtml(e.message)}</div>`;
+    addAct('SUCCESS', `Artifact loaded: ${path}`);
+  } catch(err) {
+    prev.innerHTML = `<div class="text-xs" style="color:var(--red);">Error: ${esc(err.message)}</div>`;
+    addAct('ERROR', `Artifact load failed: ${path}`, err.message);
+  }
+});
+
+// ─── New Job Modal ─────────────────────────────────────────────────────────────
+function updateNewJobModal() {
+  const prov = selection.provider || '—';
+  const mdl  = selection.model    || '—';
+  const ps   = providerSt[prov]   || {};
+  document.getElementById('njProvider').textContent = prov;
+  document.getElementById('njModel').textContent    = mdl;
+  document.getElementById('njProvDot').style.background = dotColor(ps.status || 'checking');
+}
+function openPickerThenJob() {
+  closeModal('newJobModal');
+  // Re-open new job after picker interaction (user picks model then opens job again)
+  if (selection.provider) togglePicker(selection.provider);
+  else togglePicker('gemini');
+}
+async function submitNewJob() {
+  const goal   = document.getElementById('njGoal').value.trim();
+  const verify = document.getElementById('njVerify').value.trim();
+  const statusEl = document.getElementById('njStatus');
+  if (!goal) {
+    statusEl.textContent = '⚠ Goal is required.';
+    statusEl.style.color = 'var(--red)';
+    statusEl.classList.remove('hidden');
+    return;
+  }
+  const btn = document.getElementById('njSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Queuing…';
+  statusEl.textContent = `Sending to ${selection.provider} / ${selection.model}…`;
+  statusEl.style.color = 'var(--muted)';
+  statusEl.classList.remove('hidden');
+  try {
+    const job = await api('/api/jobs', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json; charset=utf-8'},
+      body: JSON.stringify({
+        goal,
+        provider: selection.provider,
+        model:    selection.model,
+        verify_command: verify || null,
+      }),
+    });
+    closeModal('newJobModal');
+    toast(`Job queued: ${job.job_id}`, 'success');
+    addAct('SUCCESS', `Job created: ${job.job_id}`, `${job.provider}/${job.model}`);
+    await loadJobs();
+    selectJob(job.job_id);
+  } catch(err) {
+    statusEl.textContent = '✗ ' + err.message;
+    statusEl.style.color = 'var(--red)';
+    toast('Job creation failed: ' + err.message, 'error');
+    addAct('ERROR', 'Job creation failed', err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '▶ Queue Job';
   }
 }
 
-function fileIcon(path) {
-  if (path.endsWith('.md') || path.endsWith('.markdown')) return '📝';
-  if (path.endsWith('.json')) return '{}';
-  if (path.endsWith('.py'))   return '🐍';
-  if (path.endsWith('.log'))  return '📋';
-  if (path.endsWith('.txt'))  return '📄';
-  if (path.endsWith('.html')) return '🌐';
-  if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg')) return '🖼';
-  if (path.endsWith('.zip') || path.endsWith('.tar') || path.endsWith('.gz'))   return '📦';
-  return '📎';
+// ─── Modal helpers ────────────────────────────────────────────────────────────
+function openModal(id) {
+  document.getElementById(id).classList.remove('hidden');
 }
-
-function fmtBytes(b) {
-  if (b < 1024)    return b + 'B';
-  if (b < 1048576) return (b / 1024).toFixed(1) + 'KB';
-  return (b / 1048576).toFixed(1) + 'MB';
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
 }
+document.querySelectorAll('.closeModalBtn').forEach(btn => {
+  btn.addEventListener('click', () => closeModal(btn.dataset.modal));
+});
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) closeModal(overlay.id);
+  });
+});
 
-function escHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function escAttr(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;');
-}
-
-// ─── Config / Settings ────────────────────────────────────────────────────────
-async function loadConfig() {
-  try {
-    providerConfig = await apiFetch('/api/config');
-    populateSettings();
-  } catch(e) {}
-}
-
-function populateSettings() {
-  if (!providerConfig) return;
-  const pSel = document.getElementById('settingsProvider');
-  const providers = Object.keys(providerConfig.providers || {});
-  pSel.innerHTML = providers.map(p =>
-    `<option value="${escAttr(p)}" ${p === providerConfig.active_provider ? 'selected' : ''}>${escHtml(p)}</option>`
-  ).join('');
-  updateModelSelect(providerConfig.active_provider);
-  pSel.onchange = () => updateModelSelect(pSel.value);
-}
-
-function updateModelSelect(provider) {
-  if (!providerConfig) return;
-  const mSel = document.getElementById('settingsModel');
-  const badge = document.getElementById('recommendedModelBadge');
-  const pCfg = providerConfig.providers[provider] || {};
-  const models = Object.entries(pCfg.available_models || {});
-  const current = pCfg.model;
-  mSel.innerHTML = models.map(([m, desc]) =>
-    `<option value="${escAttr(m)}" ${m === current ? 'selected' : ''}>${escHtml(m)}${desc ? ' — ' + escHtml(desc) : ''}</option>`
-  ).join('');
-  if (badge) badge.textContent = current ? `recommended: ${current}` : '';
-}
-
-// ─── Filters ──────────────────────────────────────────────────────────────────
+// ─── Filters & search ─────────────────────────────────────────────────────────
 document.querySelectorAll('.filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     filterStatus = btn.dataset.f;
@@ -494,33 +1143,59 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     loadJobs();
   });
 });
-
 document.getElementById('searchInput').addEventListener('input', e => {
   searchQ = e.target.value;
-  clearTimeout(window._searchTimer);
-  window._searchTimer = setTimeout(loadJobs, 300);
+  clearTimeout(window._st);
+  window._st = setTimeout(loadJobs, 280);
 });
 
+// ─── Header buttons ───────────────────────────────────────────────────────────
 document.getElementById('refreshBtn').addEventListener('click', () => {
   loadJobs();
+  loadProviderStatus();
   if (activeJobId) loadJobDetail();
+  addAct('INFO', 'Manual refresh triggered');
 });
-
-document.getElementById('settingsBtn').addEventListener('click', () => {
-  loadConfig();
-  document.getElementById('settingsModal').classList.remove('hidden');
+document.getElementById('reProbeBtn').addEventListener('click', async () => {
+  toast('Re-probing all providers…', 'info');
+  await loadProviderStatus(true);
+  toast('Provider probe complete', 'success');
 });
-document.getElementById('closeSettings').addEventListener('click',  () => document.getElementById('settingsModal').classList.add('hidden'));
-document.getElementById('closeSettings2').addEventListener('click', () => document.getElementById('settingsModal').classList.add('hidden'));
-document.getElementById('settingsModal').addEventListener('click', e => {
-  if (e.target === document.getElementById('settingsModal'))
-    document.getElementById('settingsModal').classList.add('hidden');
+document.getElementById('clearSelBtn').addEventListener('click', clearSelection);
+document.getElementById('settingsBtn').addEventListener('click', async () => {
+  await loadConfig();
+  openModal('settingsModal');
+});
+document.getElementById('newJobBtn').addEventListener('click', () => {
+  updateNewJobModal();
+  // clear previous state
+  document.getElementById('njGoal').value = '';
+  document.getElementById('njVerify').value = '';
+  document.getElementById('njStatus').classList.add('hidden');
+  openModal('newJobModal');
+});
+document.getElementById('njSubmitBtn').addEventListener('click', submitNewJob);
+document.getElementById('njGoal').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitNewJob();
 });
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
-loadJobs();
-loadConfig();
-refreshInterval = setInterval(loadJobs, 5000);
+(async function init() {
+  addAct('INFO', 'Overlord11 Tactical WebUI initialising…');
+  try {
+    await loadSelection();
+    await Promise.allSettled([loadJobs(), loadProviderStatus()]);
+    await loadConfig();
+    updateActiveBadge();
+    updateNewJobModal();
+    addAct('SUCCESS', 'WebUI ready');
+    // Auto-refresh jobs every 5s; re-probe providers every 5 minutes
+    refreshIv = setInterval(loadJobs, 5000);
+    setInterval(() => loadProviderStatus(), 5 * 60 * 1000);
+  } catch(e) {
+    addAct('ERROR', 'Init failed', e.message);
+  }
+})();
 </script>
 </body>
 </html>

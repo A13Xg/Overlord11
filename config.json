@@ -322,8 +322,8 @@
     "always_review_before_delivery": true,
     "fallback_provider_order": [
       "gemini",
-      "anthropic",
-      "openai"
+      "openai",
+      "anthropic"
     ],
     "phases": [
       "intake",
