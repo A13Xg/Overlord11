@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OVERLORD11 — Tactical Operations Terminal</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   OVERLORD11 TACTICAL THEME — military satellite / missile command terminal
+   Primary: #00ffe7 (neon cyan)  Secondary: #39ff14 (neon green)
+   Alert: #ff6b00 (amber)  Critical: #ff2d2d (red)
+   Background: #060d12  Grid: #0a1a20
+   Font: JetBrains Mono / Courier New (monospace)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #060d12;
+  --bg2:      #0a1520;
+  --bg3:      #0f1f2a;
+  --grid:     #0a2030;
+  --cyan:     #00ffe7;
+  --green:    #39ff14;
+  --amber:    #ff9900;
+  --red:      #ff2d2d;
+  --dim:      #1e3a4a;
+  --text:     #c8e8f0;
+  --text-dim: #4a7a8a;
+  --border:   #1a3040;
+  --border-hi: #00ffe7;
+  --font: 'JetBrains Mono', 'Courier New', monospace;
+  --radius: 2px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  overflow: hidden;
+}
+
+/* ── Radar grid background ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,255,231,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,231,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Subtle scanline overlay ── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.07) 2px,
+    rgba(0,0,0,0.07) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Layout ── */
+#app {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: 56px 1fr;
+  grid-template-columns: 300px 1fr 320px;
+  height: 100vh;
+  gap: 0;
+}
+
+/* ── Header ── */
+header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 20px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+.logo {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: var(--cyan);
+  text-shadow: 0 0 12px var(--cyan);
+  white-space: nowrap;
+}
+
+.logo span { color: var(--green); }
+
+.header-status {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex: 1;
+}
+
+.hstat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+.hstat .val { color: var(--cyan); }
+
+.pulse-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: pulse-anim 1.5s ease-in-out infinite;
+}
+.pulse-dot.inactive { background: var(--text-dim); box-shadow: none; animation: none; }
+.pulse-dot.amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+.pulse-dot.red { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+@keyframes pulse-anim {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.header-time {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 2px;
+}
+
+/* ── Panels ── */
+.panel {
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel:last-child { border-right: none; border-left: 1px solid var(--border); }
+
+.panel-title {
+  padding: 10px 14px;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-title .indicator {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 4px var(--cyan);
+}
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.panel-body::-webkit-scrollbar { width: 4px; }
+.panel-body::-webkit-scrollbar-track { background: var(--bg); }
+.panel-body::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+/* ── Center panel (events) ── */
+#panel-center {
+  border-right: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Forms ── */
+.form-group {
+  margin-bottom: 12px;
+}
+
+.form-label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.form-input, .form-textarea, .form-select {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  outline: none;
+  transition: border-color .2s;
+}
+
+.form-input:focus, .form-textarea:focus, .form-select:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 8px rgba(0,255,231,0.15);
+}
+
+.form-textarea { resize: vertical; min-height: 70px; }
+
+.form-select option { background: var(--bg3); }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-family: var(--font);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 1px solid;
+  border-radius: var(--radius);
+  transition: all .15s;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: rgba(0,255,231,0.12);
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+.btn-primary:hover {
+  background: rgba(0,255,231,0.22);
+  box-shadow: 0 0 10px rgba(0,255,231,0.3);
+}
+
+.btn-green {
+  background: rgba(57,255,20,0.1);
+  border-color: var(--green);
+  color: var(--green);
+}
+.btn-green:hover { background: rgba(57,255,20,0.2); box-shadow: 0 0 10px rgba(57,255,20,0.3); }
+
+.btn-amber {
+  background: rgba(255,153,0,0.1);
+  border-color: var(--amber);
+  color: var(--amber);
+}
+.btn-amber:hover { background: rgba(255,153,0,0.2); }
+
+.btn-red {
+  background: rgba(255,45,45,0.1);
+  border-color: var(--red);
+  color: var(--red);
+}
+.btn-red:hover { background: rgba(255,45,45,0.2); }
+
+.btn-sm { padding: 4px 8px; font-size: 10px; letter-spacing: 1px; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
+/* ── Mission cards ── */
+.mission-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+
+.mission-card:hover, .mission-card.active {
+  border-color: var(--cyan);
+  box-shadow: 0 0 8px rgba(0,255,231,0.1);
+}
+
+.mission-card.active { background: rgba(0,255,231,0.05); }
+
+.mc-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+
+.mc-id { font-size: 10px; color: var(--text-dim); font-family: var(--font); }
+
+.mc-goal {
+  font-size: 11px;
+  color: var(--text);
+  margin-bottom: 6px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mc-meta { display: flex; gap: 10px; align-items: center; }
+.mc-iter { font-size: 10px; color: var(--text-dim); }
+
+/* ── Status badges ── */
+.badge {
+  display: inline-block;
+  padding: 2px 7px;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  border-radius: 2px;
+  font-weight: 700;
+}
+.badge-PENDING  { background: rgba(74,122,138,0.3); color: #4a7a8a; border: 1px solid #1e3a4a; }
+.badge-RUNNING  { background: rgba(57,255,20,0.15); color: var(--green); border: 1px solid var(--green); animation: badge-run 1.2s ease-in-out infinite alternate; }
+.badge-PAUSED   { background: rgba(255,153,0,0.15); color: var(--amber); border: 1px solid var(--amber); }
+.badge-COMPLETE { background: rgba(0,255,231,0.15); color: var(--cyan); border: 1px solid var(--cyan); }
+.badge-FAILED   { background: rgba(255,45,45,0.15); color: var(--red); border: 1px solid var(--red); }
+
+@keyframes badge-run { from { opacity: .7; } to { opacity: 1; } }
+
+/* ── Event stream ── */
+#events-toolbar {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#events-filter {
+  flex: 1;
+  max-width: 200px;
+}
+
+#auto-scroll-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+#events-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  font-family: var(--font);
+  font-size: 11px;
+}
+
+#events-list::-webkit-scrollbar { width: 4px; }
+#events-list::-webkit-scrollbar-track { background: var(--bg); }
+#events-list::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+.ev-row {
+  display: grid;
+  grid-template-columns: 80px 140px 1fr;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  line-height: 1.5;
+  animation: ev-in .2s ease-out;
+}
+@keyframes ev-in { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:translateY(0); } }
+
+.ev-ts { color: var(--text-dim); font-size: 10px; white-space: nowrap; }
+.ev-type { font-weight: 700; white-space: nowrap; font-size: 10px; }
+.ev-msg { color: var(--text); word-break: break-word; }
+
+/* Event type colors */
+.ev-JOB_CREATED    { color: var(--cyan); }
+.ev-JOB_STARTING   { color: var(--cyan); }
+.ev-COMPLETE       { color: var(--green); }
+.ev-FAILED         { color: var(--red); }
+.ev-STOPPED        { color: var(--red); }
+.ev-VERIFY_RESULT  { color: var(--amber); }
+.ev-VERIFY_RETRY   { color: var(--amber); }
+.ev-REPAIR_START   { color: var(--amber); }
+.ev-REPAIR_RESULT  { color: var(--amber); }
+.ev-DEP_INSTALL_START  { color: #ffd700; }
+.ev-DEP_INSTALL_RESULT { color: #ffd700; }
+.ev-USER_DIRECTIVE { color: #c878ff; }
+.ev-DIRECTIVES_APPLIED { color: #c878ff; }
+.ev-ASSUMPTION_LOG { color: var(--text-dim); }
+.ev-ITERATION      { color: #6af; }
+.ev-PAUSED         { color: var(--amber); }
+.ev-RESUMED        { color: var(--green); }
+.ev-LLM_CALL_START { color: #7af0ff; }
+.ev-LLM_CALL_END   { color: #7af0ff; }
+.ev-LLM_UNAVAILABLE { color: var(--amber); }
+.ev-PLAN_CREATED   { color: #7af0ff; }
+.ev-STEP_START     { color: #aff; }
+.ev-STEP_END       { color: #aff; }
+.ev-PATCH_APPLY_START  { color: #7cf; }
+.ev-PATCH_APPLY_RESULT { color: #7cf; }
+.ev-TOOL_START     { color: #aff; }
+.ev-TOOL_END       { color: #aff; }
+.ev-ARTIFACT_WRITTEN { color: var(--text-dim); }
+.ev-STATUS         { color: var(--text-dim); }
+.ev-VERIFY_START   { color: var(--text-dim); }
+.ev-REVIEW_START   { color: var(--text-dim); }
+.ev-REVIEW_RESULT  { color: var(--cyan); }
+.ev-TIME_BUDGET_EXCEEDED    { color: var(--red); }
+.ev-ITERATION_BUDGET_EXCEEDED { color: var(--red); }
+.ev-error          { background: rgba(255,45,45,0.07); }
+.ev-warn           { background: rgba(255,153,0,0.05); }
+
+/* ── Right panel — job detail ── */
+.detail-section {
+  margin-bottom: 16px;
+}
+
+.detail-title {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.kv-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 5px;
+  font-size: 11px;
+}
+.kv-key { color: var(--text-dim); flex-shrink: 0; }
+.kv-val { color: var(--cyan); text-align: right; word-break: break-all; }
+
+/* Progress bar */
+.progress-bar-wrap {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  height: 8px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--green));
+  transition: width .4s ease;
+  box-shadow: 0 0 6px var(--cyan);
+}
+
+/* Verify badge */
+.verify-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 2px;
+}
+.verify-pass { background: rgba(57,255,20,0.12); color: var(--green); border: 1px solid var(--green); }
+.verify-fail { background: rgba(255,45,45,0.12); color: var(--red); border: 1px solid var(--red); }
+.verify-unknown { background: rgba(74,122,138,0.2); color: var(--text-dim); border: 1px solid var(--dim); }
+
+/* Artifacts list */
+.artifact-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  margin-bottom: 3px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 11px;
+}
+.artifact-name { color: var(--cyan); }
+.artifact-view { color: var(--text-dim); cursor: pointer; font-size: 10px; }
+.artifact-view:hover { color: var(--cyan); }
+
+/* Directive input */
+#directive-area {
+  border-top: 1px solid var(--border);
+  padding: 10px 12px;
+  background: var(--bg3);
+}
+
+.directive-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+/* ── Modal / artifact viewer ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6,13,18,0.92);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-box {
+  background: var(--bg2);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius);
+  width: 90%;
+  max-width: 900px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 40px rgba(0,255,231,0.12);
+}
+
+.modal-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--cyan);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0 4px;
+}
+.modal-close:hover { color: var(--red); }
+
+.modal-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  font-family: var(--font);
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.modal-content::-webkit-scrollbar { width: 4px; }
+.modal-content::-webkit-scrollbar-thumb { background: var(--dim); }
+
+/* ── Empty states ── */
+.empty-state {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+.empty-state .icon { font-size: 28px; margin-bottom: 10px; display: block; opacity: .4; }
+
+/* ── Number inputs ── */
+.num-row { display: flex; gap: 8px; }
+.num-row .form-group { flex: 1; }
+
+/* ── Checkbox ── */
+.check-row { display: flex; align-items: center; gap: 8px; }
+.check-row input[type=checkbox] { accent-color: var(--cyan); width: 14px; height: 14px; }
+.check-row label { font-size: 11px; color: var(--text); cursor: pointer; }
+
+/* ── Responsive: hide sidebars on very small screens ── */
+@media (max-width: 900px) {
+  #app { grid-template-columns: 1fr; grid-template-rows: 56px auto 1fr auto; }
+  #panel-left, #panel-right { display: none; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ═══ HEADER ═══════════════════════════════════════════════════════════ -->
+  <header>
+    <div class="logo">OVERLORD<span>11</span></div>
+    <div class="header-status">
+      <div class="hstat">
+        <div class="pulse-dot" id="h-dot"></div>
+        <span id="h-status-text">STANDBY</span>
+      </div>
+      <div class="hstat">JOBS: <span class="val" id="h-job-count">0</span></div>
+      <div class="hstat">ACTIVE: <span class="val" id="h-active-count">0</span></div>
+      <div class="hstat" id="h-provider-info" style="display:none">
+        PROVIDER: <span class="val" id="h-provider"></span>
+        &nbsp;MODEL: <span class="val" id="h-model"></span>
+      </div>
+    </div>
+    <div class="header-time" id="h-clock">--:--:-- UTC</div>
+  </header>
+
+  <!-- ═══ LEFT PANEL — Mission list + create ════════════════════════════════ -->
+  <div class="panel" id="panel-left">
+    <div class="panel-title"><span class="indicator"></span>MISSION QUEUE</div>
+    <div class="panel-body" style="display:flex;flex-direction:column;gap:0;padding:10px;">
+
+      <!-- Create mission form -->
+      <div style="margin-bottom:14px;">
+        <div class="form-group">
+          <label class="form-label">Mission Objective</label>
+          <textarea class="form-textarea" id="goal-input" placeholder="Describe the mission goal…" style="min-height:80px;"></textarea>
+        </div>
+        <div class="num-row">
+          <div class="form-group">
+            <label class="form-label">Max Iter</label>
+            <input class="form-input" id="max-iter" type="number" value="10" min="1" max="100">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Time (s)</label>
+            <input class="form-input" id="max-time" type="number" value="3600" min="10">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Provider (optional)</label>
+          <select class="form-select" id="provider-select">
+            <option value="">— default from config —</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="gemini">Gemini</option>
+            <option value="openai">OpenAI</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <div class="check-row">
+            <input type="checkbox" id="autonomous-check" checked>
+            <label for="autonomous-check">Autonomous (no permission prompts)</label>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btn-create" onclick="createJob()">⊕ CREATE MISSION</button>
+        </div>
+      </div>
+
+      <div class="detail-title">ACTIVE MISSIONS</div>
+      <div id="mission-list">
+        <div class="empty-state"><span class="icon">◎</span>No missions yet</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ CENTER PANEL — Live event stream ══════════════════════════════════ -->
+  <div class="panel" id="panel-center">
+    <div class="panel-title"><span class="indicator"></span>TELEMETRY FEED</div>
+    <div id="events-toolbar">
+      <input class="form-input" id="events-filter" placeholder="Filter events…" oninput="filterEvents()" style="font-size:11px;padding:5px 8px;">
+      <select class="form-select" id="level-filter" onchange="filterEvents()" style="width:90px;font-size:11px;padding:5px 8px;">
+        <option value="">All levels</option>
+        <option value="info">Info</option>
+        <option value="warn">Warn</option>
+        <option value="error">Error</option>
+      </select>
+      <label id="auto-scroll-label">
+        <input type="checkbox" id="auto-scroll-check" checked> Auto-scroll
+      </label>
+      <button class="btn btn-sm btn-amber" onclick="clearEvents()">✕ CLEAR</button>
+    </div>
+    <div id="events-list">
+      <div class="empty-state"><span class="icon">◎</span>Select a mission to view telemetry</div>
+    </div>
+  </div>
+
+  <!-- ═══ RIGHT PANEL — Job detail + feedback ══════════════════════════════ -->
+  <div class="panel" id="panel-right">
+    <div class="panel-title"><span class="indicator"></span>MISSION CONTROL</div>
+    <div class="panel-body" id="detail-body">
+      <div class="empty-state"><span class="icon">◎</span>Select a mission</div>
+    </div>
+    <div id="directive-area">
+      <div class="directive-label">⊕ Inject Directive</div>
+      <textarea class="form-textarea" id="directive-input"
+        placeholder="Enter feedback or correction…"
+        style="min-height:56px; margin-bottom:6px;"></textarea>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+        <label style="font-size:10px;color:var(--text-dim);">SEVERITY</label>
+        <select id="directive-severity" class="form-input" style="width:80px;font-size:10px;padding:2px 4px;">
+          <option value="normal">normal</option>
+          <option value="high">high</option>
+        </select>
+      </div>
+      <button class="btn btn-sm btn-primary" onclick="sendDirective()">⊕ TRANSMIT</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══ MODAL — Artifact viewer ══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span id="modal-title">ARTIFACT</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-content" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════
+//  OVERLORD11 Tactical WebUI — frontend controller
+// ══════════════════════════════════════════════════════════════════════════
+
+const API = '';  // relative base
+
+// ── State ──────────────────────────────────────────────────────────────────
+let activeJobId = null;
+let allEvents   = [];   // raw event objects for the active job
+let sseSource   = null;
+let jobs        = {};   // job_id → state
+
+// ── Clock ──────────────────────────────────────────────────────────────────
+function tickClock() {
+  const now = new Date();
+  // slice(11, 19) extracts "HH:MM:SS" from ISO string "YYYY-MM-DDTHH:MM:SS.mssZ"
+  document.getElementById('h-clock').textContent =
+    now.toISOString().slice(11, 19) + ' UTC';
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+// ── Init ───────────────────────────────────────────────────────────────────
+async function init() {
+  await loadJobs();
+  setInterval(loadJobs, 8000);
+}
+
+// ── Load / refresh job list ─────────────────────────────────────────────────
+async function loadJobs() {
+  try {
+    const res = await fetch(`${API}/api/jobs`);
+    if (!res.ok) return;
+    const list = await res.json();
+
+    // Merge into jobs map
+    list.forEach(j => { jobs[j.job_id] = j; });
+
+    renderJobList(list);
+    updateHeader(list);
+
+    // Refresh active job detail if selected
+    if (activeJobId) {
+      const j = list.find(x => x.job_id === activeJobId);
+      if (j) renderDetail(j);
+    }
+  } catch(e) { /* network error — silent */ }
+}
+
+function updateHeader(list) {
+  const active = list.filter(j => j.status === 'RUNNING' || j.status === 'PAUSED').length;
+  document.getElementById('h-job-count').textContent = list.length;
+  document.getElementById('h-active-count').textContent = active;
+
+  const dot = document.getElementById('h-dot');
+  const txt = document.getElementById('h-status-text');
+  if (active > 0) {
+    dot.className = 'pulse-dot';
+    txt.textContent = 'ACTIVE';
+  } else {
+    dot.className = 'pulse-dot inactive';
+    txt.textContent = 'STANDBY';
+  }
+}
+
+// ── Render mission list ─────────────────────────────────────────────────────
+function renderJobList(list) {
+  const el = document.getElementById('mission-list');
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty-state"><span class="icon">◎</span>No missions yet</div>';
+    return;
+  }
+  const sorted = [...list].sort((a,b) => b.created_at.localeCompare(a.created_at));
+  el.innerHTML = sorted.map(j => `
+    <div class="mission-card ${j.job_id === activeJobId ? 'active' : ''}"
+         onclick="selectJob('${j.job_id}')">
+      <div class="mc-header">
+        <span class="badge badge-${j.status}">${j.status}</span>
+        <span class="mc-id">${j.job_id}</span>
+      </div>
+      <div class="mc-goal">${escHtml(j.goal)}</div>
+      <div class="mc-meta">
+        <span class="mc-iter">iter ${j.iteration}</span>
+        ${j.stop_reason ? `<span style="font-size:10px;color:var(--text-dim);">${escHtml(j.stop_reason.slice(0,60))}</span>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Select a job ────────────────────────────────────────────────────────────
+async function selectJob(jobId) {
+  activeJobId = jobId;
+  allEvents = [];
+
+  // Re-render list to update active
+  renderJobList(Object.values(jobs));
+
+  // Load full state
+  try {
+    const res = await fetch(`${API}/api/jobs/${jobId}`);
+    const state = await res.json();
+    renderDetail(state);
+
+    // Update header provider info
+    if (state.provider) {
+      document.getElementById('h-provider-info').style.display = 'flex';
+      document.getElementById('h-provider').textContent = state.provider;
+      document.getElementById('h-model').textContent = state.model || '—';
+    }
+  } catch(e) {}
+
+  // Load artifacts
+  loadArtifacts(jobId);
+
+  // Start SSE stream
+  startSSE(jobId);
+}
+
+// ── Render job detail (right panel) ─────────────────────────────────────────
+function renderDetail(state) {
+  const iterPct = state.max_iterations > 0
+    ? Math.round((state.iteration / state.max_iterations) * 100) : 0;
+
+  let verifyBadge;
+  if (state.last_verify_passed === true) {
+    verifyBadge = '<span class="verify-badge verify-pass">✓ PASS</span>';
+  } else if (state.last_verify_passed === false) {
+    verifyBadge = '<span class="verify-badge verify-fail">✗ FAIL</span>';
+  } else {
+    verifyBadge = '<span class="verify-badge verify-unknown">— PENDING</span>';
+  }
+
+  const canStart  = state.status === 'PENDING' || state.status === 'COMPLETE' || state.status === 'FAILED';
+  const canPause  = state.status === 'RUNNING';
+  const canResume = state.status === 'PAUSED';
+  const canStop   = state.status === 'RUNNING' || state.status === 'PAUSED';
+
+  document.getElementById('detail-body').innerHTML = `
+    <div class="detail-section">
+      <div class="detail-title">Mission Status</div>
+      <div class="kv-row"><span class="kv-key">ID</span><span class="kv-val" style="font-size:10px;">${state.job_id}</span></div>
+      <div class="kv-row"><span class="kv-key">Status</span><span class="kv-val"><span class="badge badge-${state.status}">${state.status}</span></span></div>
+      <div class="kv-row"><span class="kv-key">Provider</span><span class="kv-val">${state.provider || '—'}</span></div>
+      <div class="kv-row"><span class="kv-key">Model</span><span class="kv-val">${state.model || '—'}</span></div>
+      <div class="kv-row"><span class="kv-key">Created</span><span class="kv-val" style="font-size:10px;">${fmtTs(state.created_at)}</span></div>
+      ${state.started_at ? `<div class="kv-row"><span class="kv-key">Started</span><span class="kv-val" style="font-size:10px;">${fmtTs(state.started_at)}</span></div>` : ''}
+      ${state.finished_at ? `<div class="kv-row"><span class="kv-key">Finished</span><span class="kv-val" style="font-size:10px;">${fmtTs(state.finished_at)}</span></div>` : ''}
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-title">Iteration Budget</div>
+      <div class="kv-row">
+        <span class="kv-key">Progress</span>
+        <span class="kv-val">${state.iteration} / ${state.max_iterations}</span>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" style="width:${iterPct}%"></div>
+      </div>
+      <div class="kv-row" style="margin-top:6px;">
+        <span class="kv-key">Time limit</span>
+        <span class="kv-val">${state.max_time_seconds}s</span>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-title">Verify Gate</div>
+      ${verifyBadge}
+      ${state.last_verify_output ? `
+        <div style="margin-top:8px;">
+          <div class="form-label">Last output (tail)</div>
+          <pre style="font-size:10px;color:var(--text-dim);background:var(--bg3);padding:6px;border:1px solid var(--border);border-radius:2px;overflow-x:auto;max-height:80px;overflow-y:auto;">${escHtml(state.last_verify_output.slice(-300))}</pre>
+        </div>
+      ` : ''}
+    </div>
+
+    ${state.stop_reason ? `
+    <div class="detail-section">
+      <div class="detail-title">Stop Reason</div>
+      <div style="font-size:11px;color:${state.status==='COMPLETE'?'var(--green)':'var(--amber)'};">
+        ${escHtml(state.stop_reason)}
+      </div>
+    </div>
+    ` : ''}
+
+    <div class="detail-section">
+      <div class="detail-title">Controls</div>
+      <div class="btn-row">
+        <button class="btn btn-sm btn-green" onclick="ctrlJob('start')" ${!canStart?'disabled':''}>▶ START</button>
+        <button class="btn btn-sm btn-amber" onclick="ctrlJob('pause')" ${!canPause?'disabled':''}>⏸ PAUSE</button>
+        <button class="btn btn-sm btn-primary" onclick="ctrlJob('resume')" ${!canResume?'disabled':''}>▶ RESUME</button>
+        <button class="btn btn-sm btn-red" onclick="ctrlJob('stop')" ${!canStop?'disabled':''}>■ STOP</button>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-title">Artifacts <span id="artifact-count" style="color:var(--text-dim);font-size:9px;"></span></div>
+      <div id="artifact-list"><div style="font-size:10px;color:var(--text-dim);">Loading…</div></div>
+    </div>
+
+    ${(state.pending_directives && state.pending_directives.length) || (state.applied_directives && state.applied_directives.length) ? `
+    <div class="detail-section">
+      <div class="detail-title">Directives</div>
+      ${(state.pending_directives||[]).map(d => `
+        <div style="font-size:10px;color:#c878ff;margin-bottom:4px;padding:4px 6px;background:rgba(200,120,255,0.07);border:1px solid rgba(200,120,255,0.3);border-radius:2px;">
+          ⏳ [${d.severity||'normal'}] ${escHtml((d.text||'').slice(0,100))}
+        </div>
+      `).join('')}
+      ${(state.applied_directives||[]).slice(-2).map(d => `
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:4px;padding:4px 6px;background:rgba(100,120,100,0.07);border:1px solid rgba(100,120,100,0.2);border-radius:2px;">
+          ✓ [${d.severity||'normal'}] ${escHtml((d.text||'').slice(0,100))}
+        </div>
+      `).join('')}
+    </div>
+    ` : ''}
+
+    ${state.venv_path || (state.installed_packages && state.installed_packages.length) ? `
+    <div class="detail-section">
+      <div class="detail-title">Self-Heal Venv</div>
+      <div style="font-size:10px;color:var(--green);">
+        ${state.venv_path ? `Path: ${escHtml(state.venv_path.split('/').slice(-3).join('/'))}` : ''}
+      </div>
+      ${state.installed_packages && state.installed_packages.length ? `
+      <div style="font-size:10px;color:var(--text-dim);margin-top:4px;">
+        Installed: ${state.installed_packages.map(p => `<span style="color:var(--cyan);">${escHtml(p)}</span>`).join(', ')}
+      </div>` : ''}
+    </div>
+    ` : ''}
+  `;
+
+  // Load artifacts into detail section
+  loadArtifacts(state.job_id);
+}
+
+// ── Load artifacts ───────────────────────────────────────────────────────────
+async function loadArtifacts(jobId) {
+  const el = document.getElementById('artifact-list');
+  if (!el) return;
+  try {
+    const res = await fetch(`${API}/api/jobs/${jobId}/artifacts`);
+    const data = await res.json();
+    const arts = data.artifacts || [];
+    document.getElementById('artifact-count') &&
+      (document.getElementById('artifact-count').textContent = `(${arts.length})`);
+    if (arts.length === 0) {
+      el.innerHTML = '<div style="font-size:10px;color:var(--text-dim);">No artifacts yet</div>';
+      return;
+    }
+    // arts is now [{path, size, mtime}, …]
+    el.innerHTML = arts.map(a => {
+      const p = a.path || a;  // support both object and legacy string
+      const sz = a.size ? ` <span style="color:var(--text-dim);font-size:9px;">${formatBytes(a.size)}</span>` : '';
+      return `
+      <div class="artifact-item">
+        <span class="artifact-name">${escHtml(p)}${sz}</span>
+        <span class="artifact-view" onclick="viewArtifact('${escHtml(jobId)}','${escHtml(p)}')">VIEW →</span>
+      </div>`;
+    }).join('');
+  } catch(e) {}
+}
+
+function formatBytes(b) {
+  if (b < 1024) return b + 'B';
+  if (b < 1048576) return (b/1024).toFixed(1) + 'KB';
+  return (b/1048576).toFixed(1) + 'MB';
+}
+
+// ── View artifact in modal ───────────────────────────────────────────────────
+async function viewArtifact(jobId, path) {
+  try {
+    // path may contain subdirectory (e.g. 'verify/iter_001.log')
+    const res = await fetch(`${API}/api/jobs/${jobId}/artifacts/${path}`);
+    const data = await res.json();
+    document.getElementById('modal-title').textContent = `ARTIFACT: ${path}`;
+    document.getElementById('modal-body').textContent = data.content || '(empty)';
+    document.getElementById('modal').style.display = 'flex';
+  } catch(e) { alert('Failed to load artifact'); }
+}
+
+function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+// ── SSE streaming ────────────────────────────────────────────────────────────
+let sseSince = 0;  // byte offset for reconnect
+
+function startSSE(jobId) {
+  if (sseSource) { sseSource.close(); sseSource = null; }
+  allEvents = [];
+  sseSince = 0;
+  document.getElementById('events-list').innerHTML = '';
+
+  function connect() {
+    const url = `${API}/api/jobs/${jobId}/events${sseSince ? '?since='+sseSince : ''}`;
+    sseSource = new EventSource(url);
+    sseSource.onmessage = e => {
+      try {
+        const ev = JSON.parse(e.data);
+        allEvents.push(ev);
+        appendEventRow(ev);
+        // Track approximate byte offset for reconnect
+        sseSince += new TextEncoder().encode(e.data + '\n').length;
+      } catch (_) {}
+    };
+    sseSource.onerror = () => {
+      // EventSource auto-reconnects using sseSince offset
+    };
+  }
+  connect();
+}
+
+function appendEventRow(ev) {
+  const filter = document.getElementById('events-filter').value.toLowerCase();
+  const levelFilter = document.getElementById('level-filter').value;
+  if (!matchesFilter(ev, filter, levelFilter)) return;
+
+  const list = document.getElementById('events-list');
+  const emptyState = list.querySelector('.empty-state');
+  if (emptyState) emptyState.remove();
+
+  const row = document.createElement('div');
+  row.className = `ev-row${ev.level==='error'?' ev-error':ev.level==='warn'?' ev-warn':''}`;
+  row.dataset.type  = ev.type || '';
+  row.dataset.level = ev.level || 'info';
+  row.dataset.raw   = JSON.stringify(ev).toLowerCase();
+
+  const ts = ev.ts ? ev.ts.slice(11,19) : '--:--:--';
+  const msg = formatEventMsg(ev);
+
+  row.innerHTML = `
+    <span class="ev-ts">${ts}</span>
+    <span class="ev-type ev-${ev.type||''}">${ev.type||'?'}</span>
+    <span class="ev-msg">${msg}</span>
+  `;
+  list.appendChild(row);
+
+  if (document.getElementById('auto-scroll-check').checked) {
+    list.scrollTop = list.scrollHeight;
+  }
+}
+
+function formatEventMsg(ev) {
+  switch(ev.type) {
+    case 'JOB_CREATED':         return `Goal: ${escHtml((ev.goal||'').slice(0,80))}`;
+    case 'JOB_STARTING':        return `Starting runner for goal: ${escHtml((ev.goal||'').slice(0,60))}`;
+    case 'ITERATION':           return `Iteration ${ev.iteration}/${ev.max_iterations} — elapsed ${ev.elapsed_s}s`;
+    case 'DIRECTIVES_APPLIED':  return `Applied ${ev.count} directive(s)`;
+    case 'VERIFY_START':        return 'Running verify gate…';
+    case 'VERIFY_RESULT':       return `Verify ${ev.passed ? '✓ PASSED' : '✗ FAILED'} (exit ${ev.returncode})` + (ev.artifact_ref ? ` [${ev.artifact_ref}]` : '');
+    case 'VERIFY_RETRY':        return `Verify retry after: ${escHtml(ev.reason||'')}`;
+    case 'DEP_INSTALL_START':   return `Installing package: ${escHtml(ev.package||'')}`;
+    case 'DEP_INSTALL_RESULT':  return `Install ${ev.package}: ${ev.success ? '✓ OK' : '✗ FAILED'}`;
+    case 'REPAIR_START':        return `Repair triggered (iter ${ev.iteration||'?'})`;
+    case 'REPAIR_RESULT':       return `Repair attempt ${ev.attempt}: ${ev.success ? 'SUCCESS' : 'FAILED'} ${ev.reason||''} ${ev.method?'['+ev.method+']':''}`;
+    case 'REVIEW_START':        return 'Running reviewer gate…';
+    case 'REVIEW_RESULT':       return `${ev.summary||'Review done'} — ${(ev.findings||[]).length} finding(s)`;
+    case 'LLM_CALL_START':      return `→ LLM: ${ev.provider}/${ev.model}`;
+    case 'LLM_CALL_END':        return `← LLM: ${ev.provider}/${ev.model} in ${ev.elapsed_s}s (${ev.output_tokens||0} tok)`;
+    case 'LLM_UNAVAILABLE':     return `⚠ LLM unavailable: ${escHtml(ev.reason||'')} [dry-run]`;
+    case 'PLAN_CREATED':        return `StepPlan created → ${escHtml(ev.artifact_ref||'')}`;
+    case 'STEP_START':          return `Step: ${escHtml(ev.tool||'')} starting`;
+    case 'STEP_END':            return `Step: ${escHtml(ev.tool||'')} ${ev.success ? '✓' : '✗'}`;
+    case 'PATCH_APPLY_START':   return `Applying patch (iter ${ev.iteration||'?'})`;
+    case 'PATCH_APPLY_RESULT':  return `Patch apply: ${ev.success ? '✓ OK' : '✗ FAILED'} ${ev.reason ? '— '+escHtml(ev.reason) : ''}`;
+    case 'TOOL_START':          return `⚙ ${ev.tool||'?'} starting`;
+    case 'TOOL_END':            return `⚙ ${ev.tool||'?'} ${ev.success ? '✓' : '✗'} — ${escHtml((ev.output||'').slice(0,80))}`;
+    case 'USER_DIRECTIVE':      return `💬 [${ev.severity||'normal'}] ${escHtml((ev.text||ev.message||'').slice(0,100))}`;
+    case 'ASSUMPTION_LOG':      return `ℹ ${escHtml((ev.message||'').slice(0,120))}`;
+    case 'ARTIFACT_WRITTEN':    return `📄 ${escHtml(ev.artifact_ref||'')}`;
+    case 'STATUS':              return escHtml(ev.status || ev.message || JSON.stringify(ev).slice(0,80));
+    case 'COMPLETE':            return `✓ ${escHtml((ev.reason||ev.summary||'Complete').slice(0,120))}`;
+    case 'FAILED':              return `✗ ${escHtml((ev.reason||'Failed').slice(0,120))}`;
+    case 'STOPPED':             return `■ ${escHtml((ev.reason||'Stopped').slice(0,120))}`;
+    case 'PAUSED':              return `⏸ Paused at iteration ${ev.iteration}`;
+    case 'RESUMED':             return `▶ Resumed at iteration ${ev.iteration}`;
+    case 'TIME_BUDGET_EXCEEDED': return `⏱ ${escHtml(ev.reason||'Time budget exceeded')}`;
+    case 'ITERATION_BUDGET_EXCEEDED': return `🔁 ${escHtml(ev.reason||'Iteration budget exceeded')}`;
+    default: return escHtml(JSON.stringify(ev).slice(0,120));
+  }
+}
+
+// ── Filter events ─────────────────────────────────────────────────────────────
+function filterEvents() {
+  const filter = document.getElementById('events-filter').value.toLowerCase();
+  const levelFilter = document.getElementById('level-filter').value;
+
+  document.querySelectorAll('#events-list .ev-row').forEach(row => {
+    const show = matchesFilter({
+      type:  row.dataset.type,
+      level: row.dataset.level,
+    }, filter, levelFilter, row.dataset.raw);
+    row.style.display = show ? '' : 'none';
+  });
+}
+
+function matchesFilter(ev, textFilter, levelFilter, rawLower) {
+  if (levelFilter && ev.level !== levelFilter) return false;
+  if (textFilter) {
+    const haystack = rawLower || JSON.stringify(ev).toLowerCase();
+    if (!haystack.includes(textFilter)) return false;
+  }
+  return true;
+}
+
+function clearEvents() {
+  allEvents = [];
+  document.getElementById('events-list').innerHTML =
+    '<div class="empty-state"><span class="icon">◎</span>Cleared</div>';
+}
+
+// ── Job controls ───────────────────────────────────────────────────────────────
+async function ctrlJob(userAction) {
+  if (!activeJobId) return;
+  try {
+    let url;
+    // Pause/resume use ?pause=true|false per API contract
+    if (userAction === 'pause')  url = `${API}/api/jobs/${activeJobId}/pause?pause=true`;
+    else if (userAction === 'resume') url = `${API}/api/jobs/${activeJobId}/pause?pause=false`;
+    else url = `${API}/api/jobs/${activeJobId}/${userAction}`;
+
+    const res = await fetch(url, { method: 'POST' });
+    if (!res.ok) { const e = await res.json(); alert(e.detail || 'Error'); return; }
+    await loadJobs();
+    if (userAction === 'start') startSSE(activeJobId);
+  } catch(e) { alert('Request failed: ' + e.message); }
+}
+
+// ── Create job ─────────────────────────────────────────────────────────────────
+async function createJob() {
+  const goal = document.getElementById('goal-input').value.trim();
+  if (!goal) { document.getElementById('goal-input').focus(); return; }
+
+  const body = {
+    goal,
+    max_iterations: parseInt(document.getElementById('max-iter').value) || 10,
+    max_time_seconds: parseInt(document.getElementById('max-time').value) || 3600,
+    provider: document.getElementById('provider-select').value || null,
+    autonomous: document.getElementById('autonomous-check').checked,
+  };
+
+  try {
+    const res = await fetch(`${API}/api/jobs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) { const e = await res.json(); alert(e.detail || 'Create failed'); return; }
+    const state = await res.json();
+    jobs[state.job_id] = state;
+    document.getElementById('goal-input').value = '';
+    await loadJobs();
+    await selectJob(state.job_id);
+  } catch(e) { alert('Failed: ' + e.message); }
+}
+
+// ── Send directive ─────────────────────────────────────────────────────────────
+async function sendDirective() {
+  if (!activeJobId) { alert('Select a mission first'); return; }
+  const msg = document.getElementById('directive-input').value.trim();
+  if (!msg) { document.getElementById('directive-input').focus(); return; }
+  const severityEl = document.getElementById('directive-severity');
+  const severity = severityEl ? severityEl.value : 'normal';
+
+  try {
+    const res = await fetch(`${API}/api/jobs/${activeJobId}/directive`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: msg, severity: severity, tags: [] }),
+    });
+    if (!res.ok) { const e = await res.json(); alert(e.detail || 'Error'); return; }
+    document.getElementById('directive-input').value = '';
+  } catch(e) { alert('Failed: ' + e.message); }
+}
+
+// ── Utilities ──────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function fmtTs(iso) {
+  if (!iso) return '—';
+  try {
+    return iso.replace('T',' ').slice(0,19) + ' UTC';
+  } catch(_) { return iso; }
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

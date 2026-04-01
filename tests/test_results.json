@@ -1,9 +1,9 @@
 {
-  "session_id": "20260322_222726_test",
-  "run_at": "2026-03-22T22:27:26.418005",
-  "total_tests": 6,
-  "passed": 6,
-  "failed": 0,
+  "session_id": "20260401_015331_test",
+  "run_at": "2026-04-01T01:53:31.506229",
+  "total_tests": 113,
+  "passed": 111,
+  "failed": 2,
   "environment": {
     "python_version": "3.12.3",
     "python_full": "3.12.3 (main, Mar  3 2026, 12:15:18) [GCC 13.3.0]",
@@ -11,7 +11,7 @@
     "os_name": "posix",
     "machine": "x86_64",
     "tools_dir": "/home/runner/work/Overlord11/Overlord11/tools/python",
-    "skip_web": false,
+    "skip_web": true,
     "ripgrep": false,
     "packages": {
       "bs4": false,
@@ -24,12 +24,622 @@
   },
   "results": [
     {
+      "tool": "read_file",
+      "test": "Read entire file",
+      "passed": true,
+      "expected": "File content matches",
+      "actual": "Line 1\nLine 2\nLine 3\n",
+      "duration_ms": 0.16,
+      "details": "Full file read correctly",
+      "error": null
+    },
+    {
+      "tool": "read_file",
+      "test": "Read with offset/limit pagination",
+      "passed": true,
+      "expected": "Lines B and C present",
+      "actual": "B\nC\n\n(Content truncated. Showing lines 1-2 of 5. Use offset and limit to paginate.)",
+      "duration_ms": 0.12,
+      "details": "Pagination works",
+      "error": null
+    },
+    {
+      "tool": "read_file",
+      "test": "Handle missing file gracefully",
+      "passed": true,
+      "expected": "Error message returned",
+      "actual": "Error: File not found at /home/runner/work/Overlord11/Overlord11/tests/test_work",
+      "duration_ms": 0.04,
+      "details": "Missing file handled gracefully",
+      "error": null
+    },
+    {
+      "tool": "read_file",
+      "test": "Read UTF-8 with special characters",
+      "passed": true,
+      "expected": "Unicode preserved",
+      "actual": "Contains e-acute and em-dash",
+      "duration_ms": 0.1,
+      "details": "UTF-8 special characters intact",
+      "error": null
+    },
+    {
+      "tool": "read_file",
+      "test": "Read CJK (Chinese/Japanese) characters",
+      "passed": true,
+      "expected": "CJK preserved",
+      "actual": "Contains Chinese and Japanese chars",
+      "duration_ms": 0.11,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "read_file",
+      "test": "Read file containing emoji",
+      "passed": true,
+      "expected": "Emoji file readable",
+      "actual": "Contains check mark and text",
+      "duration_ms": 0.11,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "read_file",
+      "test": "Read empty file returns empty string",
+      "passed": true,
+      "expected": "Empty string returned",
+      "actual": "''",
+      "duration_ms": 0.09,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "write_file",
+      "test": "Write new file (overwrite)",
+      "passed": true,
+      "expected": "File created with correct content",
+      "actual": "Hello, Overlord11!",
+      "duration_ms": 0.17,
+      "details": "write_file returned: Successfully wrote to file: /home/runner/work/Overlord11/Overlord11/tests/test_workspace/write/new_file.txt",
+      "error": null
+    },
+    {
+      "tool": "write_file",
+      "test": "Append to existing file",
+      "passed": true,
+      "expected": "Both lines present",
+      "actual": "First line.\nSecond line.",
+      "duration_ms": 0.17,
+      "details": "Append mode works",
+      "error": null
+    },
+    {
+      "tool": "write_file",
+      "test": "Auto-create nested directories",
+      "passed": true,
+      "expected": "File created in nested dirs",
+      "actual": "Successfully wrote to file: /home/runner/work/Overlord11/Overlord11/tests/test_workspace/write/deep/nested/dir/file.txt",
+      "duration_ms": 0.22,
+      "details": "Auto-mkdir works",
+      "error": null
+    },
+    {
+      "tool": "write_file",
+      "test": "Reject invalid write mode",
+      "passed": true,
+      "expected": "Rejects invalid mode",
+      "actual": "Error: mode must be 'overwrite' or 'append', got 'invalid_mode'",
+      "duration_ms": 0.03,
+      "details": "Validation works",
+      "error": null
+    },
+    {
+      "tool": "write_file",
+      "test": "Write/read Unicode roundtrip",
+      "passed": true,
+      "expected": "Unicode roundtrip OK",
+      "actual": "Written and read back match",
+      "duration_ms": 0.12,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "write_file",
+      "test": "Write CJK content roundtrip",
+      "passed": true,
+      "expected": "CJK write roundtrip OK",
+      "actual": "Chinese/Japanese/Korean preserved",
+      "duration_ms": 0.13,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "list_directory",
+      "test": "List directory contents",
+      "passed": true,
+      "expected": "Lists files and directories",
+      "actual": "Directory listing for /home/runner/work/Overlord11/Overlord11/tests/test_workspace/listdir:\n      beta.py\n      alpha.txt\n[DIR] subdir",
+      "duration_ms": 0.06,
+      "details": "Contains expected entries",
+      "error": null
+    },
+    {
+      "tool": "list_directory",
+      "test": "Handle non-existent directory",
+      "passed": true,
+      "expected": "Error for missing dir",
+      "actual": "Error: Directory not found at /home/runner/work/Overlord11/Overlord11/tests/test",
+      "duration_ms": 0.02,
+      "details": "Handled gracefully",
+      "error": null
+    },
+    {
+      "tool": "list_directory",
+      "test": "Distinguish files from directories",
+      "passed": true,
+      "expected": "[DIR] marker present for subdirs",
+      "actual": "Directory listing for /home/runner/work/Overlord11/Overlord11/tests/test_workspace/listdir:\n      beta.py\n      alpha.txt\n[DIR] subdir",
+      "duration_ms": 0.04,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "glob",
+      "test": "Find all *.py files recursively",
+      "passed": true,
+      "expected": ">=3 .py files found",
+      "actual": "Found 3: ['deep.py', 'utils.py', 'app.py']",
+      "duration_ms": 0.25,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "glob",
+      "test": "Find *.md files at top level",
+      "passed": true,
+      "expected": "Found .md file(s)",
+      "actual": "['readme.md']",
+      "duration_ms": 0.12,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "glob",
+      "test": "Return empty for no matches",
+      "passed": true,
+      "expected": "Empty list for no matches",
+      "actual": "[]",
+      "duration_ms": 0.11,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "glob",
+      "test": "Validate glob_tool.py source structure",
+      "passed": true,
+      "expected": "glob_tool.py has glob() function and calls glob.glob()",
+      "actual": "Source validated",
+      "duration_ms": 0.03,
+      "details": "Note: function shadows stdlib import (known issue)",
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "Search for function name",
+      "passed": true,
+      "expected": "Found hello_world (1 match(es), engine=python-fallback)",
+      "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"/home/runner/work/Overlord11/Overlord11/tests/test_workspace/search/main.py\"}, \"lines\": {\"text\": \"def hello_world():\\n\"}, \"line_number\": 1, \"submatches\": [",
+      "duration_ms": 0.27,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "Search with file type filter (*.txt only)",
+      "passed": true,
+      "expected": "Found TODO in notes.txt=True, not in main.py=True",
+      "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"/home/runner/work/Overlord11/Overlord11/tests/test_workspace/search/notes.txt\"}, \"lines\": {\"text\": \"TODO: fix the login bug\\n\"}, \"line_number\": 1, \"submatc",
+      "duration_ms": 0.28,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "No false positives for non-existent pattern",
+      "passed": true,
+      "expected": "Zero matches returned",
+      "actual": "has_summary=True, length=86",
+      "duration_ms": 0.22,
+      "details": "No false positives",
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "Case-insensitive search",
+      "passed": true,
+      "expected": "Case-insensitive match found",
+      "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"/home/runner/work/Overlord11/Overlord11/tests/test_workspace/search/notes.txt\"}, \"lines\": {\"text\": \"FIXME: memory leak in parser\\n\"}, \"line_number\": 2, \"su",
+      "duration_ms": 0.2,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "Case-sensitive search excludes wrong case",
+      "passed": true,
+      "expected": "Case-sensitive correctly excludes 'FIXME'",
+      "actual": "no matches for lowercase 'fixme'",
+      "duration_ms": 0.18,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "Search project source code for function def",
+      "passed": true,
+      "expected": "Found function def in project tools",
+      "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"/home/runner/work/Overlord11/Overlord11/tools/python/search_file_content.py\"}, \"lines\": {\"text\": \"def search_file_content(\\n\"}, \"line_number\": 153, \"submat",
+      "duration_ms": 5.63,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "Report active search engine",
+      "passed": true,
+      "expected": "Search engine: python-fallback",
+      "actual": "rg_bin=not found",
+      "duration_ms": 0.0,
+      "details": "Both engines produce compatible JSON output",
+      "error": null
+    },
+    {
+      "tool": "run_shell_command",
+      "test": "Execute echo and capture stdout",
+      "passed": false,
+      "expected": "Overlord11 Test in stdout",
+      "actual": "(empty)",
+      "duration_ms": 0.29,
+      "details": null,
+      "error": "(empty)"
+    },
+    {
+      "tool": "run_shell_command",
+      "test": "Run inline Python expression",
+      "passed": false,
+      "expected": "4 in stdout",
+      "actual": "(empty)",
+      "duration_ms": 0.27,
+      "details": null,
+      "error": "(empty)"
+    },
+    {
+      "tool": "run_shell_command",
+      "test": "Respect working directory parameter",
+      "passed": true,
+      "expected": "Correct working directory",
+      "actual": "(empty)",
+      "duration_ms": 0.25,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "run_shell_command",
+      "test": "Handle non-existent working directory",
+      "passed": true,
+      "expected": "Error for bad directory",
+      "actual": "Error: Directory not found: /home/runner/work/Overlord11/Overlord11/tests/test_w",
+      "duration_ms": 0.03,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "git_tool",
+      "test": "Git status in project repo",
+      "passed": true,
+      "expected": "Git status output",
+      "actual": "On branch copilot/build-tactical-webui-autonomous-runner\nYour branch is up to date with 'origin/copilot/build-tactical-w",
+      "duration_ms": 3.41,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "git_tool",
+      "test": "Git log (last 3 commits)",
+      "passed": true,
+      "expected": "Git log output",
+      "actual": "0c46635 chore: plan improvements - no code changes yet\ncc97d03 feat: implement TacticalWebUI_MasterPlan.md milestones A-D and UI-1\nde813aa feat: Tactical WebUI + Autonomous Runner for Overlord11",
+      "duration_ms": 2.35,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "git_tool",
+      "test": "Handle invalid git command",
+      "passed": true,
+      "expected": "Error for invalid command",
+      "actual": "Error executing git command: Command 'git totally-invalid-command-12345' returned non-zero exit status 1.\nStdout: \nStder",
+      "duration_ms": 5.16,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "calculator",
+      "test": "Basic arithmetic (add/sub/mul/div)",
+      "passed": true,
+      "expected": "{'add': 15, 'subtract': 7, 'multiply': 42, 'divide': 25.0}",
+      "actual": "{'add': 15, 'subtract': 7, 'multiply': 42, 'divide': 25.0}",
+      "duration_ms": 0.01,
+      "details": "All basic arithmetic correct",
+      "error": null
+    },
+    {
+      "tool": "calculator",
+      "test": "Square root",
+      "passed": true,
+      "expected": "sqrt(144) = 12.0",
+      "actual": "12.0",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "calculator",
+      "test": "Power (2^10)",
+      "passed": true,
+      "expected": "2^10 = 1024",
+      "actual": "1024.0",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "calculator",
+      "test": "Trigonometry (sin/cos/tan in degrees)",
+      "passed": true,
+      "expected": "sin(30)=0.5, cos(60)=0.5, tan(45)=1.0",
+      "actual": "sin(30)=0.500000, cos(60)=0.500000, tan(45)=1.000000",
+      "duration_ms": 0.02,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "calculator",
+      "test": "Logarithms (natural and base-10)",
+      "passed": true,
+      "expected": "ln(e)=1.0, log10(1000)=3.0",
+      "actual": "ln(e)=1.000000, log10(1000)=3.000000",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "calculator",
+      "test": "Division by zero raises ValueError",
+      "passed": true,
+      "expected": "ValueError raised",
+      "actual": "Division by zero is not allowed.",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "calculator",
+      "test": "Sqrt of negative raises ValueError",
+      "passed": true,
+      "expected": "ValueError raised",
+      "actual": "Square root of a negative number is not allowed.",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "calculator",
+      "test": "Unknown operation raises ValueError",
+      "passed": true,
+      "expected": "ValueError raised",
+      "actual": "Unknown operation: modulo. Supported operations are add, subtract, multiply, divide, sqrt, power, log, sin, cos, tan.",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "web_fetch",
+      "test": "Fetch example.com",
+      "passed": true,
+      "expected": "SKIPPED (--skip-web)",
+      "actual": "SKIPPED",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "web_scraper",
+      "test": "Web scraper tests",
+      "passed": true,
+      "expected": "SKIPPED (--skip-web)",
+      "actual": "SKIPPED",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "save_memory",
+      "test": "Save a memory entry to file",
+      "passed": true,
+      "expected": "Memory saved",
+      "actual": "[2026-04-01 01:53:31] Overlord11 test completed successfully",
+      "duration_ms": 0.31,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "save_memory",
+      "test": "Memory entries include timestamp",
+      "passed": true,
+      "expected": "Timestamp present",
+      "actual": "Contains 2026-04-01",
+      "duration_ms": 0.19,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "code_analyzer",
+      "test": "Analyze single Python file",
+      "passed": true,
+      "expected": "1 file analyzed",
+      "actual": "lines=38, code=29, comments=4, functions=4",
+      "duration_ms": 2.68,
+      "details": "Language: python",
+      "error": null
+    },
+    {
+      "tool": "code_analyzer",
+      "test": "Detect function definitions",
+      "passed": true,
+      "expected": "Found 4/4 functions",
+      "actual": "['simple_function', 'complex_function', '__init__', 'process']",
+      "duration_ms": 0.82,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "code_analyzer",
+      "test": "Detect code smells (TODO/FIXME)",
+      "passed": true,
+      "expected": "Found 2 smell(s)",
+      "actual": "Types: ['marker_comment']",
+      "duration_ms": 0.37,
+      "details": "Has TODO/FIXME markers: True",
+      "error": null
+    },
+    {
+      "tool": "code_analyzer",
+      "test": "Measure cyclomatic complexity",
+      "passed": true,
+      "expected": "Cyclomatic complexity calculated",
+      "actual": "total=12, max_nesting=10",
+      "duration_ms": 1.14,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "code_analyzer",
+      "test": "Analyze import structure",
+      "passed": true,
+      "expected": "Found 3 imports",
+      "actual": "stdlib=3: ['import os', 'import json', 'from pathlib import Path']",
+      "duration_ms": 0.27,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "code_analyzer",
+      "test": "Analyze entire directory",
+      "passed": true,
+      "expected": "Analyzed 1 file(s)",
+      "actual": "total_lines=38, functions=4, smells=2",
+      "duration_ms": 2.08,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "project_scanner",
+      "test": "Scan Overlord11 project structure",
+      "passed": true,
+      "expected": "Project scanned successfully",
+      "actual": "name=Overlord11, langs=['Python', 'Markdown', 'JSON', 'HTML'], has_git=True, files=146",
+      "duration_ms": 24.63,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "project_scanner",
+      "test": "Detect Python as primary language",
+      "passed": true,
+      "expected": "Python detected",
+      "actual": "files=52, lines=17593",
+      "duration_ms": 20.67,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "project_scanner",
+      "test": "Find config files",
+      "passed": true,
+      "expected": "Found 5 config file(s)",
+      "actual": "['.env.example', '.gitignore', 'LICENSE', 'README.md', 'directives/README.md']",
+      "duration_ms": 20.74,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "project_scanner",
+      "test": "Detect git repository",
+      "passed": true,
+      "expected": "Git repo detected",
+      "actual": "has_git=True",
+      "duration_ms": 18.93,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "project_scanner",
+      "test": "Handle non-existent project path",
+      "passed": true,
+      "expected": "Error for missing path",
+      "actual": "Path does not exist: /home/runner/work/Overlord11/Overlord11/tests/test_workspac",
+      "duration_ms": 0.09,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "publisher_tool",
+      "test": "Generate techno-themed HTML report",
+      "passed": true,
+      "expected": "HTML report generated",
+      "actual": "theme=techno, sections=4, size=11707B",
+      "duration_ms": 1.87,
+      "details": "File: /home/runner/work/Overlord11/Overlord11/tests/test_workspace/reports/test_techno_report.html",
+      "error": null
+    },
+    {
+      "tool": "publisher_tool",
+      "test": "Auto-detect theme from content",
+      "passed": true,
+      "expected": "Auto-detected theme: tactical",
+      "actual": "theme=tactical",
+      "duration_ms": 0.33,
+      "details": "Expected 'tactical' for security content",
+      "error": null
+    },
+    {
+      "tool": "publisher_tool",
+      "test": "Verify HTML is self-contained (no CDN)",
+      "passed": true,
+      "expected": "Self-contained HTML",
+      "actual": "has_style=True, has_doctype=True, no_cdn=True",
+      "duration_ms": 0.37,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "publisher_tool",
+      "test": "All 9 themes produce valid output",
+      "passed": true,
+      "expected": "All 9 themes generate valid HTML",
+      "actual": "['techno', 'classic', 'informative', 'contemporary', 'abstract', 'modern', 'colorful', 'tactical', 'editorial']",
+      "duration_ms": 1.74,
+      "details": null,
+      "error": null
+    },
+    {
       "tool": "ui_design_system",
       "test": "Generate Markdown design system (explicit style+palette)",
       "passed": true,
       "expected": "Full Markdown design system generated",
       "actual": "len=5523, has_tokens=True, has_review=True",
-      "duration_ms": 0.51,
+      "duration_ms": 0.48,
       "details": null,
       "error": null
     },
@@ -39,7 +649,7 @@
       "passed": true,
       "expected": "JSON output is valid and complete",
       "actual": "style=brutalist, palette=volcanic-night, tokens=14",
-      "duration_ms": 0.49,
+      "duration_ms": 0.5,
       "details": null,
       "error": null
     },
@@ -49,7 +659,7 @@
       "passed": true,
       "expected": "Same project name → same style+palette",
       "actual": "style=soft-ui, palette=chalk-board",
-      "duration_ms": 0.98,
+      "duration_ms": 0.91,
       "details": null,
       "error": null
     },
@@ -59,7 +669,7 @@
       "passed": true,
       "expected": "Persist content is valid and complete",
       "actual": "master=5430B, page=5430B",
-      "duration_ms": 0.72,
+      "duration_ms": 0.66,
       "details": null,
       "error": null
     },
@@ -69,7 +679,7 @@
       "passed": true,
       "expected": "Error returned for unknown style_id",
       "actual": "Error: Unknown style_id 'does-not-exist'. Available: brutalist, glassmorphism, neobrutalism, editorial, minimal-zen, dat",
-      "duration_ms": 0.39,
+      "duration_ms": 0.38,
       "details": null,
       "error": null
     },
@@ -79,7 +689,467 @@
       "passed": true,
       "expected": "All 10 styles produce valid Markdown",
       "actual": "['brutalist', 'glassmorphism', 'neobrutalism', 'editorial', 'minimal-zen', 'data-dense', 'soft-ui', 'retro-terminal', 'biomimetic', 'aurora-gradient']",
-      "duration_ms": 3.81,
+      "duration_ms": 3.61,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "log_manager",
+      "test": "Log a tool invocation",
+      "passed": true,
+      "expected": "Tool invocation logged",
+      "actual": "{\"type\": \"tool_invocation\", \"session_id\": \"20260401_015331_test\", \"tool\": \"test_tool\", \"params\": {\"action\": \"test\", \"target\": \"unit_test\"}, \"result\": {\"status\": \"success\", \"data\": \"test_value\"}, \"dura",
+      "duration_ms": 0.25,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "log_manager",
+      "test": "Log an LLM decision",
+      "passed": true,
+      "expected": "LLM decision logged",
+      "actual": "{\"type\": \"llm_decision\", \"session_id\": \"20260401_015331_test\", \"agent_id\": \"OVR_DIR_01\", \"decision\": \"Delegate research to OVR_RES_02\", \"reasoning\": \"User query requires web research\", \"context\": {\"qu",
+      "duration_ms": 0.09,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "log_manager",
+      "test": "Log an error event",
+      "passed": true,
+      "expected": "Error logged",
+      "actual": "{\"type\": \"error\", \"session_id\": \"20260401_015331_test\", \"source\": \"test_suite\", \"error\": \"Simulated error for testing\", \"traceback\": \"File test.py, line 1, in <module>\", \"timestamp\": \"2026-04-01T01:53",
+      "duration_ms": 0.08,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "log_manager",
+      "test": "Query session log entries",
+      "passed": true,
+      "expected": "Retrieved 4 log entries",
+      "actual": "Types: ['tool_invocation', 'tool_invocation', 'llm_decision', 'error']",
+      "duration_ms": 0.08,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "log_manager",
+      "test": "Generate session summary",
+      "passed": true,
+      "expected": "Session summary generated",
+      "actual": "entries=4, tool_invocations=2, errors=1",
+      "duration_ms": 0.08,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "session_manager",
+      "test": "Create a new work session",
+      "passed": true,
+      "expected": "Session created",
+      "actual": "id=20260401_015331, workspace=/home/runner/work/Overlord11/Overlord11/workspace/20260401_0",
+      "duration_ms": 0.55,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "session_manager",
+      "test": "Retrieve session status",
+      "passed": true,
+      "expected": "Session is active",
+      "actual": "description=Overlord11 Test Suite Session",
+      "duration_ms": 0.08,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "session_manager",
+      "test": "Log a file change in session",
+      "passed": true,
+      "expected": "Change logged",
+      "actual": "{\"status\": \"logged\", \"change\": {\"timestamp\": \"2026-04-01T01:53:31.417627\", \"file\": \"tests/test.py\", \"action\": \"created\", \"summary\": \"Created comprehensive test suite\"}}",
+      "duration_ms": 0.18,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "session_manager",
+      "test": "Add a note to session",
+      "passed": true,
+      "expected": "Note added",
+      "actual": "{'status': 'noted'}",
+      "duration_ms": 0.26,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "session_manager",
+      "test": "Close session with summary",
+      "passed": true,
+      "expected": "Session closed",
+      "actual": "changes=1, notes=1",
+      "duration_ms": 0.5,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "session_manager",
+      "test": "List all sessions",
+      "passed": true,
+      "expected": "Listed 2 session(s)",
+      "actual": "['20260401_015331', '20260401_014235']",
+      "duration_ms": 0.06,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "consciousness_tool",
+      "test": "search_index: returns section headings",
+      "passed": true,
+      "expected": "Index returned",
+      "actual": "2 heading(s)",
+      "duration_ms": 0.14,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "consciousness_tool",
+      "test": "commit: append structured memory entry",
+      "passed": true,
+      "expected": "Memory committed",
+      "actual": "priority=HIGH, ttl=7d",
+      "duration_ms": 0.18,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "consciousness_tool",
+      "test": "search: find committed entry by keyword",
+      "passed": true,
+      "expected": "Found 1 match(es)",
+      "actual": "### [HIGH] test_api_endpoint\n- **Source**: OVR_TEST\n- **Created**: 2026-04-01 01",
+      "duration_ms": 0.1,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "consciousness_tool",
+      "test": "read_section: retrieve named section",
+      "passed": true,
+      "expected": "read_section status=ok",
+      "actual": "## Active Memory\n\n_No active signals._\n\n### [HIGH] test_api_endpoint\n- **Source*",
+      "duration_ms": 0.13,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "consciousness_tool",
+      "test": "read_all: return full file content",
+      "passed": true,
+      "expected": "read_all status=ok",
+      "actual": "chars=329",
+      "duration_ms": 0.05,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "consciousness_tool",
+      "test": "cleanup: dry_run shows what would be removed",
+      "passed": true,
+      "expected": "Cleanup dry_run OK",
+      "actual": "archived_count=0",
+      "duration_ms": 0.45,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "response_formatter",
+      "test": "decide: short plain answer → plain_text",
+      "passed": true,
+      "expected": "Format decided: plain_text",
+      "actual": "confidence=1.0, rationale=content auto-detected as plain_text",
+      "duration_ms": 0.03,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "response_formatter",
+      "test": "decide: detailed/comprehensive → html/markdown",
+      "passed": true,
+      "expected": "Format decided: html",
+      "actual": "scores={'html': 13, 'markdown': 1, 'json': 0, 'csv': 0, 'yaml': 0, 'plain_text': 3}",
+      "duration_ms": 0.14,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "response_formatter",
+      "test": "format: render JSON content",
+      "passed": true,
+      "expected": "JSON rendered",
+      "actual": "{\n  \"name\": \"Alice\",\n  \"score\": 95\n}",
+      "duration_ms": 0.05,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "response_formatter",
+      "test": "format: render Markdown content",
+      "passed": true,
+      "expected": "Markdown rendered",
+      "actual": "# Hello\n\nThis is **bold** text.",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "response_formatter",
+      "test": "format: render HTML page",
+      "passed": true,
+      "expected": "HTML generated",
+      "actual": "size=1162 chars",
+      "duration_ms": 0.13,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "response_formatter",
+      "test": "auto: decide format and render in one step",
+      "passed": true,
+      "expected": "auto decided: json",
+      "actual": "rendered_len=103",
+      "duration_ms": 0.05,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "response_formatter",
+      "test": "format: error on unsupported format name",
+      "passed": true,
+      "expected": "Error for unsupported format",
+      "actual": "Unknown format: 'pdf'. Choose from: ['csv', 'html', 'json', 'markdown', 'plain_t",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "file_converter",
+      "test": "list_formats: return supported conversion routes",
+      "passed": true,
+      "expected": "11 routes listed",
+      "actual": "[{'from': 'json', 'to': 'yaml'}, {'from': 'yaml', 'to': 'json'}, {'from': 'json', 'to': 'csv'}, {'from': 'csv', 'to': 'json'}, {'from': 'json', 'to': 'markdown'}]",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "file_converter",
+      "test": "detect: identify JSON file format",
+      "passed": true,
+      "expected": "Detected json",
+      "actual": "method=extension",
+      "duration_ms": 0.15,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "file_converter",
+      "test": "convert: JSON → CSV",
+      "passed": true,
+      "expected": "JSON→CSV conversion",
+      "actual": "name,score\nAlice,95\nBob,87\n",
+      "duration_ms": 0.38,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "file_converter",
+      "test": "convert: CSV → JSON",
+      "passed": true,
+      "expected": "CSV→JSON conversion",
+      "actual": "2 rows converted",
+      "duration_ms": 0.41,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "file_converter",
+      "test": "convert: CSV → Markdown table",
+      "passed": true,
+      "expected": "CSV→Markdown table",
+      "actual": "| tool | status |\n| --- | --- |\n| read_file | PASS |\n| write_file | PASS |",
+      "duration_ms": 0.29,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "file_converter",
+      "test": "convert: Markdown → HTML",
+      "passed": true,
+      "expected": "Markdown→HTML",
+      "actual": "size=828 chars",
+      "duration_ms": 0.53,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "file_converter",
+      "test": "convert: error for unsupported route",
+      "passed": true,
+      "expected": "Error for unsupported route",
+      "actual": "Conversion from 'text' to 'yaml' is not supported.",
+      "duration_ms": 0.09,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "error_handler",
+      "test": "analyze: classify ModuleNotFoundError",
+      "passed": true,
+      "expected": "ModuleNotFoundError classified",
+      "actual": "category=import_error, fix_available=True",
+      "duration_ms": 0.22,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "error_handler",
+      "test": "analyze: ZeroDivisionError has fix suggestion",
+      "passed": true,
+      "expected": "ZeroDivisionError fix found",
+      "actual": "Add a guard before the division: `if denominator != 0: result = numerator / deno",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "error_handler",
+      "test": "analyze: NameError with traceback parsing",
+      "passed": true,
+      "expected": "NameError classified",
+      "actual": "file=None, line=None",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "error_handler",
+      "test": "summarize: human-readable report for direct delivery",
+      "passed": true,
+      "expected": "Summarize returns direct delivery",
+      "actual": "chars=401",
+      "duration_ms": 0.03,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "error_handler",
+      "test": "self_correct: apply internal fix for known error",
+      "passed": true,
+      "expected": "self_correct status=ok",
+      "actual": "fix_available=True, escalate=False",
+      "duration_ms": 0.02,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "error_handler",
+      "test": "analyze: SyntaxError classified with severity",
+      "passed": true,
+      "expected": "SyntaxError classified",
+      "actual": "severity=high",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "vision_tool",
+      "test": "analyze_image: return metadata and base64",
+      "passed": true,
+      "expected": "analyze_image OK",
+      "actual": "mime=image/png, b64_len=92",
+      "duration_ms": 0.21,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "vision_tool",
+      "test": "list_images: empty directory returns empty list",
+      "passed": true,
+      "expected": "Empty dir returns 0 images",
+      "actual": "image_count=0",
+      "duration_ms": 0.19,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "vision_tool",
+      "test": "list_images: directory with PNG returns count",
+      "passed": true,
+      "expected": "Found 1 image(s)",
+      "actual": "[{'file': '/home/runner/work/Overlord11/Overlord11/tests/test_workspace/vision/list_test/sample.png', 'size_bytes': 67}]",
+      "duration_ms": 0.19,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "vision_tool",
+      "test": "analyze_image: error on missing file",
+      "passed": true,
+      "expected": "Error for missing image",
+      "actual": "Image not found: /nonexistent/path/image.png",
+      "duration_ms": 0.02,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "vision_tool",
+      "test": "screenshot: captures or fails gracefully without backend",
+      "passed": true,
+      "expected": "No screenshot backend (acceptable)",
+      "actual": "Pillow not installed. Run: pip install Pillow",
+      "duration_ms": 0.03,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "computer_control",
+      "test": "get_screen_size: returns dimensions or graceful error",
+      "passed": true,
+      "expected": "pyautogui not installed (acceptable)",
+      "actual": "pyautogui not installed. Run: pip install pyautogui",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "computer_control",
+      "test": "get_mouse_pos: returns position or graceful error",
+      "passed": true,
+      "expected": "pyautogui not installed (acceptable)",
+      "actual": "pyautogui not installed. Run: pip install pyautogui",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "computer_control",
+      "test": "clipboard_set+get: round-trip or graceful error",
+      "passed": true,
+      "expected": "pyperclip not installed (acceptable)",
+      "actual": "pyperclip not installed. Run: pip install pyperclip",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "computer_control",
+      "test": "mouse_click: click or graceful error without pyautogui",
+      "passed": true,
+      "expected": "pyautogui not installed (acceptable)",
+      "actual": "pyautogui not installed. Run: pip install pyautogui",
+      "duration_ms": 0.0,
       "details": null,
       "error": null
     }

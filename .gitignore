@@ -56,3 +56,4 @@ tests/test_workspace/
 
 # Temporary files
 *.tmp
+test_results.json
