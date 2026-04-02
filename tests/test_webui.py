@@ -6,9 +6,30 @@ import pytest
 from pathlib import Path
 from fastapi.testclient import TestClient
 
+os.environ.setdefault("OVERLORD11_WEBUI_RUNNER", "0")
+
 from webui.app import app
 
 client = TestClient(app)
+
+
+def test_runner_status_endpoint():
+    r = client.get("/api/runner/status")
+    assert r.status_code == 200
+    data = r.json()
+    assert "running" in data
+    assert "paused" in data
+    assert "active_job_id" in data
+
+
+def test_runner_pause_resume_cycle():
+    rp = client.post("/api/runner/pause")
+    assert rp.status_code == 200
+    assert rp.json()["paused"] is True
+
+    rr = client.post("/api/runner/resume")
+    assert rr.status_code == 200
+    assert rr.json()["paused"] is False
 
 
 def test_health():

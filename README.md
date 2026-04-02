@@ -39,7 +39,7 @@ Overlord11 is a structured multi-agent framework that coordinates **eight specia
 - 🤖 **8 specialist agents** — Orchestrator, Researcher, Coder, Analyst, Writer, Reviewer, Publisher, Cleanup
 - 🛠️ **30 built-in tools** — file I/O, web fetch/scrape, shell execution, Git, code analysis, project scanning, UI design system, scaffolding, task management, error logging, session/log management, and more
 - 🎨 **UI/UX design system skill** — 13 styles (5 premium + 8 standard/basic) × 10 color palettes; auto-selection uses premium styles by default; Coder generates a persistent spec before any UI work; Reviewer validates against it
-- 🌐 **Tactical WebUI** — FastAPI dashboard on port 8844; live provider health indicators; clickable model picker; Gemini rate-limit fallback chain; structured JSONL logging
+- 🌐 **Tactical WebUI** — FastAPI dashboard on port 8844; live provider health indicators; clickable model picker; built-in background job runner; Gemini rate-limit fallback chain; structured JSONL logging
 - 🔍 **Dual-engine search** — ripgrep when available, pure-Python fallback producing identical JSON output
 - 📊 **3 output tiers** — inline text, Markdown docs, or styled self-contained HTML reports
 - 🖼️ **13 HTML themes** — ultraviolet, aurora, neobrutalism (premium); techno, classic, modern, editorial, and more — auto-selected by content type with premium themes preferred
@@ -159,6 +159,7 @@ python scripts/run_webui.py
 ```
 
 The WebUI shows live provider health indicators, a model picker, job history, artifacts, and an activity log.
+It also includes a background runner that executes queued jobs from `workspace/jobs/` end-to-end.
 
 ### 7. Verify your setup
 

@@ -30,6 +30,22 @@ Navigate to **http://127.0.0.1:8844** in your browser.
 
 The interactive API docs are available at **http://127.0.0.1:8844/docs**.
 
+### 4. Runner behavior
+
+The WebUI now includes a built-in background runner that executes queued jobs end-to-end.
+
+- Default: enabled when running normally
+- In tests: disabled by default for deterministic fixtures
+- Override with env var:
+
+```bash
+# Disable runner autostart
+OVERLORD11_WEBUI_RUNNER=0 python scripts/run_webui.py
+
+# Force-enable runner autostart
+OVERLORD11_WEBUI_RUNNER=1 python scripts/run_webui.py
+```
+
 ---
 
 ## Browsing Jobs
@@ -91,6 +107,11 @@ Or exactly matches:
 | `GET` | `/api/jobs/{job_id}` | Full job detail (state, events, artifacts) |
 | `GET` | `/api/jobs/{job_id}/artifacts` | List artifacts for a job |
 | `GET` | `/api/jobs/{job_id}/artifacts/{path}` | Download/view a specific artifact |
+| `GET` | `/api/runner/status` | Background runner status (`running`, `paused`, active job) |
+| `POST` | `/api/runner/start` | Start runner |
+| `POST` | `/api/runner/stop` | Stop runner |
+| `POST` | `/api/runner/pause` | Pause intake of new pending jobs |
+| `POST` | `/api/runner/resume` | Resume intake |
 | `GET` | `/api/config` | Current provider/model configuration (no API keys exposed) |
 | `GET` | `/api/config/selection` | Currently selected provider + model for the next job |
 | `PUT` | `/api/config/selection` | Set provider + model — body: `{"provider":"gemini","model":"gemini-2.5-flash"}` |
@@ -99,7 +120,7 @@ Or exactly matches:
 | `GET` | `/api/providers/gemini/fallback` | Gemini progressive fallback chain info |
 | `GET` | `/docs` | Interactive OpenAPI docs (Swagger UI) |
 
-All read operations are available without authentication. Write operations (`POST /api/jobs`, `PUT /api/config/selection`) modify the runtime state only (not `config.json`).
+All read operations are available without authentication. Write operations (`POST /api/jobs`, `PUT /api/config/selection`, runner control endpoints) modify runtime state only (not `config.json`).
 
 ---
 

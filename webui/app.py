@@ -24,6 +24,7 @@ except ImportError:
     pass  # python-dotenv not installed; rely on system env vars
 
 from . import provider_health, state_store
+from .job_runner import JobRunner
 from .logging_config import get_webui_logger
 from .models import (
     VALID_PROVIDERS,
@@ -42,6 +43,18 @@ CONFIG_FILE = Path(__file__).resolve().parent.parent / "config.json"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 # User-selected model preference (persisted across page refreshes, not in config.json)
 PREFS_FILE = Path(__file__).resolve().parent.parent / "workspace" / ".webui_prefs.json"
+RUNNER = JobRunner()
+
+
+def _runner_enabled() -> bool:
+    """Whether the background runner should auto-start with the WebUI."""
+    raw = os.environ.get("OVERLORD11_WEBUI_RUNNER")
+    if raw is not None:
+        return raw.strip().lower() not in {"0", "false", "off", "no"}
+    # Keep tests deterministic unless explicitly enabled.
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return False
+    return True
 
 
 # ── Lifespan ──────────────────────────────────────────────────────────────────
@@ -61,7 +74,13 @@ async def lifespan(app: FastAPI):
 
     asyncio.ensure_future(_background_probe())
     log.info("Background provider probes initiated", extra={"event": "probe_start"})
+    if _runner_enabled():
+        RUNNER.start()
+        log.info("Background job runner enabled", extra={"event": "runner_enabled"})
+    else:
+        log.info("Background job runner disabled", extra={"event": "runner_disabled"})
     yield
+    RUNNER.stop()
     log.info("Overlord11 Tactical WebUI shutting down", extra={"event": "shutdown"})
 
 
@@ -188,7 +207,7 @@ def get_job(job_id: str):
 
 @app.post("/api/jobs", response_model=JobSummary, status_code=201)
 def create_job(req: CreateJobRequest):
-    """Create a new pending job. Requires a runner to execute."""
+    """Create a new pending job. Background runner executes it when enabled."""
     if not req.goal or not req.goal.strip():
         raise HTTPException(status_code=400, detail="Goal cannot be empty")
 
@@ -229,6 +248,7 @@ def create_job(req: CreateJobRequest):
         extra={"event": "job_create", "job_id": job_id,
                "provider": provider, "model": model},
     )
+    RUNNER.trigger_scan()
     return JobSummary(
         job_id=job_id,
         goal=req.goal.strip(),
@@ -371,6 +391,38 @@ def gemini_fallback_info():
         "rate_limit_retry_after": provider_health.get_rate_limit_retry_after("gemini"),
         "active_model_override": cached.get("active_model_override"),
     }
+
+
+# ── Runner ───────────────────────────────────────────────────────────────────
+
+@app.get("/api/runner/status")
+def get_runner_status():
+    """Return background runner status."""
+    return RUNNER.status()
+
+
+@app.post("/api/runner/start")
+def start_runner():
+    """Start the background runner."""
+    return RUNNER.start()
+
+
+@app.post("/api/runner/stop")
+def stop_runner():
+    """Stop the background runner."""
+    return RUNNER.stop()
+
+
+@app.post("/api/runner/pause")
+def pause_runner():
+    """Pause new job intake."""
+    return RUNNER.pause()
+
+
+@app.post("/api/runner/resume")
+def resume_runner():
+    """Resume new job intake."""
+    return RUNNER.resume()
 
 
 # ── Static frontend ───────────────────────────────────────────────────────────
