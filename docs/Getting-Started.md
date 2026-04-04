@@ -190,6 +190,33 @@ For CLI tool usage without an LLM, see individual tool examples in [Tools Refere
 
 ---
 
+## Step 8 — (Optional) Start the WebUI
+
+Overlord11 v3.0.0 includes a full-stack web interface with real-time job management.
+
+### Start the backend API (port 8080)
+
+```bash
+pip install -r requirements-backend.txt
+python scripts/run_backend.py
+```
+
+Swagger docs: `http://localhost:8080/api/docs`
+
+### Start the frontend (port 3000)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000` — the tactical command interface loads automatically.
+
+> **Tip:** The frontend polls the backend every 3 seconds and streams events in real time over SSE. Make sure the backend is running before opening the UI.
+
+---
+
 ## Common First Tasks
 
 ### Scan a project structure

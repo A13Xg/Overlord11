@@ -6,17 +6,58 @@ This document describes the Overlord11 system design: how components fit togethe
 
 ## Overview
 
-Overlord11 is built around three pillars:
+Overlord11 is built around four pillars:
 
 1. **Agents** — LLM system prompts that define specialist roles and workflows
 2. **Tools** — Python implementations and JSON schemas that give agents real-world capabilities
 3. **Shared memory** — `Consciousness.md`, a Markdown file that provides persistent cross-agent context
+4. **Execution engine + WebUI** — internal Python engine (`engine/`), REST API (`backend/`), and tactical frontend (`frontend/`) added in v3.0.0
 
-All three components are **provider-agnostic**: none of them contain Anthropic, Gemini, or OpenAI specific code. The only provider-specific configuration lives in `config.json`.
+All four components are **provider-agnostic**: none contain Anthropic, Gemini, or OpenAI specific code. The only provider-specific configuration lives in `config.json`.
 
 ---
 
-## Component Diagram
+## v3.0.0 System Diagram
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                         Frontend (Next.js)                           │
+│         http://localhost:3000  —  Tactical Command Interface         │
+│  JobQueue │ EventFeed │ Artifacts │ Product │ SystemLog │ Controls   │
+└────────────────────────────┬─────────────────────────────────────────┘
+                             │ HTTP / SSE / WebSocket
+                             ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                    Backend API (FastAPI, port 8080)                   │
+│                                                                      │
+│  /api/jobs   /api/events  /ws   /api/models  /api/artifacts          │
+│  /api/providers/status    /api/config        /health                 │
+│                                                                      │
+│  SessionStore (job registry + disk persistence)                      │
+│  BackendEventBus (SSE/WS bridge per session_id)                      │
+│  EngineBridge  ─── pause/resume/stop propagated to engine session    │
+└────────────────────────────┬─────────────────────────────────────────┘
+                             │ asyncio.run_in_executor (thread pool)
+                             ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                   Internal Engine  (engine/)                         │
+│                                                                      │
+│  EngineRunner ──── execution loop (provider call → tool dispatch)    │
+│  OrchestratorBridge ── Anthropic / Gemini / OpenAI adapters          │
+│  ToolExecutor ────── parses tool calls, dynamically loads tools      │
+│  SelfHealingSystem ─ error classification + exponential backoff      │
+│  SessionManager ──── session lifecycle (queued→running→done/failed)  │
+│  EventStream ─────── per-session async event bus                     │
+└────────────────────────────┬─────────────────────────────────────────┘
+                             │ reads agent .md files (system prompts)
+                             │ dispatches to tools/python/*.py
+                             ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                          LLM Provider                                │
+│              (Anthropic / Gemini / OpenAI — set in config.json)      │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -193,6 +234,9 @@ Sessions are retained for up to 50 runs (configurable via `workspace.max_session
 | `agents/*.md` | Framework developers | System prompts — edit carefully |
 | `tools/defs/*.json` | Framework developers | JSON Schema tool definitions |
 | `tools/python/*.py` | Framework developers | Tool implementations |
+| `engine/` | Framework developers | Internal execution engine |
+| `backend/` | Framework developers | FastAPI backend + job system |
+| `frontend/` | Framework developers | Next.js tactical WebUI |
 | `config.json` | Operators | Runtime configuration |
 | `Consciousness.md` | All agents | Shared memory — agents write here |
 | `.env` | Operators | API keys — never commit |

@@ -6,6 +6,13 @@ Artifact file management endpoints.
 GET    /api/artifacts/{job_id}             List artifacts for a job
 GET    /api/artifacts/{job_id}/{filename}  Download / preview a file
 DELETE /api/artifacts/{job_id}/{filename}  Delete a file
+
+Security
+--------
+All user-supplied path components are validated through a strict allowlist
+regex BEFORE any file-system operation.  The regex match group (not the raw
+input) is used to build every path.  After construction, Path.resolve() is
+called and the result is bounds-checked against the known root directory.
 """
 
 import mimetypes
@@ -22,45 +29,48 @@ router = APIRouter(prefix="/api/artifacts", tags=["artifacts"])
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 _WORKSPACE_ROOT = (_PROJECT_ROOT / "workspace").resolve()
 
-# Strict allowlist patterns (security: prevent path traversal)
+# Strict character-level allowlist patterns (prevent path traversal)
 _JOB_ID_RE = re.compile(r"^([a-f0-9]{8,64})$")
 _FILENAME_RE = re.compile(r"^([A-Za-z0-9_\-\.]{1,256})$")
+
+
+def _validate_within(candidate: Path, root: Path, label: str) -> None:
+    """Raise HTTPException if candidate is not strictly inside root."""
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        raise HTTPException(400, f"Invalid {label}: path traversal detected")
 
 
 def _safe_job_dir(job_id: str) -> Path:
     """
     Return a validated job directory path.
-    Uses the regex match group (not the original input) to build the path
-    so tainted data never reaches a file operation.
+    Only the allowlisted regex match group is used to construct the path;
+    a resolve() + relative_to() bounds-check follows.
     """
-    match = _JOB_ID_RE.match(job_id)
-    if not match:
+    m = _JOB_ID_RE.match(job_id)
+    if not m:
         raise HTTPException(400, "Invalid job_id format")
-    # Use only the allowlisted match group — not the original user input
-    safe_id = match.group(1)
+    safe_id = m.group(1)  # only hex chars, 8-64 len — no traversal possible
     candidate = (_WORKSPACE_ROOT / safe_id).resolve()
-    # Verify the resolved path is strictly inside _WORKSPACE_ROOT
-    if not str(candidate).startswith(str(_WORKSPACE_ROOT) + os.sep):
-        raise HTTPException(400, "Invalid job_id: path traversal detected")
+    _validate_within(candidate, _WORKSPACE_ROOT, "job_id")
     return candidate
 
 
 def _safe_artifact_path(job_id: str, filename: str) -> Path:
     """
     Return a validated artifact path.
-    Both job_id and filename are regex-matched and only the match groups
-    are used to construct the path.
+    Both job_id and filename pass the allowlist check; paths are resolved
+    and bounds-checked before being returned.
     """
     job_dir = _safe_job_dir(job_id)
-    match = _FILENAME_RE.match(os.path.basename(filename))
-    if not match:
+    base = os.path.basename(filename)  # strip any directory component first
+    m = _FILENAME_RE.match(base)
+    if not m:
         raise HTTPException(400, "Invalid filename")
-    # Use only the allowlisted match group — not the original user input
-    safe_name = match.group(1)
+    safe_name = m.group(1)  # only alphanum + _ - . — no traversal possible
     candidate = (job_dir / safe_name).resolve()
-    # Verify the resolved path is strictly inside job_dir
-    if not str(candidate).startswith(str(job_dir) + os.sep):
-        raise HTTPException(400, "Invalid filename: path traversal detected")
+    _validate_within(candidate, job_dir, "filename")
     return candidate
 
 

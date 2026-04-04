@@ -61,6 +61,7 @@ def execute_python(
                 proc_env[k] = v
 
     # Resolve working directory
+    _created_tmpdir = None
     if working_dir:
         work_path = Path(working_dir)
         if not work_path.is_dir():
@@ -73,7 +74,8 @@ def execute_python(
             }
         cwd = str(work_path.resolve())
     else:
-        cwd = tempfile.mkdtemp(prefix="ovr11_exec_")
+        _created_tmpdir = tempfile.mkdtemp(prefix="ovr11_exec_")
+        cwd = _created_tmpdir
 
     # Write code to a temp file and execute it
     with tempfile.NamedTemporaryFile(
@@ -124,3 +126,10 @@ def execute_python(
             os.unlink(script_path)
         except OSError:
             pass
+        # Clean up temp directory created by this invocation (not caller-supplied dirs)
+        if _created_tmpdir:
+            import shutil
+            try:
+                shutil.rmtree(_created_tmpdir, ignore_errors=True)
+            except OSError:
+                pass

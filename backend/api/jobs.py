@@ -24,7 +24,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from backend.core.session_store import JOB_STATES, SessionStore
-from backend.core.engine_bridge import auto_start_next, start_job
+from backend.core.engine_bridge import auto_start_next, start_job, pause_job_session, resume_job_session, stop_job_session
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -115,16 +115,19 @@ async def update_job(
         if job.state != "running":
             raise HTTPException(400, "Can only pause a running job")
         store.transition(job_id, "paused")
+        pause_job_session(job_id)  # propagate to engine session
 
     elif action == "resume":
         if job.state != "paused":
             raise HTTPException(400, "Can only resume a paused job")
         store.transition(job_id, "running")
+        resume_job_session(job_id)  # propagate to engine session
 
     elif action == "stop":
         if job.state in ("completed", "failed"):
             raise HTTPException(400, f"Job already in terminal state {job.state!r}")
-        store.update_job(job_id, state="failed", error="Stopped by user")
+        stop_job_session(job_id, reason="Stopped by user")  # signal engine loop to exit
+        store.update_job(job_id, error="Stopped by user")
         store.transition(job_id, "failed")
         asyncio.create_task(auto_start_next(store))
 
@@ -177,7 +180,9 @@ async def stop_all(store: SessionStore = Depends(get_store)):
     affected = 0
     for state in ("running", "queued", "paused"):
         for job_dict in store.list_jobs(state=state):
-            store.update_job(job_dict["job_id"], error="Stopped by user")
-            store.transition(job_dict["job_id"], "failed")
+            jid = job_dict["job_id"]
+            stop_job_session(jid, reason="Stopped by user")  # signal engine if running
+            store.update_job(jid, error="Stopped by user")
+            store.transition(jid, "failed")
             affected += 1
     return {"stopped": affected}

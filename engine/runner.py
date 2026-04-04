@@ -17,6 +17,13 @@ Execution flow
      f. On error → SelfHealingSystem attempts recovery
 5. Return final result
 
+Pause / Resume / Stop
+---------------------
+  The session state is checked at the top of every loop iteration:
+    PAUSED   → busy-wait (0.5 s sleep) until resumed or failed/stopped
+    FAILED   → the session was externally stopped; exit immediately
+  Callers can pause/resume/stop by mutating session.state directly.
+
 This does NOT modify any agent .md definitions or CLI workflow.
 """
 
@@ -107,6 +114,10 @@ class EngineRunner:
         done = False
 
         while not done and loop_count < self._max_loops:
+            # --- External state checks (pause / stop) ---
+            if session.state == SessionState.FAILED:
+                # Session was externally stopped via stop_job_session()
+                break
             if session.state == SessionState.PAUSED:
                 # Busy-wait while paused (short sleep to avoid spinning)
                 time.sleep(0.5)
@@ -188,8 +199,8 @@ class EngineRunner:
                         session.fail(f"Tool '{tool_name}' failed after max retries: {error_str}")
                         return self._build_result(session, healer)
 
-        if not done:
-            # Exceeded max loops
+        if not done and session.state not in (SessionState.FAILED, SessionState.COMPLETED):
+            # Exceeded max loops (session was not externally stopped)
             loop_error = f"Exceeded max_loops ({self._max_loops}) without completing"
             if healer.should_retry(loop_error):
                 # Ask for a final summary

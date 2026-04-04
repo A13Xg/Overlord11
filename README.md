@@ -1,17 +1,19 @@
 # Overlord11
 
-> **Provider-agnostic multi-agent LLM orchestration framework**
+> **Full-stack self-hosted AI platform — multi-agent orchestration + internal execution engine + tactical WebUI**
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-3776ab?logo=python&logoColor=white)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-2.2.0-22c55e)](config.json)
-[![Tests](https://img.shields.io/badge/tests-81%20passing-22c55e?logo=pytest&logoColor=white)](tests/test.py)
-[![Tools](https://img.shields.io/badge/tools-28%20built--in-6366f1)](tools/python/)
+[![Version](https://img.shields.io/badge/version-3.0.0-22c55e)](config.json)
+[![Tests](https://img.shields.io/badge/tests-41%20engine%20%7C%2081%20tools-22c55e?logo=pytest&logoColor=white)](tests/)
+[![Tools](https://img.shields.io/badge/tools-31%20built--in-6366f1)](tools/python/)
 [![Agents](https://img.shields.io/badge/agents-8%20specialists-f59e0b)](agents/)
 [![Providers](https://img.shields.io/badge/providers-Anthropic%20%7C%20Gemini%20%7C%20OpenAI-0ea5e9)](docs/Providers.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-64748b)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-64748b)](https://github.com/A13Xg/Overlord11)
 
 Overlord11 is a structured multi-agent framework that coordinates **eight specialist AI agents** across any LLM provider (Anthropic Claude, Google Gemini, or OpenAI GPT). Every request is routed through an **Orchestrator** that decomposes tasks, delegates to specialists, and synthesizes a reviewed final output — without any provider-specific code in the agent definitions or tool schemas.
+
+**v3.0.0** adds a self-contained Python execution engine, autonomous self-healing, and a full-stack tactical WebUI (FastAPI backend + Next.js frontend) — all without modifying a single agent definition or CLI workflow.
 
 ---
 
@@ -20,6 +22,7 @@ Overlord11 is a structured multi-agent framework that coordinates **eight specia
 - [Features](#features)
 - [Architecture](#architecture)
 - [Quick Start](#quick-start)
+- [WebUI & Backend](#webui--backend)
 - [Agents](#agents)
 - [Tools](#tools)
 - [Output Tiers](#output-tiers)
@@ -37,14 +40,16 @@ Overlord11 is a structured multi-agent framework that coordinates **eight specia
 
 - 🔀 **Provider-agnostic** — switch between Anthropic, Gemini, or OpenAI by changing one line in `config.json`
 - 🤖 **8 specialist agents** — Orchestrator, Researcher, Coder, Analyst, Writer, Reviewer, Publisher, Cleanup
-- 🛠️ **28 built-in tools** — file I/O, web fetch/scrape, shell execution, Git, code analysis, project scanning, UI design system, scaffolding, task management, error logging, and more
+- 🛠️ **31 built-in tools** — file I/O, web fetch/scrape, shell execution, Git, code analysis, project scanning, UI design system, scaffolding, task management, error logging, Python execution, and more
+- ⚙️ **Internal execution engine** — Python-native agent loop (`engine/`) replaces CLI dependency; supports tool dispatch, pause/resume/stop, and provider fallback
+- 🩹 **Self-healing system** — classifies errors, retries with backoff, injects remediation context back into agent conversation
+- 🖥️ **Tactical WebUI** — cold-war control panel aesthetic, real-time SSE event feed, job queue management, artifact browser, provider status indicators
 - 🎨 **UI/UX design system skill** — 10 curated styles × 10 color palettes; Coder generates a persistent spec before any UI work; Reviewer validates against it
 - 🔍 **Dual-engine search** — ripgrep when available, pure-Python fallback producing identical JSON output
 - 📊 **3 output tiers** — inline text, Markdown docs, or styled self-contained HTML reports
-- 🖼️ **9 HTML themes** — techno, classic, modern, editorial, and more — auto-selected by content type
 - 🧠 **Shared memory** — `Consciousness.md` enables cross-agent, cross-session context
-- 🔒 **Security-first** — Reviewer agent blocks hardcoded secrets; no credentials in agent definitions
-- ✅ **Fully tested** — test suite covering all tool modules, ripgrep/Python fallback, Unicode, encoding edge-cases
+- 🔒 **Security-first** — strict allowlist path validation on all artifact operations; Reviewer blocks hardcoded secrets
+- ✅ **Fully tested** — 41 engine unit tests + 81 tool tests
 - 🔌 **Extensible** — add new agents, tools, or LLM providers without touching the framework core
 
 ---
@@ -210,6 +215,72 @@ Overlord11/
 ├── ONBOARDING.md            # Universal LLM onboarding guide
 ├── CHANGELOG.md             # Release history
 └── .env.example             # Environment variable template
+```
+
+---
+
+## WebUI & Backend
+
+Overlord11 v3.0.0 includes a full-stack web interface built on FastAPI + Next.js.
+
+### Start the backend
+
+```bash
+# Install backend dependencies and start on port 8080
+python scripts/run_backend.py
+
+# Or with explicit flags
+python scripts/run_backend.py --port 8080 --reload   # --reload for dev hot-reload
+```
+
+The backend API is available at `http://localhost:8080/api/docs` (Swagger UI).
+
+### Start the frontend
+
+```bash
+cd frontend
+npm install
+npm run dev   # starts on http://localhost:3000
+```
+
+For production:
+
+```bash
+npm run build && npm run start
+```
+
+### WebUI Features
+
+| Feature | Description |
+|---------|-------------|
+| **Job Queue** | Create, start, pause, resume, stop, restart, delete jobs |
+| **Execution Feed** | Real-time SSE event stream — tool calls, results, errors, healing |
+| **Artifacts** | Browse and download files produced by agent runs |
+| **Product** | View final agent output |
+| **System Log** | Collapsible bottom panel aggregating all engine events |
+| **Provider Status** | Green/red indicators per provider (key detected = green) |
+| **Model Selection** | `GET/PUT /api/config` — saved to `workspace/.webui_prefs.json` |
+| **Global Controls** | Start All / Pause All / Stop All |
+
+### API Quick Reference
+
+```
+POST   /api/jobs               Create + enqueue a job
+GET    /api/jobs               List jobs (?state= filter)
+PATCH  /api/jobs/{id}          Control: start | pause | resume | stop | restart
+DELETE /api/jobs/{id}          Delete a job
+POST   /api/jobs/control/start-all
+POST   /api/jobs/control/pause-all
+POST   /api/jobs/control/stop-all
+GET    /api/events/{session_id}        SSE stream
+WS     /ws/{session_id}               WebSocket stream
+GET    /api/providers/status   Provider reachability
+GET    /api/models             Model list for active provider
+GET    /api/config             Current provider/model selection
+PUT    /api/config             Update provider/model
+GET    /api/artifacts/{job_id} List artifacts
+GET    /api/artifacts/{job_id}/{file}  Download artifact
+GET    /health                 Health check
 ```
 
 ---

@@ -45,6 +45,17 @@ export default function Dashboard() {
     }
   }, [jobs, loading, selectedJobId]);
 
+  // addLog must be defined before any effects that call it
+  const addLog = useCallback(
+    (level: LogEntry["level"], message: string) => {
+      setSysLog((prev) => [
+        ...prev.slice(-499), // keep last 500
+        { ts: Date.now(), level, message },
+      ]);
+    },
+    []
+  );
+
   // Poll provider status
   useEffect(() => {
     const load = async () => {
@@ -65,7 +76,7 @@ export default function Dashboard() {
     load();
     const t = setInterval(load, 15000);
     return () => clearInterval(t);
-  }, []);
+  }, [addLog]);
 
   // Feed engine log events into system log
   useEffect(() => {
@@ -81,17 +92,7 @@ export default function Dashboard() {
     } else if (last.type === "healing") {
       addLog("warn", `Healing attempt ${last.attempt}: ${last.strategy}`);
     }
-  }, [events]);
-
-  const addLog = useCallback(
-    (level: LogEntry["level"], message: string) => {
-      setSysLog((prev) => [
-        ...prev.slice(-499), // keep last 500
-        { ts: Date.now(), level, message },
-      ]);
-    },
-    []
-  );
+  }, [events, addLog]);
 
   const handleSubmitJob = async (task: string, agent: string, provider: string) => {
     const job = await submitJob(task, agent, provider);

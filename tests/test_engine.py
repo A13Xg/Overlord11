@@ -298,10 +298,106 @@ class TestExecutePython(unittest.TestCase):
         self.assertIn("stdout", result["stdout"])
         self.assertIn("stderr", result["stderr"])
 
+    def test_temp_dir_cleaned_up(self):
+        """Temp directories created internally must be removed after execution."""
+        import glob as glob_mod
+        before = set(glob_mod.glob("/tmp/ovr11_exec_*"))
+        execute_python('print("temp dir test")')
+        after = set(glob_mod.glob("/tmp/ovr11_exec_*"))
+        leaked = after - before
+        self.assertEqual(leaked, set(), f"Temp dirs were not cleaned up: {leaked}")
+
+    def test_caller_working_dir_not_removed(self):
+        """If the caller supplies working_dir, it must NOT be deleted."""
+        import tempfile
+        tmpdir = tempfile.mkdtemp(prefix="ovr11_caller_")
+        try:
+            execute_python('print("keep caller dir")', working_dir=tmpdir)
+            self.assertTrue(os.path.isdir(tmpdir), "Caller-supplied working_dir was deleted")
+        finally:
+            import shutil
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Main
+# Session pause / resume / stop tests
 # ──────────────────────────────────────────────────────────────────────────────
+
+class TestSessionPauseResumeStop(unittest.TestCase):
+    """Verify that Session state transitions are correctly propagated."""
+
+    def setUp(self):
+        self.mgr = SessionManager(log_dir="/tmp/ovr11_test_prs")
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree("/tmp/ovr11_test_prs", ignore_errors=True)
+
+    def test_pause_changes_state(self):
+        s = self.mgr.create(task="pause test")
+        s.start()
+        self.assertEqual(s.state, SessionState.RUNNING)
+        s.pause()
+        self.assertEqual(s.state, SessionState.PAUSED)
+
+    def test_resume_changes_state(self):
+        s = self.mgr.create(task="resume test")
+        s.start()
+        s.pause()
+        self.assertEqual(s.state, SessionState.PAUSED)
+        s.resume()
+        self.assertEqual(s.state, SessionState.RUNNING)
+
+    def test_fail_stops_session(self):
+        s = self.mgr.create(task="stop test")
+        s.start()
+        s.fail("Stopped by user")
+        self.assertEqual(s.state, SessionState.FAILED)
+        self.assertEqual(s.error, "Stopped by user")
+
+    def test_runner_exits_on_external_stop(self):
+        """
+        If session.fail() is called externally mid-run (simulating a stop
+        action from the API), the runner must detect FAILED on the next loop
+        tick and exit without calling the provider again.
+        """
+        from unittest.mock import MagicMock
+        from engine.runner import EngineRunner
+
+        mgr = SessionManager(log_dir="/tmp/ovr11_test_runner_stop")
+        try:
+            runner = EngineRunner(session_manager=mgr, max_loops=10)
+            session = mgr.create(task="external stop test")
+
+            bridge_call_count = [0]
+
+            def mock_call(*args, **kwargs):
+                bridge_call_count[0] += 1
+                if bridge_call_count[0] == 1:
+                    # First call: return a tool-call response so the loop
+                    # continues, and externally stop the session.
+                    session.fail("Stopped by user")
+                    # Return a fenced tool call — but since state is FAILED
+                    # the loop will break at the top of the next iteration.
+                    return ('```tool_call\n{"tool": "nonexistent", "args": {}}\n```', "mock")
+                # Should never reach a second call
+                raise AssertionError("Bridge called more than once after external stop")
+
+            runner._bridge = MagicMock()
+            runner._bridge.call.side_effect = mock_call
+
+            result = runner.run_session(session)
+
+            # The runner must stop; result state is FAILED because session.fail()
+            # was called externally and the runner respects it.
+            self.assertEqual(result["state"], SessionState.FAILED)
+            # Bridge must have been called exactly once
+            self.assertEqual(bridge_call_count[0], 1)
+        finally:
+            import shutil
+            shutil.rmtree("/tmp/ovr11_test_runner_stop", ignore_errors=True)
+
+
 
 if __name__ == "__main__":
     loader = unittest.TestLoader()

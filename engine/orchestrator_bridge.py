@@ -75,17 +75,21 @@ def _call_gemini(
             model_name=cfg.get("model", "gemini-2.5-pro"),
             system_instruction=system,
         )
-        # Convert to Gemini format
+
+        if not messages:
+            raise RuntimeError("No messages provided to Gemini")
+
+        # Build history from all messages except the final one, then send the
+        # final message via chat.send_message.  The Gemini SDK expects history
+        # entries with roles "user" or "model".
         history = []
-        last_user_msg = ""
-        for msg in messages:
+        for msg in messages[:-1]:
             role = "user" if msg["role"] == "user" else "model"
-            if msg["role"] == "user":
-                last_user_msg = msg["content"]
             history.append({"role": role, "parts": [msg["content"]]})
 
-        chat = model.start_chat(history=history[:-1] if history else [])
-        response = chat.send_message(last_user_msg or (messages[-1]["content"] if messages else ""))
+        last_msg = messages[-1]["content"]
+        chat = model.start_chat(history=history)
+        response = chat.send_message(last_msg)
         return response.text
     except Exception as exc:
         raise RuntimeError(f"Gemini API error: {exc}") from exc
