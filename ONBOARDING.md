@@ -16,7 +16,7 @@ The framework is designed to work with **any LLM provider** — Anthropic Claude
 
 | Property | Value |
 |----------|-------|
-| Framework | Overlord11 v2.2.0 |
+| Framework | Overlord11 v2.3.0 |
 | Memory file | `Consciousness.md` (shared across all agents) |
 | Config | `config.json` (provider, agent, tool settings) |
 | Tool implementations | `tools/python/` |

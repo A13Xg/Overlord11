@@ -5,6 +5,45 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.3.0] — 2026-04-04
+
+### Added — Internal Execution Engine (`engine/`)
+
+- `engine/runner.py` — `EngineRunner` core agent execution loop; runs independently of external CLI tools
+- `engine/orchestrator_bridge.py` — provider-agnostic LLM API caller (Anthropic/Gemini/OpenAI REST) with fallback chain
+- `engine/tool_executor.py` — `ToolCall` dataclass + 3-format parser (JSON, XML, function-call style) + Python/subprocess executor
+- `engine/session_manager.py` — `EngineSession` wrapper over existing session tools; logs events to `sessions/{id}/logs.json`
+- `engine/event_stream.py` — `EventStream` with typed events (`AGENT_START`, `TOOL_CALL`, `TOOL_RESULT`, etc.) and callback support
+- `run_engine.py` — CLI entry point: interactive menu for new/resume session, provider/model selection, live ANSI event display
+
+### Added — Self-Healing System (`engine/self_healing.py`)
+
+- `ErrorType` enum: `TOOL_FAILURE`, `SYNTAX_ERROR`, `RUNTIME_ERROR`, `API_ERROR`, `LOGIC_ERROR`, `TIMEOUT_ERROR`
+- `SelfHealingEngine`: AST-aware error classification, structured error report injection, retry orchestration, failure/resolution logging
+
+### Added — Python Execution Tool
+
+- `tools/python/execute_python.py` — sandboxed Python code execution with AST-based dangerous-op detection, stdout/stderr capture, configurable timeout
+- `tools/defs/execute_python.json` — tool schema
+- Registered in `config.json`; added to Coder agent tool list
+
+### Added — Tactical WebUI (`backend/` + `frontend/`)
+
+- `backend/main.py` — FastAPI app with CORS, all API routers, startup lifecycle
+- `backend/core/session_store.py` — `Job` dataclass + `SessionStore` with file persistence
+- `backend/core/engine_bridge.py` — async engine driver; sequential job queue worker
+- `backend/core/event_stream.py` — SSE `EventBroadcaster` with heartbeat keepalives
+- `backend/api/jobs.py` — full job CRUD + start/stop/pause/resume/restart endpoints
+- `backend/api/providers.py` — provider+model management, selection persisted to `.webui_prefs.json`
+- `backend/api/artifacts.py` — secure artifact listing + serving (allowlist-validated paths)
+- `backend/api/events.py` — SSE endpoints per-job and global
+- `frontend/index.html` — self-contained SPA: cold-war Soviet control panel aesthetic, CRT scanlines, radar animation, live SSE updates
+- `scripts/run_webui.py` — WebUI launcher (port 7900)
+- `requirements-webui.txt` — FastAPI + uvicorn + python-multipart
+- `requirements-engine.txt` — stdlib-only engine, optional extras documented
+
+---
+
 ## [2.2.0] — 2026-03-22
 
 ### Added — Cleanup Agent (OVR_CLN_08)
