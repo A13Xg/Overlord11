@@ -86,7 +86,6 @@ def execute_python(
         f.write(code)
         script_path = f.name
 
-    timed_out = False
     try:
         result = subprocess.run(
             [sys.executable, script_path],
