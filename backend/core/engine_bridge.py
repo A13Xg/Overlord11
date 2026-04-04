@@ -100,6 +100,8 @@ class EngineBridge:
         runner = EngineRunner(verbose=False)
         runner.events.callbacks.append(_event_callback)
 
+        # get_running_loop() is safe here because run_job is always called
+        # from an async context (either _worker_loop or directly awaited).
         loop = asyncio.get_running_loop()
 
         def _check_paused() -> bool:
