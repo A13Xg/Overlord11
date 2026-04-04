@@ -56,3 +56,7 @@ tests/test_workspace/
 
 # Temporary files
 *.tmp
+
+# Next.js build artifacts
+frontend/.next/
+frontend/out/

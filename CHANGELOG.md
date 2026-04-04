@@ -5,7 +5,71 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [3.0.0] — 2026-04-04
+
+### Added — Internal Execution Engine (`engine/`)
+
+- `engine/runner.py` — Main agent execution loop with tool detection and dispatch
+- `engine/orchestrator_bridge.py` — Provider adapter (Anthropic, Gemini, OpenAI) with fallback chain
+- `engine/tool_executor.py` — Parse tool calls from agent output (JSON fenced, XML tag, Anthropic format); dynamic tool loader
+- `engine/session_manager.py` — Session lifecycle management (queued → running → completed/failed)
+- `engine/event_stream.py` — Async event bus emitting typed events (`agent_start`, `tool_call`, `tool_result`, `log`, `complete`, `error`, `healing`)
+- `engine/self_healing.py` — Error classification, retry with backoff, remediation message injection
+
+### Added — Self-Healing System
+
+- Error classification: `tool_error`, `api_error`, `parse_error`, `runtime_error`, `loop_limit`
+- Exponential backoff retry (configurable max_retries, retry_delay)
+- Remediation context injected back into agent conversation loop
+
+### Added — Python Execution Tool
+
+- `tools/python/execute_python.py` — Execute arbitrary Python in subprocess sandbox (timeout, env, working_dir)
+- `tools/defs/execute_python.json` — Tool definition registered in config.json
+
+### Added — Backend API (`backend/`)
+
+- `backend/main.py` — FastAPI application (port 8080), CORS, static frontend serving
+- `backend/core/session_store.py` — Thread-safe job registry with disk persistence
+- `backend/core/engine_bridge.py` — Async bridge from FastAPI to engine runner
+- `backend/core/event_stream.py` — SSE/WebSocket event bus (`BackendEventBus`)
+- `backend/api/jobs.py` — Full job CRUD + state transitions + bulk controls (start all / pause all / stop all)
+- `backend/api/events.py` — SSE (`/api/events/{session_id}`) + WebSocket (`/ws/{session_id}`)
+- `backend/api/models_api.py` — Model listing, provider status (green/red), config read/write
+- `backend/api/artifacts.py` — Artifact listing, download, delete with path-injection protection
+- `requirements-backend.txt` — FastAPI, uvicorn, pydantic, websockets, provider SDKs
+- `scripts/run_backend.py` — Backend launch script with auto-install
+
+### Added — Frontend WebUI (`frontend/`)
+
+- Next.js 15 + TypeScript + Tailwind CSS
+- Ultra-modern retro military / cold-war control panel theme (phosphor green, radar animations, waveform)
+- **Top Bar** — branding, provider status indicators (green/red), global controls
+- **Job Queue** — left panel with per-job controls (start/pause/resume/stop/restart/delete)
+- **Main View** — tabbed: Execution | Artifacts | Product
+- **Event Feed** — real-time SSE event stream with typed color coding
+- **System Log** — collapsible bottom panel with auto-scroll
+- **New Job Modal** — task, agent, provider selection
+- **File Preview Modal** — text/image rendering, download option
+- `src/lib/api.ts` — Full API client
+- `src/hooks/useJobs.ts` — Job list with polling
+- `src/hooks/useEvents.ts` — SSE subscription hook
+
+### Added — Tests
+
+- `tests/test_engine.py` — 35 unit tests covering EventStream, SessionManager, ToolExecutor, SelfHealingSystem, execute_python
+
+### Changed
+
+- `config.json` version bumped to 3.0.0
+- `config.json` description updated
+- `config.json` `execute_python` tool registered
+- `config.json` new `engine` section with port/retry/store config
+
+---
+
 ## [2.2.0] — 2026-03-22
+
 
 ### Added — Cleanup Agent (OVR_CLN_08)
 

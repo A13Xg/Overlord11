@@ -1,7 +1,7 @@
 {
-  "version": "2.2.0",
+  "version": "3.0.0",
   "name": "Overlord11",
-  "description": "Provider-agnostic multi-agent LLM toolset",
+  "description": "Full-stack self-hosted AI platform — internal execution engine + WebUI",
 
   "providers": {
     "active": "anthropic",
@@ -239,7 +239,21 @@
     "vision_tool": {
       "def": "tools/defs/vision_tool.json",
       "impl": "tools/python/vision_tool.py"
+    },
+    "execute_python": {
+      "def": "tools/defs/execute_python.json",
+      "impl": "tools/python/execute_python.py"
     }
+  },
+
+  "engine": {
+    "backend_port": 8080,
+    "frontend_port": 3000,
+    "max_loops": 10,
+    "max_retries": 3,
+    "retry_delay": 1.0,
+    "store_dir": "logs/jobs",
+    "session_dir": "logs/sessions"
   },
 
   "orchestration": {

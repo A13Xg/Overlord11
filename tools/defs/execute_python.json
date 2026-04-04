@@ -1,0 +1,28 @@
+{
+  "name": "execute_python",
+  "description": "Execute arbitrary Python code in a subprocess sandbox. Returns stdout, stderr, and exit code. Used for dynamic problem solving and self-healing code execution.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "string",
+        "description": "Python source code to execute"
+      },
+      "timeout": {
+        "type": "integer",
+        "description": "Maximum execution time in seconds (default 30, max 120)",
+        "default": 30
+      },
+      "working_dir": {
+        "type": "string",
+        "description": "Working directory for the subprocess. Defaults to a temporary directory."
+      },
+      "env_vars": {
+        "type": "object",
+        "description": "Additional environment variables to pass to the subprocess",
+        "additionalProperties": { "type": "string" }
+      }
+    },
+    "required": ["code"]
+  }
+}
