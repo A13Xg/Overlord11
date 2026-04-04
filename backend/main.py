@@ -85,7 +85,9 @@ async def on_startup():
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    import logging
+    logging.getLogger("overlord11.webui").exception("Unhandled exception: %s", exc)
     return JSONResponse(
         status_code=500,
-        content={"detail": f"Internal server error: {exc}"},
+        content={"detail": "Internal server error"},
     )
