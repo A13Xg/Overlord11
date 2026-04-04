@@ -81,18 +81,22 @@ async def download_artifact(job_id: str, name: str):
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    art_dir = _artifact_dir(job)
-    # Use os.path.basename to prevent path traversal
+    art_dir = _artifact_dir(job).resolve()
+
+    # Strip any directory components from the user-supplied name, then
+    # resolve the full path and confirm it lives inside art_dir.
     safe_name = os.path.basename(name)
-    file_path = art_dir / safe_name
+    resolved = (art_dir / safe_name).resolve()
 
-    if not file_path.exists() or not file_path.is_file():
-        raise HTTPException(status_code=404, detail="Artifact not found")
-
-    # Ensure the resolved path is within the artifact directory
+    # Strict containment check — rejects symlinks that escape the directory
     try:
-        file_path.resolve().relative_to(art_dir.resolve())
+        resolved.relative_to(art_dir)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid artifact path")
 
-    return FileResponse(str(file_path), filename=safe_name)
+    if not resolved.exists() or not resolved.is_file():
+        raise HTTPException(status_code=404, detail="Artifact not found")
+
+    # Pass the fully-resolved absolute path; safe_name is used only as the
+    # download filename and has already been validated by the allowlist regex.
+    return FileResponse(str(resolved), filename=safe_name)
