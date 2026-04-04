@@ -79,8 +79,9 @@ async def start_job(job: JobRecord, store: SessionStore) -> None:
         session.stream.emit_error(error=str(exc))
 
     finally:
-        # Keep stream registered for a short window so late subscribers
-        # can still read history, then unregister
+        # Keep stream registered for a brief window so late SSE/WebSocket
+        # subscribers can still read the complete event history, then clean up.
+        # 60 s is sufficient for any in-flight client reconnect after job end.
         await asyncio.sleep(60)
         event_bus.unregister(session.session_id)
 

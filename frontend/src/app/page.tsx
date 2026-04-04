@@ -30,17 +30,20 @@ export default function Dashboard() {
   const sessionId = selectedJob?.session_id ?? null;
   const { events, connected } = useEvents(sessionId);
 
-  // Keep selected job in sync with job list updates
+  // Keep selected job in sync with job list updates.
+  // selectedJob.job_id is used only for lookup — including selectedJob in deps
+  // would cause an infinite loop since we call setSelectedJob inside.
+  const selectedJobId = selectedJob?.job_id ?? null;
   useEffect(() => {
-    if (selectedJob) {
-      const updated = jobs.find((j) => j.job_id === selectedJob.job_id);
+    if (selectedJobId) {
+      const updated = jobs.find((j) => j.job_id === selectedJobId);
       if (updated) setSelectedJob(updated);
     } else if (jobs.length > 0 && !loading) {
       // Auto-select the most recently active job
       const running = jobs.find((j) => j.state === "running");
       if (running) setSelectedJob(running);
     }
-  }, [jobs, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [jobs, loading, selectedJobId]);
 
   // Poll provider status
   useEffect(() => {
