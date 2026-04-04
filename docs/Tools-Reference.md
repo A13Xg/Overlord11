@@ -672,3 +672,41 @@ Image analysis: OCR, object detection, screenshot interpretation.
 python tools/python/vision_tool.py --image_path screenshot.png --action ocr
 python tools/python/vision_tool.py --image_path ui_mockup.png --action describe
 ```
+
+---
+
+## Code Execution Tools
+
+### `execute_python`
+
+**Schema:** `tools/defs/execute_python.json`
+**Implementation:** `tools/python/execute_python.py`
+
+Execute arbitrary Python code in a sandboxed environment with timeout enforcement and output capture. Uses AST-based static analysis to block dangerous operations (`os`, `sys`, `subprocess`, file I/O, etc.) before any code runs. Output is captured from stdout/stderr.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `code` | string | ✓ | Python source code to execute |
+| `timeout` | integer | | Maximum execution time in seconds (default: `30`) |
+| `allow_network` | boolean | | If `true`, network modules (urllib, requests) are permitted (default: `false`) |
+
+**Returns:**
+
+```json
+{
+  "status": "success",
+  "stdout": "4\n",
+  "stderr": "",
+  "returncode": 0,
+  "duration_ms": 12.5
+}
+```
+
+**Available in sandbox:** `math`, `json`, `re`, `datetime`, `collections`, `itertools`, `functools`, `string`, and all safe built-ins (`abs`, `len`, `range`, `print`, etc.).
+
+**Blocked in sandbox:** `os`, `sys`, `subprocess`, `importlib`, `shutil`, `socket`, `threading`, `multiprocessing`, `open`, `exec`, `eval`, `__import__`, and all network modules when `allow_network=false`.
+
+```bash
+python tools/python/execute_python.py --code "print(2 ** 10)"
+python tools/python/execute_python.py --code "import math; print(math.factorial(10))" --timeout 5
+```

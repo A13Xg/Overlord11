@@ -251,3 +251,70 @@ python tools/python/web_scraper.py --action search --query "Python async pattern
 - [Tools Reference](Tools-Reference.md) — complete tool parameter reference
 - [Providers](Providers.md) — model selection and provider switching
 - [Development](Development.md) — contributing, testing, and dev setup
+
+---
+
+## Optional: Run the Internal Engine (no external CLI)
+
+Overlord11 v2.3.0 includes an internal Python execution engine that runs agents directly — no external CLI tool (Claude CLI, Gemini CLI, etc.) needed.
+
+### Prerequisites
+
+The engine uses only Python standard library — no additional packages needed.
+
+### Launch the Engine CLI
+
+```bash
+python run_engine.py
+```
+
+This opens an interactive terminal interface:
+
+```
+  OVERLORD11 ENGINE  v2.3.0
+
+MENU  (provider: anthropic  model: claude-opus-4-5)
+  1. Start new session
+  2. Resume existing session
+  3. Select provider
+  4. Select model
+  5. Exit
+```
+
+- **Start new session**: enter any prompt; the engine runs the Orchestrator agent and streams events live
+- **Resume existing session**: pick from the 10 most recent sessions
+- **Select provider / Select model**: change the active provider or model (writes to `config.json`)
+
+---
+
+## Optional: Run the Tactical WebUI
+
+A self-hosted web application providing a full visual interface over the engine.
+
+### Install WebUI Dependencies
+
+```bash
+pip install -r requirements-webui.txt
+```
+
+### Launch the WebUI
+
+```bash
+python scripts/run_webui.py
+```
+
+Then open [http://localhost:7900](http://localhost:7900) in your browser.
+
+> **PORT override:** `PORT=8080 python scripts/run_webui.py`
+
+### WebUI Features
+
+- **Job queue** — create, start, pause, resume, stop, restart, and delete jobs
+- **Real-time event stream** — live agent/tool events via Server-Sent Events
+- **Artifacts browser** — browse and preview output files per job
+- **Provider selector** — switch provider and model from the top bar
+- **Job state indicators** — 🟢 complete · 🟠 queued · 🔵 running · 🔴 failed · ⏸ paused
+
+### API Reference
+
+The FastAPI backend exposes auto-generated docs at [http://localhost:7900/api/docs](http://localhost:7900/api/docs).

@@ -100,7 +100,7 @@ class EngineBridge:
         runner = EngineRunner(verbose=False)
         runner.events.callbacks.append(_event_callback)
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _check_paused() -> bool:
             j = store.get_job(job_id)

@@ -56,13 +56,36 @@ class EngineSession:
         self._persist_logs()
         return self._session_id
 
+    def load(self) -> bool:
+        """Restore session state from an existing session_id. Returns True on success."""
+        if not self._session_id:
+            return False
+        try:
+            data = get_session(self._session_id)
+            if "error" in data:
+                return False
+            workspace = data.get("workspace")
+            if workspace:
+                self._session_dir = Path(workspace)
+                (self._session_dir / "outputs").mkdir(parents=True, exist_ok=True)
+                # Load existing logs if present
+                logs_path = self._session_dir / "logs.json"
+                if logs_path.exists():
+                    try:
+                        self._logs = json.loads(logs_path.read_text(encoding="utf-8"))
+                    except (json.JSONDecodeError, OSError):
+                        pass
+            return True
+        except Exception:
+            return False
+
     def close(self, status: str = "complete") -> dict:
         """Close the session."""
         if self._closed or not self._session_id:
             return {}
         self._closed = True
         self._persist_logs()
-        return close_session(self._session_id, status=status)
+        return close_session(self._session_id, summary=status)
 
     # ------------------------------------------------------------------
     # Logging helpers
@@ -94,7 +117,9 @@ class EngineSession:
             try:
                 log_change(
                     self._session_id,
-                    {"file": tool_name, "action": "tool_call", "summary": str(result)[:200]},
+                    tool_name,         # file_path
+                    "tool_call",       # action
+                    summary=str(result)[:200],
                 )
             except Exception:
                 pass

@@ -18,6 +18,7 @@ _BASE_DIR = Path(__file__).resolve().parent.parent.parent
 _WORKSPACE_DIR = _BASE_DIR / "workspace"
 
 _JOB_ID_RE = re.compile(r"^[a-f0-9]{8,64}$")
+_SESSION_ID_RE = re.compile(r"^[0-9]{8}_[0-9]{6}$")  # YYYYMMDD_HHMMSS engine format
 _ARTIFACT_NAME_RE = re.compile(r"^[A-Za-z0-9_\-\.]{1,128}$")
 
 
@@ -34,17 +35,19 @@ def _validate_artifact_name(name: str) -> None:
 def _artifact_dir(job: object) -> Path:
     """
     Locate the artifact directory for a job.
-    If the job has a session_id we look in workspace/<session_id>/output;
-    otherwise fall back to workspace/<job_id>.
+    If the job has a session_id we look in workspace/<session_id>/output(s);
+    session_id may be either a hex WebUI job ID or a YYYYMMDD_HHMMSS engine session ID.
+    Falls back to workspace/<job_id>.
     """
     session_id = getattr(job, "session_id", None)
-    if session_id and _JOB_ID_RE.match(str(session_id)):
-        candidate = _WORKSPACE_DIR / session_id / "output"
-        if candidate.is_dir():
-            return candidate
-        candidate2 = _WORKSPACE_DIR / session_id / "outputs"
-        if candidate2.is_dir():
-            return candidate2
+    if session_id:
+        sid_str = str(session_id)
+        # Accept both hex job IDs and datetime-format engine session IDs
+        if _JOB_ID_RE.match(sid_str) or _SESSION_ID_RE.match(sid_str):
+            for subdir in ("output", "outputs"):
+                candidate = _WORKSPACE_DIR / sid_str / subdir
+                if candidate.is_dir():
+                    return candidate
     fallback = _WORKSPACE_DIR / job.job_id  # job_id already validated upstream
     fallback.mkdir(parents=True, exist_ok=True)
     return fallback

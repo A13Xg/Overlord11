@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, List, Optional
 
+_BASE_DIR = Path(__file__).resolve().parent.parent
+
 
 @dataclass
 class ToolCall:
@@ -102,11 +104,15 @@ class ToolExecutor:
         self._build_tool_map()
 
     def _build_tool_map(self) -> None:
-        """Index available tools from config."""
+        """Index available tools from config, resolving impl paths relative to project root."""
         for name, info in self._config.get("tools", {}).items():
             impl = info.get("impl", "")
             if impl:
-                self._tool_map[name] = Path(impl)
+                p = Path(impl)
+                # If the path is relative, resolve it against the project root
+                if not p.is_absolute():
+                    p = _BASE_DIR / p
+                self._tool_map[name] = p
 
     def _load_module(self, module_path: Path):
         """Dynamically import a Python module from a file path."""

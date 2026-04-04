@@ -2,10 +2,12 @@
 Overlord11 Tactical WebUI — FastAPI application entry point.
 """
 
+import logging
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -23,11 +25,23 @@ from .api.providers import router as providers_router
 from .core.engine_bridge import bridge
 from .core.session_store import store
 
+# ------------------------------------------------------------------
+# Lifespan (startup / shutdown)
+# ------------------------------------------------------------------
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    store.load()
+    bridge.start_worker()
+    yield
+
+
 app = FastAPI(
     title="Overlord11 Tactical WebUI",
     version="2.3.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
+    lifespan=lifespan,
 )
 
 # ------------------------------------------------------------------
@@ -70,22 +84,14 @@ async def serve_spa(full_path: str):
 
 
 # ------------------------------------------------------------------
-# Startup / Shutdown
-# ------------------------------------------------------------------
-
-@app.on_event("startup")
-async def on_startup():
-    store.load()
-    bridge.start_worker()
-
-
-# ------------------------------------------------------------------
-# Global exception handler
+# Global exception handler — only catches unexpected non-HTTP errors
 # ------------------------------------------------------------------
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    import logging
+    # Let FastAPI's own HTTP exception handling flow through
+    if isinstance(exc, HTTPException):
+        raise exc
     logging.getLogger("overlord11.webui").exception("Unhandled exception: %s", exc)
     return JSONResponse(
         status_code=500,

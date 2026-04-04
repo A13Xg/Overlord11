@@ -58,6 +58,8 @@ class EngineRunner:
         )
         if not session_id:
             session.create()
+        else:
+            session.load()  # Restore _session_dir and existing logs for resume
 
         sid = session.session_id or "unknown"
         # Reset events for this run but preserve registered callbacks
@@ -123,11 +125,6 @@ class EngineRunner:
 
             # Inject tool results into context
             messages = self._bridge.build_context(messages, tool_results)
-
-            if self.detect_completion(response):
-                final_output = response
-                status = "complete"
-                break
 
         self.events.emit(EventType.SESSION_END, session_id=sid, status=status, loops=loop)
         session.close(status=status)

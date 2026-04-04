@@ -22,6 +22,10 @@ The framework is designed to work with **any LLM provider** — Anthropic Claude
 | Tool implementations | `tools/python/` |
 | Tool schemas | `tools/defs/` |
 | Agent definitions | `agents/` |
+| Engine | `engine/` (internal Python execution engine) |
+| WebUI backend | `backend/` (FastAPI, port 7900) |
+| WebUI frontend | `frontend/index.html` |
+| Engine CLI | `run_engine.py` |
 | Workspace | `workspace/` (session outputs) |
 | Logs | `logs/` |
 
@@ -340,3 +344,71 @@ If the active provider fails, the Orchestrator falls back through the order defi
 - **Tool implementations**: `tools/python/` — Python scripts you can run directly
 - **Framework config**: `config.json` — all system settings
 - **Shared memory**: `Consciousness.md` — current cross-agent state
+
+---
+
+## Engine Mode (Internal Runner)
+
+Overlord11 v2.3.0 supports running without any external CLI tool. If you are operating inside the internal engine rather than an external LLM client, the following applies.
+
+### How the Engine Works
+
+The engine (`engine/runner.py`) drives the agent loop programmatically:
+
+1. User input → `EngineRunner.run(user_input)`
+2. System prompt is built from `ONBOARDING.md` + the agent's `.md` file
+3. The active provider API is called (Anthropic/Gemini/OpenAI with automatic fallback)
+4. Tool calls are detected in the response using pattern matching (JSON, XML, or function-call syntax)
+5. Tools are executed from `tools/python/` and results injected back as user messages
+6. Loop continues until no tool calls are present in a response
+7. Structured events (`AGENT_START`, `TOOL_CALL`, `TOOL_RESULT`, `SESSION_END`, etc.) are emitted at each step
+
+### Tool Call Formats in Engine Mode
+
+Agents operating in engine mode should emit tool calls in one of these formats:
+
+**JSON block:**
+````markdown
+```json
+{"tool": "read_file", "params": {"path": "config.json"}}
+```
+````
+
+**XML-style:**
+```xml
+<tool_call>{"tool": "write_file", "params": {"path": "out.txt", "content": "hello"}}</tool_call>
+```
+
+**Function-call style:**
+```
+TOOL_CALL: search_file_content(pattern="def main", path="tools/python/")
+```
+
+### Self-Healing
+
+The `SelfHealingEngine` (`engine/self_healing.py`) automatically:
+- Classifies errors (TOOL_FAILURE, RUNTIME_ERROR, API_ERROR, TIMEOUT_ERROR, etc.)
+- Builds a structured error report that is re-injected into agent context
+- Suggests corrective actions
+- Logs failures to `logs/self_healing.jsonl` and `ErrorLog.md`
+
+### Session Artifacts
+
+Each engine run creates a session under `workspace/YYYYMMDD_HHMMSS/`:
+
+```
+workspace/20260404_170000/
+  session.json        ← metadata + status
+  logs.json           ← full event log
+  outputs/            ← agent-written files
+  temp/               ← scratch files
+```
+
+### Tactical WebUI
+
+A visual interface to the engine is available at [http://localhost:7900](http://localhost:7900) after running:
+
+```bash
+pip install -r requirements-webui.txt
+python scripts/run_webui.py
+```
