@@ -1,0 +1,24 @@
+{
+  "name": "execute_python",
+  "description": "Execute arbitrary Python code in a sandboxed environment with timeout enforcement and output capture. Blocks dangerous operations such as os.system, subprocess, and file I/O. Returns stdout, stderr, return code, and execution duration.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "string",
+        "description": "Python source code to execute."
+      },
+      "timeout": {
+        "type": "integer",
+        "description": "Maximum execution time in seconds before the process is killed. Defaults to 30.",
+        "default": 30
+      },
+      "allow_network": {
+        "type": "boolean",
+        "description": "If true, network-related modules (urllib, requests, etc.) are not blocked. Defaults to false.",
+        "default": false
+      }
+    },
+    "required": ["code"]
+  }
+}
