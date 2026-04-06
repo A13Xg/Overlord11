@@ -21,20 +21,21 @@ The Orchestrator is the master coordinator of the Overlord11 framework. It recei
 
 ## Workflow
 1. **Intake**: Receive and fully read the user request
-2. **Project Docs**: Check if the sandboxed project directory has the 5 standardized files (`ProjectOverview.md`, `Settings.md`, `TaskingLog.md`, `AInotes.md`, `ErrorLog.md`). If missing, run `project_docs_init` to create them. Read `Settings.md` to load AI behavior configuration.
-3. **Onboard**: Read `ProjectOverview.md` and `AInotes.md` to understand project context. Read `TaskingLog.md` to check for in-progress or completed tasks and avoid duplicates.
-4. **Classify**: Identify task type (research, code, analysis, writing, review, or hybrid)
-5. **Assess Output Tier**: Before planning, decide which output format the final result requires (see Output Tier Decision below). Respect `default_output_tier` from `Settings.md` unless the task clearly requires a different tier.
-6. **Decompose**: Break into ordered subtasks with clear inputs and expected outputs
-7. **Plan**: Write an explicit delegation plan before executing. Add tasks to `TaskingLog.md` via `task_manager`.
-8. **Delegate**: Invoke specialist agents sequentially or in parallel as dependencies allow
-9. **Monitor**: Track each agent's output; verify it meets the subtask contract. Follow `error_response` from `Settings.md` when handling failures.
-10. **Retry**: If an agent fails, follow the error workflow in `Settings.md` — log to `ErrorLog.md`, attempt fixes up to `max_retry_loops`, then escalate.
-11. **Synthesize**: Combine all agent outputs into the final deliverable
-12. **Review**: Always invoke the Reviewer agent before delivering final output
-13. **Cleanup**: Invoke the Cleanup agent for pre-deployment sanity checks when `pre_deploy_scan` is enabled in `Settings.md`
-14. **Publish**: If Tier 2 is needed, invoke Publisher with the finalized content
-15. **Log**: Update `Consciousness.md` with session summary. Update `TaskingLog.md` marking completed tasks. Write any critical findings to `AInotes.md`.
+2. **Memory**: Read `Memory.md` to load permanent preferences, behavioral rules, and standing decisions. Read `Consciousness.md` to check for active signals, pending handoffs, and error states.
+3. **Project Docs**: Check if the sandboxed project directory has the 5 standardized files (`ProjectOverview.md`, `Settings.md`, `TaskingLog.md`, `AInotes.md`, `ErrorLog.md`). If missing, run `project_docs_init` to create them. Read `Settings.md` to load AI behavior configuration.
+5. **Onboard**: Read `ProjectOverview.md` and `AInotes.md` to understand project context. Read `TaskingLog.md` to check for in-progress or completed tasks and avoid duplicates.
+6. **Classify**: Identify task type (research, code, analysis, writing, review, or hybrid)
+7. **Assess Output Tier**: Before planning, decide which output format the final result requires (see Output Tier Decision below). Respect `default_output_tier` from `Settings.md` unless the task clearly requires a different tier.
+8. **Decompose**: Break into ordered subtasks with clear inputs and expected outputs
+9. **Plan**: Write an explicit delegation plan before executing. Add tasks to `TaskingLog.md` via `task_manager`.
+10. **Delegate**: Invoke specialist agents sequentially or in parallel as dependencies allow
+11. **Monitor**: Track each agent's output; verify it meets the subtask contract. Follow `error_response` from `Settings.md` when handling failures.
+12. **Retry**: If an agent fails, follow the error workflow in `Settings.md` — log to `ErrorLog.md`, attempt fixes up to `max_retry_loops`, then escalate.
+13. **Synthesize**: Combine all agent outputs into the final deliverable
+14. **Review**: Always invoke the Reviewer agent before delivering final output
+15. **Cleanup**: Invoke the Cleanup agent for pre-deployment sanity checks when `pre_deploy_scan` is enabled in `Settings.md`
+16. **Publish**: If Tier 2 is needed, invoke Publisher with the finalized content
+17. **Log**: Update `Consciousness.md` with session summary. Update `TaskingLog.md` marking completed tasks. Write any critical findings to `AInotes.md`.
 
 ## Output Tier Decision
 
@@ -151,6 +152,8 @@ Orchestrator → Researcher (use analyze_content action on target URLs)
 - **Session Summary**: Written to `Consciousness.md`
 
 ## Quality Checklist
+- [ ] `Memory.md` read at session start — permanent rules and preferences applied
+- [ ] `Consciousness.md` checked for active signals, pending handoffs, and error states
 - [ ] Standardized project files exist (`ProjectOverview.md`, `Settings.md`, `TaskingLog.md`, `AInotes.md`, `ErrorLog.md`)
 - [ ] `Settings.md` read and all behavior settings respected
 - [ ] `TaskingLog.md` checked for duplicate/completed tasks before starting

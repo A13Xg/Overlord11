@@ -68,12 +68,14 @@ These tools are registered in `config.json` and implemented in `tools/python/`. 
 | `run_shell_command` | Execute shell commands | Running tests, builds, installs, scripts |
 | `git_tool` | Git operations | Committing, diffing, branching |
 | `calculator` | Math and statistics | Metrics, counts, numerical analysis |
+| `execute_python` | Sandboxed Python code execution | Running safe code snippets without shell access |
 
 ### Web
 | Tool | What It Does | When to Use |
 |------|-------------|-------------|
 | `web_fetch` | HTTP GET → Markdown/JSON/text | Fetching API docs, single pages |
 | `web_scraper` | Article extraction, structured scraping, LLM context packaging, smart image download | Extracting readable content; use `analyze_content` action for LLM-ready packages |
+| `http_request` | Full HTTP client (POST/PUT/PATCH/DELETE, auth, JSON body) | Non-GET requests, API calls with auth tokens or request bodies |
 
 ### Intelligence
 | Tool | What It Does | When to Use |
@@ -81,10 +83,27 @@ These tools are registered in `config.json` and implemented in `tools/python/`. 
 | `code_analyzer` | Static analysis (bugs, security, complexity) | Before any code handoff |
 | `project_scanner` | Project structure + framework detection | Onboarding to an unfamiliar codebase |
 | `save_memory` | Write to `Consciousness.md` | Persisting findings across sessions |
+| `consciousness_tool` | Read, query, and manage `Consciousness.md` entries | Reading active signals, handoffs, and errors |
 | `publisher_tool` | Generate styled self-contained HTML reports | Used by Publisher agent for Tier 2 output |
 | `scaffold_generator` | Generate project boilerplate from templates | Starting new projects |
 | `launcher_generator` | Generate `run.py` launcher + platform shortcuts (`run.bat`, `run.command`) | Every new project — provides ASCII title, color menu, concurrent mode |
 | `ui_design_system` | Generate a complete UI/UX design system (style + palette + tokens + rules). Persists to `design-system/MASTER.md`. | Before any UI implementation — generates or loads the design spec |
+| `vision_tool` | Image analysis: OCR, object detection, screenshot interpretation | When working with image files or screenshots |
+| `computer_control` | Desktop automation: mouse, keyboard, window management, screenshots | Desktop automation tasks |
+
+### Data & Transformation
+| Tool | What It Does | When to Use |
+|------|-------------|-------------|
+| `response_formatter` | Format agent responses (sections, tables, summaries) | When structured output format is needed |
+| `file_converter` | Convert files between JSON, CSV, YAML, Markdown | Format conversions |
+| `json_tool` | Parse, query, format, merge, diff JSON data | JSON manipulation with dot-notation paths |
+| `regex_tool` | Test, extract, replace text with regex | Pattern matching and text extraction |
+| `diff_tool` | Compare files or strings and produce unified diffs | Reviewing changes, applying patches |
+| `hash_tool` | Compute and verify cryptographic hashes (MD5, SHA-256, etc.) | File integrity verification, deduplication |
+| `zip_tool` | Create, extract, inspect, and modify ZIP archives | Bundling files, unpacking downloads |
+| `env_tool` | Read, write, and validate `.env` files | Configuration management |
+| `database_tool` | SQLite-backed structured storage | Persistent structured data between sessions |
+| `datetime_tool` | Parse, format, calculate, and convert dates/times | Date arithmetic, timezone conversion, timestamps |
 
 ### Project Management
 | Tool | What It Does | When to Use |
@@ -92,7 +111,15 @@ These tools are registered in `config.json` and implemented in `tools/python/`. 
 | `project_docs_init` | Initialize the 5 standardized project files | Start of any new project or missing docs |
 | `task_manager` | Manage `TaskingLog.md` — add/complete tasks and subtasks | Tracking work progress |
 | `error_logger` | Manage `ErrorLog.md` — log errors, attempts, resolutions | When errors occur during work |
+| `error_handler` | Catch, classify, and recover from tool execution errors | Diagnosing and recovering from failures |
 | `cleanup_tool` | Pre-deploy scan: secrets detection, temp cleanup, structure validation | End of tasking, before deployment |
+
+### Session & Logging
+| Tool | What It Does | When to Use |
+|------|-------------|-------------|
+| `session_manager` | Create and track work sessions with unique IDs | Session lifecycle management |
+| `log_manager` | Central JSONL logging for all tool/agent activity | Auditing, querying, summarizing session events |
+| `session_clean` | Reset between tasks — purge workspace, clear Consciousness.md active entries | After task completion; keeps Memory.md and logs/ intact |
 
 ---
 
@@ -200,9 +227,22 @@ Orchestrator
 
 ---
 
-## Memory System (Consciousness.md)
+## Memory System
 
-`Consciousness.md` is the **shared memory** for all agents.
+### Two-File Memory Architecture
+
+| File | Type | Survives `session_clean`? | Contains |
+|------|------|--------------------------|---------|
+| `Consciousness.md` | Ephemeral | Partially (permanent sections only) | Cross-agent signals, WIP, handoffs, error states, agent registry |
+| `Memory.md` | Permanent | Yes — never cleared | Behavioral rules, user preferences, standing decisions |
+
+**Read both files at session start.** `Memory.md` takes precedence for behavioral rules. `Consciousness.md` provides real-time session context.
+
+---
+
+### Consciousness.md
+
+`Consciousness.md` is the **shared ephemeral memory** for all agents.
 
 ### Rules
 1. **Read before starting**: Check for active signals, WIP entries, and pending handoffs
@@ -299,16 +339,17 @@ design-system/
 6. **Track tasks** — update `TaskingLog.md` via `task_manager` when starting and completing work. Never duplicate a completed task.
 7. **Log errors** — when errors occur, log them to `ErrorLog.md` via `error_logger` and follow the configured `error_response` strategy.
 8. **Write critical notes** — when encountering blockers, gotchas, or critical requirements, write them to `AInotes.md` for future agents.
-9. **Read `Consciousness.md` at session start** — check for active errors and pending handoffs.
-10. **Write to `Consciousness.md` at session end** — log what you did and any findings to persist.
-11. **Use tools, not memory** — if you need file content, use `read_file`. Don't hallucinate file contents.
-12. **Cite sources** — every factual claim in Researcher output includes a source URL or file path.
-13. **Test before handoff** — Coder always runs tests and static analysis before flagging work as complete.
-14. **No secrets in code** — Reviewer blocks any output containing hardcoded API keys, passwords, or credentials. Run `cleanup_tool` scan before deployment.
-15. **Use the design system for UI** — before writing any UI code, check for `design-system/MASTER.md`. If missing, run `ui_design_system` with `persist=true`. Never hardcode hex colors or invent styles — use the design system tokens.
-16. **Encoding safety is mandatory** — every file opened must use `encoding="utf-8"`, every `json.dumps()` must use `ensure_ascii=False`, and every module that prints must use a `safe_str()` helper. See `agents/coder.md` → **Encoding Safety** for full patterns.
-17. **Stay in scope** — complete the delegated subtask fully; don't expand scope without notifying the Orchestrator.
-18. **Be explicit about uncertainty** — if you don't know something, say so. Don't fabricate data or code.
+9. **Read `Memory.md` at session start** — apply all permanent preferences, behavioral rules, and standing decisions. These override defaults and survive session resets.
+10. **Read `Consciousness.md` at session start** — check for active errors, pending handoffs, and work in progress.
+11. **Write to `Consciousness.md` at session end** — log what you did and any findings to persist across agents.
+12. **Use tools, not memory** — if you need file content, use `read_file`. Don't hallucinate file contents.
+13. **Cite sources** — every factual claim in Researcher output includes a source URL or file path.
+14. **Test before handoff** — Coder always runs tests and static analysis before flagging work as complete.
+15. **No secrets in code** — Reviewer blocks any output containing hardcoded API keys, passwords, or credentials. Run `cleanup_tool` scan before deployment.
+16. **Use the design system for UI** — before writing any UI code, check for `design-system/MASTER.md`. If missing, run `ui_design_system` with `persist=true`. Never hardcode hex colors or invent styles — use the design system tokens.
+17. **Encoding safety is mandatory** — every file opened must use `encoding="utf-8"`, every `json.dumps()` must use `ensure_ascii=False`, and every module that prints must use a `safe_str()` helper. See `agents/coder.md` → **Encoding Safety** for full patterns.
+18. **Stay in scope** — complete the delegated subtask fully; don't expand scope without notifying the Orchestrator.
+19. **Be explicit about uncertainty** — if you don't know something, say so. Don't fabricate data or code.
 
 ---
 

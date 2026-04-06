@@ -19,6 +19,7 @@ if str(_BASE_DIR) not in sys.path:
     sys.path.insert(0, str(_BASE_DIR))
 
 from .api.artifacts import router as artifacts_router
+from .api.auth import router as auth_router
 from .api.events import router as events_router
 from .api.jobs import router as jobs_router
 from .api.providers import router as providers_router
@@ -61,6 +62,7 @@ app.add_middleware(
 # ------------------------------------------------------------------
 # Routers
 # ------------------------------------------------------------------
+app.include_router(auth_router)
 app.include_router(jobs_router)
 app.include_router(providers_router)
 app.include_router(artifacts_router)
@@ -71,11 +73,17 @@ app.include_router(events_router)
 # ------------------------------------------------------------------
 _FRONTEND_DIR = _BASE_DIR / "frontend"
 _INDEX_HTML = _FRONTEND_DIR / "index.html"
+_LOGIN_HTML = _FRONTEND_DIR / "login.html"
 
 
 @app.get("/", include_in_schema=False)
 async def serve_index():
     return FileResponse(str(_INDEX_HTML))
+
+
+@app.get("/login", include_in_schema=False)
+async def serve_login():
+    return FileResponse(str(_LOGIN_HTML))
 
 
 @app.get("/{full_path:path}", include_in_schema=False)

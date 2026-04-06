@@ -5,9 +5,9 @@ Evaluate mathematical expressions safely. Supports arithmetic, algebra,
 trigonometry, statistics, and variable substitution.
 
 Usage:
-    python calculator_tool.py --expression "sqrt(144)"
-    python calculator_tool.py --expression "mean([1,2,3,4,5])" --precision 4
-    python calculator_tool.py --expression "x ** 2 + y" --variables '{"x": 3, "y": 7}'
+    python calculator.py --expression "sqrt(144)"
+    python calculator.py --expression "mean([1,2,3,4,5])" --precision 4
+    python calculator.py --expression "x ** 2 + y" --variables '{"x": 3, "y": 7}'
 """
 
 import json

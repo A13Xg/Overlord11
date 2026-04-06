@@ -5,9 +5,9 @@ Persist a key fact, insight, or context entry to a Markdown memory file.
 Entries are structured with category and TTL metadata for easy scanning.
 
 Usage:
-    python save_memory_tool.py --key "api_base_url" --value "https://api.example.com/v1"
-    python save_memory_tool.py --key "sprint_goal" --value "Ship auth module" --category decision --ttl 7d
-    python save_memory_tool.py --key "db_host" --value "localhost" --category config --target_file project_memory.md
+    python save_memory.py --key "api_base_url" --value "https://api.example.com/v1"
+    python save_memory.py --key "sprint_goal" --value "Ship auth module" --category decision --ttl 7d
+    python save_memory.py --key "db_host" --value "localhost" --category config --target_file project_memory.md
 """
 
 import json

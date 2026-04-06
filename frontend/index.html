@@ -160,6 +160,37 @@ body::after {
 /* EXECUTION PANEL */
 #exec-empty { color: var(--txt3); text-align: center; padding: 40px; line-height: 2; }
 #exec-info { display: flex; flex-direction: column; gap: 10px; }
+
+/* ── Streaming output panel ── */
+#stream-panel {
+  display: none;
+  background: rgba(0,255,65,0.03);
+  border: 1px solid rgba(0,255,65,0.2);
+  padding: 10px 12px;
+  position: relative;
+}
+#stream-panel.active { display: block; }
+#stream-header {
+  font-size: 10px; letter-spacing: .2em; color: var(--green);
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+}
+.stream-pulse {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+  animation: pulse 1s ease-in-out infinite;
+  flex-shrink: 0;
+}
+#stream-text {
+  font-size: 12px; color: var(--txt); line-height: 1.6;
+  white-space: pre-wrap; word-break: break-word;
+  max-height: 260px; overflow-y: auto;
+}
+#stream-text::after {
+  content: '▋';
+  color: var(--green);
+  animation: blink .75s step-end infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
 .exec-section { background: var(--panel); border: 1px solid var(--border); padding: 10px 12px; }
 .exec-section h3 { font-size: 11px; letter-spacing: .15em; color: var(--txt2); margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
 #event-feed { font-size: 12px; max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
@@ -217,6 +248,7 @@ body::after {
 .ev-TOOL_CALL .ev-type { color: var(--amber); }
 .ev-TOOL_RESULT .ev-type { color: var(--green); }
 .ev-TOOL_ERROR .ev-type { color: var(--red); }
+.ev-TOOL_CACHE_HIT .ev-type { color: var(--teal); }
 .ev-ERROR .ev-type { color: var(--red); }
 .ev-SESSION_START .ev-type, .ev-SESSION_END .ev-type { color: var(--txt2); }
 .ev-STATUS .ev-type { color: var(--teal); }
@@ -463,6 +495,18 @@ body::after {
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <div class="clock" id="clock"></div>
+      <div id="user-badge" style="display:none;align-items:center;gap:6px;font-size:11px;letter-spacing:.1em;">
+        <span style="color:var(--txt3)">OPR:</span>
+        <span id="user-badge-name" style="color:var(--teal)"></span>
+        <button id="logout-btn" onclick="doLogout()" title="Logout" style="
+          background:transparent;border:1px solid var(--border);color:var(--txt3);
+          font-family:var(--font);font-size:10px;padding:1px 6px;cursor:pointer;
+          letter-spacing:.1em;transition:color .15s,border-color .15s;
+        " onmouseover="this.style.color='var(--red)';this.style.borderColor='var(--red)'"
+           onmouseout="this.style.color='var(--txt3)';this.style.borderColor='var(--border)'">
+          LOGOUT
+        </button>
+      </div>
       <div class="radar-wrap">
         <svg id="radar-svg" viewBox="0 0 44 44">
           <circle cx="22" cy="22" r="20" fill="none" stroke="#1e3a1e" stroke-width="1"/>
@@ -528,6 +572,15 @@ body::after {
             <div class="exec-section">
               <h3>◼ JOB DETAILS</h3>
               <div id="exec-job-meta" style="font-size:12px;color:var(--txt2);line-height:1.8"></div>
+            </div>
+            <!-- Live streaming output — visible only while LLM is generating -->
+            <div id="stream-panel">
+              <div id="stream-header">
+                <span class="stream-pulse"></span>
+                <span>LIVE OUTPUT</span>
+                <span id="stream-token-count" style="color:var(--txt3);margin-left:auto"></span>
+              </div>
+              <div id="stream-text"></div>
             </div>
             <div class="exec-section">
               <h3>◼ ENGINE EVENTS</h3>
@@ -637,10 +690,222 @@ let artifactCache = {};
 let selectedProductPath = null;
 let collapsedEventKeys = new Set();
 
+// Streaming state — tracks the current live token stream
+let _streamJobId = null;    // which job is currently streaming
+let _streamTokens = 0;      // total tokens received this stream session
+
+/* ═══════════════════════════════════════════════════════
+   NOTIFICATIONS
+   Wraps the Web Notifications API with a graceful fallback
+   to in-page toasts when permission is denied or the API
+   is unavailable.
+═══════════════════════════════════════════════════════ */
+
+// Severity → colour mapping (matches Overlord11 palette)
+const NOTIF_COLORS = {
+  info:    'var(--teal)',
+  success: 'var(--green)',
+  warning: 'var(--amber)',
+  error:   'var(--red)',
+};
+
+/** Request browser notification permission once on load. */
+function requestNotificationPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+/**
+ * Fire a browser notification (or in-page toast as fallback).
+ * @param {string} title
+ * @param {string} body
+ * @param {string} severity  info | success | warning | error
+ */
+function fireNotification(title, body, severity = 'info') {
+  // Always show in-page toast
+  showToast(title, body, severity);
+
+  // Also fire a browser notification if we have permission
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    const n = new Notification('OVERLORD11 — ' + title, {
+      body,
+      icon: '/favicon.ico',
+      tag: 'overlord11-' + severity,
+      silent: severity === 'info',
+    });
+    // Auto-close after 8 seconds
+    setTimeout(() => n.close(), 8000);
+  } catch (_) {}
+}
+
+/** In-page toast container — created once, shared for all toasts. */
+let _toastContainer = null;
+
+function _getToastContainer() {
+  if (_toastContainer) return _toastContainer;
+  _toastContainer = document.createElement('div');
+  _toastContainer.id = 'toast-container';
+  _toastContainer.style.cssText = `
+    position: fixed; bottom: 48px; right: 16px; z-index: 9990;
+    display: flex; flex-direction: column-reverse; gap: 8px;
+    pointer-events: none;
+  `;
+  document.body.appendChild(_toastContainer);
+  return _toastContainer;
+}
+
+function showToast(title, body, severity = 'info') {
+  const color = NOTIF_COLORS[severity] || NOTIF_COLORS.info;
+  const container = _getToastContainer();
+
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    background: var(--panel);
+    border: 1px solid ${color};
+    box-shadow: 0 0 16px ${color}33;
+    padding: 10px 14px;
+    min-width: 280px; max-width: 380px;
+    font-family: 'Courier New', monospace;
+    pointer-events: auto;
+    opacity: 0;
+    transform: translateX(20px);
+    transition: opacity .25s, transform .25s;
+  `;
+  toast.innerHTML = `
+    <div style="font-size:11px;letter-spacing:.15em;color:${color};margin-bottom:4px;display:flex;justify-content:space-between">
+      <span>${escHtml(title)}</span>
+      <span style="cursor:pointer;color:var(--txt3)" onclick="this.closest('div[data-toast]').remove()">✕</span>
+    </div>
+    <div style="font-size:12px;color:var(--txt2);line-height:1.5">${escHtml(body)}</div>
+  `;
+  toast.dataset.toast = '1';
+  container.appendChild(toast);
+
+  // Animate in
+  requestAnimationFrame(() => {
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(0)';
+  });
+
+  // Auto-dismiss after 6s
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(20px)';
+    setTimeout(() => toast.remove(), 300);
+  }, 6000);
+}
+
+/* ═══════════════════════════════════════════════════════
+   STREAMING HELPERS
+   Show/hide/update the live token output panel.
+═══════════════════════════════════════════════════════ */
+
+function streamStart(jobId) {
+  _streamJobId = jobId;
+  _streamTokens = 0;
+  const panel = document.getElementById('stream-panel');
+  const textEl = document.getElementById('stream-text');
+  if (!panel || !textEl) return;
+  textEl.textContent = '';
+  panel.classList.add('active');
+}
+
+function streamAppend(text) {
+  const textEl = document.getElementById('stream-text');
+  const countEl = document.getElementById('stream-token-count');
+  if (!textEl) return;
+  textEl.textContent += text;
+  // Auto-scroll to bottom of streaming window
+  textEl.scrollTop = textEl.scrollHeight;
+  _streamTokens += text.length;
+  if (countEl) countEl.textContent = _streamTokens + ' chars';
+}
+
+function streamEnd() {
+  _streamJobId = null;
+  const panel = document.getElementById('stream-panel');
+  if (!panel) return;
+  panel.classList.remove('active');
+  const textEl = document.getElementById('stream-text');
+  if (textEl) textEl.textContent = '';
+}
+
+/* ═══════════════════════════════════════════════════════
+   AUTH HELPERS
+   All authenticated API calls go through apiFetch() which
+   automatically attaches the Bearer token from localStorage.
+   If a 401 is returned the user is redirected to /login.
+═══════════════════════════════════════════════════════ */
+
+/** Return Authorization header object (empty if no token stored). */
+function getAuthHeaders() {
+  const token = localStorage.getItem('overlord11_token');
+  return token ? { 'Authorization': 'Bearer ' + token } : {};
+}
+
+/**
+ * Wrapper around fetch() that injects the auth header and handles
+ * session expiry (401 → redirect to /login).
+ */
+async function apiFetch(url, opts = {}) {
+  opts.headers = Object.assign({}, opts.headers || {}, getAuthHeaders());
+  const res = await fetch(url, opts);
+  if (res.status === 401) {
+    // Session expired or token revoked — send user back to login
+    localStorage.removeItem('overlord11_token');
+    localStorage.removeItem('overlord11_user');
+    localStorage.removeItem('overlord11_role');
+    window.location.href = '/login';
+    return res;
+  }
+  return res;
+}
+
+/** Logout: revoke server session then redirect to /login. */
+async function doLogout() {
+  try {
+    await apiFetch('/api/auth/logout', { method: 'POST' });
+  } catch (_) { /* best-effort */ }
+  localStorage.removeItem('overlord11_token');
+  localStorage.removeItem('overlord11_user');
+  localStorage.removeItem('overlord11_role');
+  window.location.href = '/login';
+}
+
+/** Show the user badge in the topbar. */
+function showUserBadge() {
+  const username = localStorage.getItem('overlord11_user') || 'UNKNOWN';
+  document.getElementById('user-badge-name').textContent = username.toUpperCase();
+  document.getElementById('user-badge').style.display = 'flex';
+}
+
 /* ═══════════════════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════════════════ */
 async function init() {
+  // Verify session before rendering the UI.
+  // If AUTH_ENABLED=False on the server, verify returns authenticated=true
+  // with the synthetic dev session so we proceed normally.
+  try {
+    const token = localStorage.getItem('overlord11_token');
+    const res = await fetch('/api/auth/verify', {
+      headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+    });
+    const data = await res.json();
+    if (!data.authenticated) {
+      window.location.href = '/login';
+      return;
+    }
+    showUserBadge();
+  } catch (_) {
+    // If verify endpoint is unreachable we continue — the individual
+    // API calls will 401 and redirect if auth really is enforced.
+  }
+
+  requestNotificationPermission();
   startClock();
   await Promise.all([loadProviders(), loadJobs()]);
   connectSSE();
@@ -665,8 +930,8 @@ function startClock() {
 async function loadProviders() {
   try {
     const [provRes, selRes] = await Promise.all([
-      fetch('/api/providers').then(r => r.json()),
-      fetch('/api/config/selection').then(r => r.json())
+      apiFetch('/api/providers').then(r => r.json()),
+      apiFetch('/api/config/selection').then(r => r.json())
     ]);
     providerData = provRes;
     renderProviderSelects(selRes);
@@ -717,7 +982,7 @@ async function saveSelection() {
   const model    = document.getElementById('sel-model').value;
   if (!provider || !model) return;
   try {
-    await fetch('/api/config/selection', {
+    await apiFetch('/api/config/selection', {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({provider, model})
@@ -733,7 +998,7 @@ async function saveSelection() {
 ═══════════════════════════════════════════════════════ */
 async function loadJobs() {
   try {
-    const data = await fetch('/api/jobs').then(r => r.json());
+    const data = await apiFetch('/api/jobs').then(r => r.json());
     jobs = data;
     renderJobList();
   } catch (e) {
@@ -772,6 +1037,8 @@ function renderJobList() {
 }
 
 function selectJob(jobId) {
+  // Close any streaming panel from the previously selected job
+  if (_streamJobId && _streamJobId !== jobId) streamEnd();
   selectedJobId = jobId;
   renderJobList();
   const job = jobs.find(j => j.job_id === jobId);
@@ -844,7 +1111,7 @@ async function ctrlRestart() {
 async function ctrlDelete() {
   if (!selectedJobId) return;
   if (!confirm('Delete this job?')) return;
-  await fetch(`/api/jobs/${selectedJobId}`, {method: 'DELETE'});
+  await apiFetch(`/api/jobs/${selectedJobId}`, {method: 'DELETE'});
   jobs = jobs.filter(j => j.job_id !== selectedJobId);
   selectedJobId = null;
   renderJobList();
@@ -854,7 +1121,7 @@ async function ctrlDelete() {
 
 async function apiPost(url) {
   try {
-    const res = await fetch(url, {method: 'POST'});
+    const res = await apiFetch(url, {method: 'POST'});
     if (!res.ok) {
       const err = await res.json().catch(() => ({detail: res.statusText}));
       appendFooterLog('ERROR: ' + (err.detail || res.statusText));
@@ -869,7 +1136,7 @@ async function apiPost(url) {
 
 async function refreshJob(jobId) {
   try {
-    const data = await fetch(`/api/jobs/${jobId}`).then(r => r.json());
+    const data = await apiFetch(`/api/jobs/${jobId}`).then(r => r.json());
     updateJobInList(data);
   } catch (e) {}
 }
@@ -890,7 +1157,7 @@ async function submitNewJob() {
   const prompt = document.getElementById('new-job-prompt').value.trim();
   if (!title || !prompt) { alert('Title and prompt are required.'); return; }
   try {
-    const job = await fetch('/api/jobs', {
+    const job = await apiFetch('/api/jobs', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({title, prompt})
@@ -1064,7 +1331,7 @@ async function captureProjectScreenshot() {
   }
 
   try {
-    const res = await fetch(`/api/artifacts/${selectedJobId}/actions/screenshot`, {
+    const res = await apiFetch(`/api/artifacts/${selectedJobId}/actions/screenshot`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({relative_path: htmlArtifact}),
@@ -1100,7 +1367,7 @@ async function loadArtifacts(jobId) {
   const el = document.getElementById('artifact-list');
   el.innerHTML = '<div class="artifact-empty" style="color:var(--txt3)">LOADING…</div>';
   try {
-    const list = await fetch(`/api/artifacts/${jobId}`).then(r => r.json());
+    const list = await apiFetch(`/api/artifacts/${jobId}`).then(r => r.json());
     artifactCache[jobId] = list;
     el.innerHTML = '';
     if (!list.length) {
@@ -1158,7 +1425,7 @@ async function openArtifactPath(jobId, relativePath) {
       return;
     }
 
-    const res = await fetch(url);
+    const res = await apiFetch(url);
     if (!res.ok) throw new Error(res.statusText);
     const text = await res.text();
     const contentType = (res.headers.get('content-type') || '').toLowerCase();
@@ -1246,12 +1513,54 @@ function connectSSE() {
 function handleEvent(ev) {
   const jobId = ev.job_id;
 
+  // TOKEN events: stream text into the live output panel.
+  // Skip system log / footer for tokens — they are extremely frequent.
+  if (ev.type === 'TOKEN') {
+    if (jobId && selectedJobId === jobId) {
+      if (_streamJobId !== jobId) {
+        // First token for this job — open the streaming panel
+        streamStart(jobId);
+      }
+      streamAppend(ev.text || '');
+    }
+    return;  // Don't process TOKEN events further
+  }
+
   // Append to system log tab
   const sysText = ev.type + (jobId ? ` [${jobId}]` : '') + ' ' + formatEventBody(ev);
   appendSyslogLine(ev);
   appendFooterLog(sysText);
 
   if (!jobId) return;
+
+  // Close the streaming panel when the agent finishes a response or job ends
+  if (ev.type === 'AGENT_COMPLETE' || ev.type === 'JOB_COMPLETE' || ev.type === 'SESSION_END') {
+    if (_streamJobId === jobId) streamEnd();
+  }
+
+  // Agent-triggered notification (notification_tool)
+  if (ev.type === 'NOTIFICATION') {
+    fireNotification(
+      ev.title || 'OVERLORD11',
+      ev.message || '',
+      ev.severity || 'info',
+    );
+  }
+
+  // Auto-notify on job completion and failure
+  if (ev.type === 'JOB_COMPLETE') {
+    const job = jobs.find(j => j.job_id === jobId);
+    const title = job ? job.title.toUpperCase() : jobId;
+    const isOk = (ev.status || 'completed') === 'completed';
+    fireNotification(
+      isOk ? 'JOB COMPLETE' : 'JOB FAILED',
+      title,
+      isOk ? 'success' : 'error',
+    );
+  }
+  if (ev.type === 'ERROR') {
+    fireNotification('ENGINE ERROR', ev.message || 'An error occurred', 'error');
+  }
 
   // Update in-memory job if status event
   if (ev.type === 'STATUS' || ev.type === 'JOB_COMPLETE') {
@@ -1381,8 +1690,18 @@ function getTreeMeta(ev) {
   if (type === 'TOOL_RESULT' || type === 'TOOL_ERROR') {
     return {depth: 3, branch: buildTreeBranch(3, true), kind: type === 'TOOL_RESULT' ? 'complete' : 'error'};
   }
+  if (type === 'TOOL_CACHE_HIT') {
+    return {depth: 3, branch: buildTreeBranch(3, true), kind: 'complete'};
+  }
   if (type === 'ERROR') {
     return {depth: 1, branch: buildTreeBranch(1, true), kind: 'error'};
+  }
+  if (type === 'TOKEN') {
+    return {depth: 2, branch: buildTreeBranch(2, false), kind: 'agent'};
+  }
+  if (type === 'NOTIFICATION') {
+    const kind = {error: 'error', warning: 'status', success: 'complete', info: 'status'}[ev.severity] || 'status';
+    return {depth: 1, branch: buildTreeBranch(1, true), kind};
   }
   return {depth: 1, branch: buildTreeBranch(1, false), kind: 'status'};
 }
@@ -1409,8 +1728,13 @@ function formatEventBody(ev) {
     return `${ev.tool || 'tool'} ${formatCompactJson(ev.params || {}, 180)}`;
   }
   if (ev.type === 'TOOL_RESULT') {
+    const cached = ev.cached ? ' ◈ CACHED' : '';
     const resultText = ev.result !== undefined ? ` result=${formatCompactJson(ev.result, 120)}` : '';
-    return `${ev.tool || 'tool'} completed in ${ev.duration_ms || 0}ms${resultText}`;
+    return `${ev.tool || 'tool'} completed in ${ev.duration_ms || 0}ms${cached}${resultText}`;
+  }
+  if (ev.type === 'TOOL_CACHE_HIT') {
+    const age = ev.cache_age_s != null ? ` (age ${ev.cache_age_s}s)` : '';
+    return `${ev.tool || 'tool'} served from cache${age}`;
   }
   if (ev.type === 'TOOL_ERROR') {
     return `${ev.tool || 'tool'} failed: ${ev.error || 'unknown error'}`;
@@ -1432,6 +1756,13 @@ function formatEventBody(ev) {
   }
   if (ev.type === 'STATUS') {
     return `job status -> ${ev.status || 'unknown'}${ev.error ? ` (${ev.error})` : ''}`;
+  }
+  if (ev.type === 'TOKEN') {
+    const preview = (ev.text || '').replace(/\n/g, '↵').slice(0, 80);
+    return `stream chunk: "${preview}"`;
+  }
+  if (ev.type === 'NOTIFICATION') {
+    return `[${(ev.severity || 'info').toUpperCase()}] ${ev.title || ''} — ${ev.message || ''}`;
   }
   if (ev.message) {
     return ev.message;
@@ -1489,7 +1820,7 @@ async function loadProductArtifact(jobId, relativePath) {
   const output = document.getElementById('product-output');
   selectedProductPath = relativePath;
   try {
-    const res = await fetch(`/api/artifacts/${jobId}/file/${relativePath.split('/').map(encodeURIComponent).join('/')}`);
+    const res = await apiFetch(`/api/artifacts/${jobId}/file/${relativePath.split('/').map(encodeURIComponent).join('/')}`);
     if (!res.ok) throw new Error(res.statusText);
     const text = await res.text();
     renderProductContent(text, relativePath);

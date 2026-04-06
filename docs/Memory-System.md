@@ -87,7 +87,7 @@ If an Error States entry is marked `[CRITICAL]` and `ACTIVE`, do not proceed wit
 ### Using the `save_memory` Tool
 
 ```bash
-python tools/python/save_memory_tool.py \
+python tools/python/save_memory.py \
   --key "API Rate Limit" \
   --value "Anthropic rate limited until 14:00. Switch to Gemini." \
   --priority CRITICAL \

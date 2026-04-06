@@ -6,12 +6,15 @@
 
 ## Purpose
 
-This document serves as a **shared memory location** for all Overlord11 sub-agents to communicate, share context, and maintain awareness across workflow boundaries. It enables:
+This document is the **ephemeral shared memory** for all Overlord11 agents. It enables real-time cross-agent communication: active signals, work-in-progress tracking, pending handoffs, and error broadcasting. Its active sections are cleared between tasks by `session_clean`.
 
+For **permanent** preferences, rules, and standing decisions that survive session resets, see `Memory.md`.
+
+Key properties:
 - Cross-agent context sharing without direct coupling
-- Persistent state that survives individual sessions
+- Persistent state within a session; ephemeral between sessions
 - Coordinated multi-agent workflows
-- Prevention of redundant work across systems
+- Prevention of redundant work across agents
 
 ---
 
@@ -74,11 +77,11 @@ _No active signals._
 
 ### [PERSISTENT] Execution Environment Profile
 - **Source**: SYSTEM
-- **Created**: 2026-04-06 00:24
+- **Created**: 2026-04-06
 - **TTL**: persistent
 - **Status**: ACTIVE
-- **Context**: Runtime host is Linux 6.8.0-1044-azure on x86_64. Preferred shell is /bin/bash; Python 3.12.1.
-- **Action**: Use Unix-style shell commands on non-Windows hosts, Windows shell commands only when the runtime profile explicitly shows a Windows shell.
+- **Context**: Runtime host is Windows 11 Pro. Preferred shell is bash (Git Bash / WSL). Python 3.x via PATH. The engine (`engine/runner.py`) detects and records the live system profile at session start — check the injected execution environment block in the system prompt for current values.
+- **Action**: Default to Unix-style shell syntax in tool calls. When `run_shell_command` is used, emit Windows-compatible commands when the session's system profile confirms a Windows host.
 
 ### [PERSISTENT] Active Model Configuration
 - **Source**: SYSTEM
@@ -199,19 +202,6 @@ _No active errors._
 <!-- Resolved entries moved here for reference, purge monthly -->
 
 _Archive empty._
-
----
-
-## Overlord11 Integration (Future)
-
-This shared memory will be programmatically managed by Overlord11:
-
-- **Auto-cleanup**: Expired entries removed automatically
-- **Entry validation**: Format enforcement on write
-- **Conflict resolution**: Duplicate detection and merging
-- **Priority escalation**: Auto-escalate based on age/impact
-- **Cross-reference**: Link related entries across sections
-- **Metrics**: Track handoff success rates, resolution times
 
 ---
 

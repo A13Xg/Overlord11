@@ -29,10 +29,6 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-
 sys.path.insert(0, str(Path(__file__).parent))
 from log_manager import log_tool_invocation
 
@@ -349,7 +345,11 @@ def query_tasks(project_dir: str) -> dict:
 # --- CLI Interface ---
 
 def main():
-    import argparse
+    import argparse, io
+
+    if sys.platform == "win32":
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
     parser = argparse.ArgumentParser(description="Overlord11 Task Manager")
     parser.add_argument("--action", required=True,

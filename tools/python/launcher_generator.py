@@ -29,10 +29,6 @@ from datetime import datetime
 from pathlib import Path
 from textwrap import dedent
 
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-
 sys.path.insert(0, str(Path(__file__).parent))
 from log_manager import log_tool_invocation
 
@@ -144,12 +140,6 @@ import sys
 import time
 from datetime import datetime
 
-# --- Encoding safety (Windows cp1252 guard) ---
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-    # Enable ANSI escape codes on Windows 10+
-    os.system("")
 
 
 class Launcher:
@@ -454,7 +444,12 @@ def generate_launcher(project_dir: str, project_name: str, version: str = "0.1.0
 # ---------------------------------------------------------------------------
 
 def main():
-    import argparse
+    import argparse, io
+
+    if sys.platform == "win32":
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+        os.system("")  # Enable ANSI escape codes on Windows 10+
 
     parser = argparse.ArgumentParser(description="Overlord11 Launcher Generator")
     parser.add_argument("--project_dir", required=True, help="Path to project directory")

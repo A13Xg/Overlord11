@@ -24,6 +24,15 @@ class EventType(str, Enum):
     SESSION_END = "SESSION_END"
     ERROR = "ERROR"
     STATUS = "STATUS"
+    # Streaming: emitted for each batch of tokens during LLM generation.
+    # Payload: {text: str, agent_id: str, loop: int, session_id: str}
+    TOKEN = "TOKEN"
+    # Cache: emitted when a tool result is served from cache instead of executing.
+    # Payload: {tool: str, cache_age_s: float, loop: int}
+    TOOL_CACHE_HIT = "TOOL_CACHE_HIT"
+    # Notifications: emitted by notification_tool to push browser toasts to the operator.
+    # Payload: {title: str, message: str, severity: str, session_id: str|None}
+    NOTIFICATION = "NOTIFICATION"
 
 
 class EventStream:

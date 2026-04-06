@@ -428,7 +428,7 @@ python tools/python/publisher_tool.py \
   --title "Q1 Analysis" --content report.md --theme modern
 
 # Save a memory entry
-python tools/python/save_memory_tool.py \
+python tools/python/save_memory.py \
   --key "project_goal" --value "Build provider-agnostic toolset"
 ```
 

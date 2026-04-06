@@ -59,7 +59,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `error_logger` — log errors to `ErrorLog.md` with severity and resolution tracking
 - `project_docs_init` — initialize 5 standardized project files (ProjectOverview, Settings, TaskingLog, AInotes, ErrorLog)
 - `launcher_generator` — generate `run.py` (ASCII title, color menu, concurrent mode) + `run.bat` + `run.command`
-- `replace` tool now has a Python implementation (`tools/python/replace_tool.py`)
+- `replace` tool now has a Python implementation (`tools/python/replace.py`)
 - `scaffold_generator` now has a JSON schema definition
 
 ### Added — Utility Tools (registered in config.json)

@@ -70,7 +70,7 @@ python tools/python/list_directory.py --path tools/python/
 
 ### `glob`
 
-**Schema:** `tools/defs/glob.json`  
+**Schema:** `tools/defs/glob_tool.json`  
 **Implementation:** `tools/python/glob_tool.py`
 
 Find files matching a glob pattern.
@@ -113,7 +113,7 @@ python tools/python/search_file_content.py --pattern "TODO" --path . --file_patt
 ### `replace`
 
 **Schema:** `tools/defs/replace.json`  
-**Implementation:** (inline in agents)
+**Implementation:** `tools/python/replace.py`
 
 Precise find-and-replace within a file.
 
@@ -122,8 +122,6 @@ Precise find-and-replace within a file.
 | `path` | string | ✓ | File to modify |
 | `old_str` | string | ✓ | Exact string to find (must be unique in the file) |
 | `new_str` | string | ✓ | Replacement string |
-
-> **Implementation:** `tools/python/replace_tool.py`
 
 ---
 
@@ -176,7 +174,7 @@ python tools/python/git_tool.py --action log --path .
 ### `calculator`
 
 **Schema:** `tools/defs/calculator.json`  
-**Implementation:** `tools/python/calculator_tool.py`
+**Implementation:** `tools/python/calculator.py`
 
 Evaluate math expressions, perform statistics, and convert units.
 
@@ -190,8 +188,8 @@ Evaluate math expressions, perform statistics, and convert units.
 - Unit conversion: handled via expressions
 
 ```bash
-python tools/python/calculator_tool.py --expression "sqrt(144)"
-python tools/python/calculator_tool.py --expression "mean([10, 20, 30, 40])"
+python tools/python/calculator.py --expression "sqrt(144)"
+python tools/python/calculator.py --expression "mean([10, 20, 30, 40])"
 ```
 
 ---
@@ -329,7 +327,7 @@ python tools/python/project_scanner.py --path . --depth 2
 ### `save_memory`
 
 **Schema:** `tools/defs/save_memory.json`  
-**Implementation:** `tools/python/save_memory_tool.py`
+**Implementation:** `tools/python/save_memory.py`
 
 Persist facts to `Consciousness.md` for cross-session continuity.
 
@@ -341,8 +339,8 @@ Persist facts to `Consciousness.md` for cross-session continuity.
 | `ttl` | string | | Time-to-live (e.g., `7d`, `24h`, `persistent`) |
 
 ```bash
-python tools/python/save_memory_tool.py --key "project_goal" --value "Build provider-agnostic toolset"
-python tools/python/save_memory_tool.py --key "api_limit" --value "Rate limited until 14:00" --priority CRITICAL --ttl 2h
+python tools/python/save_memory.py --key "project_goal" --value "Build provider-agnostic toolset"
+python tools/python/save_memory.py --key "api_limit" --value "Rate limited until 14:00" --priority CRITICAL --ttl 2h
 ```
 
 ---
@@ -709,4 +707,330 @@ Execute arbitrary Python code in a sandboxed environment with timeout enforcemen
 ```bash
 python tools/python/execute_python.py --code "print(2 ** 10)"
 python tools/python/execute_python.py --code "import math; print(math.factorial(10))" --timeout 5
+```
+
+---
+
+## Utility Tools
+
+### `datetime_tool`
+
+**Schema:** `tools/defs/datetime_tool.json`  
+**Implementation:** `tools/python/datetime_tool.py`
+
+Parse, format, calculate, and convert dates and times. Pure stdlib — zero external dependencies.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✓ | `now`, `parse`, `format`, `add`, `subtract`, `diff`, `convert`, `timestamp`, `validate` |
+| `input` | string | | Date/time string to operate on (ISO 8601, `MM/DD/YYYY`, natural formats) |
+| `start` | string | | Start datetime for `diff` action |
+| `end` | string | | End datetime for `diff` action |
+| `output_format` | string | | strftime format string for `format` action |
+| `days` | number | | Days to add/subtract |
+| `hours` | number | | Hours to add/subtract |
+| `minutes` | number | | Minutes to add/subtract |
+| `seconds` | number | | Seconds to add/subtract |
+| `weeks` | number | | Weeks to add/subtract |
+| `timezone_name` | string | | Target timezone for `convert` (`UTC`, `UTC+5`, `America/New_York`) |
+| `unix_timestamp` | number | | Unix epoch for `timestamp` action |
+
+```bash
+python tools/python/datetime_tool.py --action now
+python tools/python/datetime_tool.py --action diff --start "2026-01-01" --end "2026-04-06"
+python tools/python/datetime_tool.py --action add --input "2026-04-06" --days 30
+```
+
+---
+
+### `http_request`
+
+**Schema:** `tools/defs/http_request.json`  
+**Implementation:** `tools/python/http_request.py`
+
+Full-featured HTTP client for non-GET methods, authenticated requests, and structured request bodies. Use `web_fetch` for simple GET requests; use this for POST/PUT/PATCH/DELETE, auth tokens, or custom headers.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `method` | string | ✓ | `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS` |
+| `url` | string | ✓ | Full URL including protocol |
+| `headers` | object | | Custom HTTP headers |
+| `params` | object | | URL query parameters |
+| `json_body` | any | | Request body (auto-sets `Content-Type: application/json`) |
+| `form_data` | object | | Form-encoded body |
+| `body` | string | | Raw string body |
+| `timeout_seconds` | integer | | Timeout in seconds (default: 30) |
+| `follow_redirects` | boolean | | Follow redirects (default: `true`) |
+| `auth_bearer` | string | | Bearer token for Authorization header |
+| `auth_basic` | string | | Basic auth credentials as `username:password` |
+| `return_format` | string | | `auto` (default), `json`, `text` |
+
+```bash
+python tools/python/http_request.py --method POST --url https://api.example.com/items --json_body '{"name":"test"}'
+python tools/python/http_request.py --method GET --url https://api.example.com/data --auth_bearer mytoken123
+```
+
+---
+
+### `json_tool`
+
+**Schema:** `tools/defs/json_tool.json`  
+**Implementation:** `tools/python/json_tool.py`
+
+Parse, validate, query, transform, and format JSON data. Supports dot-notation path queries, deep merge, structural diff, and in-place set/delete.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✓ | `parse`, `validate`, `query`, `format`, `merge`, `diff`, `keys`, `set`, `delete` |
+| `input` | string | | JSON string to operate on |
+| `input_b` | string | | Second JSON string for `merge`/`diff` |
+| `path` | string | | Dot-notation path (e.g., `users.0.name`) |
+| `value` | string | | JSON-encoded value to set |
+| `indent` | integer | | Indentation for `format` (default: 2; 0 = minified) |
+| `recursive` | boolean | | Include nested keys for `keys` action (default: `true`) |
+| `file` | string | | Path to JSON file (alternative to `input`) |
+| `file_b` | string | | Path to second JSON file for `merge`/`diff` |
+
+```bash
+python tools/python/json_tool.py --action query --file config.json --path "providers.active"
+python tools/python/json_tool.py --action format --input '{"a":1,"b":2}' --indent 4
+python tools/python/json_tool.py --action diff --file config.json --file_b config.backup.json
+```
+
+---
+
+### `hash_tool`
+
+**Schema:** `tools/defs/hash_tool.json`  
+**Implementation:** `tools/python/hash_tool.py`
+
+Compute and verify cryptographic hashes for strings and files. Supports MD5, SHA-1, SHA-256, SHA-512, and SHA3-256.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✓ | `hash_string`, `hash_file`, `verify_file`, `compare` |
+| `input` | string | | String to hash |
+| `input_b` | string | | Second string for `compare` |
+| `file` | string | | File to hash |
+| `file_b` | string | | Second file for `compare` |
+| `algorithm` | string | | `md5`, `sha1`, `sha256` (default), `sha512`, `sha3_256` |
+| `expected` | string | | Expected hex hash for `verify_file` |
+| `encoding` | string | | String encoding (default: `utf-8`) |
+
+```bash
+python tools/python/hash_tool.py --action hash_file --file config.json
+python tools/python/hash_tool.py --action verify_file --file release.zip --expected abc123...
+python tools/python/hash_tool.py --action compare --file_a v1.py --file_b v2.py
+```
+
+---
+
+### `zip_tool`
+
+**Schema:** `tools/defs/zip_tool.json`  
+**Implementation:** `tools/python/zip_tool.py`
+
+Create, extract, inspect, and modify ZIP archives.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✓ | `create`, `extract`, `list`, `add`, `remove`, `info` |
+| `file` | string | | Path to ZIP archive |
+| `output` | string | | Output archive path for `create` |
+| `output_dir` | string | | Directory to extract into |
+| `paths` | array | | Files/dirs to include (`create`/`add`) or filenames to delete (`remove`) |
+| `compression` | string | | `deflate` (default), `store`, `bzip2`, `lzma` |
+| `overwrite` | boolean | | Overwrite existing archive (default: `false`) |
+| `password` | string | | Password for encrypted archives (extraction only) |
+
+```bash
+python tools/python/zip_tool.py --action create --output dist/project.zip --paths '["src/", "README.md"]'
+python tools/python/zip_tool.py --action extract --file dist/project.zip --output_dir ./extracted
+python tools/python/zip_tool.py --action list --file dist/project.zip
+```
+
+---
+
+### `regex_tool`
+
+**Schema:** `tools/defs/regex_tool.json`  
+**Implementation:** `tools/python/regex_tool.py`
+
+Test, extract, replace, and analyze regular expressions with structured output including capture groups and character spans.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✓ | `test`, `match`, `findall`, `extract`, `replace`, `split`, `validate` |
+| `pattern` | string | ✓ | Python regex pattern |
+| `input` | string | | String to operate on |
+| `replacement` | string | | Replacement string for `replace` (supports `\1`, `\g<name>`) |
+| `flags` | array | | `IGNORECASE`, `MULTILINE`, `DOTALL`, `VERBOSE`, `ASCII` |
+| `max_matches` | integer | | Max matches to return (default: 100) |
+
+```bash
+python tools/python/regex_tool.py --action findall --pattern "\d+" --input "I have 3 cats and 12 dogs"
+python tools/python/regex_tool.py --action replace --pattern "foo" --input "foo bar foo" --replacement "baz"
+python tools/python/regex_tool.py --action validate --pattern "(?P<year>\d{4})-(?P<month>\d{2})"
+```
+
+---
+
+### `env_tool`
+
+**Schema:** `tools/defs/env_tool.json`  
+**Implementation:** `tools/python/env_tool.py`
+
+Read, write, validate, and manage `.env` files. Safely handles comments, quoted values, and multiline strings.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✓ | `read`, `write`, `delete`, `validate`, `get`, `list` |
+| `file` | string | | Path to `.env` file (default: `.env`) |
+| `key` | string | | Variable name for `get`/`write`/`delete` |
+| `value` | string | | Value to set (`write`) |
+| `pairs` | object | | Dict of key→value for bulk write |
+| `required` | array | | Required variable names for `validate` |
+| `allow_empty` | boolean | | Treat empty values as present for `validate` (default: `false`) |
+| `create` | boolean | | Create file if missing (`write`, default: `true`) |
+
+```bash
+python tools/python/env_tool.py --action read --file .env
+python tools/python/env_tool.py --action validate --required '["ANTHROPIC_API_KEY","GOOGLE_GEMINI_API_KEY"]'
+python tools/python/env_tool.py --action write --key DB_HOST --value localhost
+```
+
+---
+
+### `diff_tool`
+
+**Schema:** `tools/defs/diff_tool.json`  
+**Implementation:** `tools/python/diff_tool.py`
+
+Compare two strings or files and produce unified diffs or structured side-by-side comparisons.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✓ | `diff_strings`, `diff_files`, `patch_apply` |
+| `a` | string | | First string to compare or source text to patch |
+| `b` | string | | Second string to compare or unified diff patch |
+| `file_a` | string | | Path to first file |
+| `file_b` | string | | Path to second file |
+| `context` | integer | | Unchanged lines around each change (default: 3) |
+| `output_format` | string | | `unified` (default) or `side_by_side` |
+| `encoding` | string | | File encoding (default: `utf-8`) |
+
+```bash
+python tools/python/diff_tool.py --action diff_files --file_a original.py --file_b modified.py
+python tools/python/diff_tool.py --action diff_strings --a "hello world" --b "hello Python"
+```
+
+---
+
+### `database_tool`
+
+**Schema:** `tools/defs/database_tool.json`  
+**Implementation:** `tools/python/database_tool.py`
+
+SQLite-backed persistent structured storage. Create tables, insert/query/update/delete rows, and inspect schemas — all using a local SQLite file that persists between sessions.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✓ | `create_table`, `insert`, `select`, `update`, `delete`, `execute`, `schema`, `drop_table`, `count` |
+| `db` | string | | Path to SQLite file (default: `data.db`) |
+| `table` | string | | Table name |
+| `columns` | string | | Column definitions for `create_table` (e.g., `id INTEGER PRIMARY KEY, name TEXT`) |
+| `row` | object | | Single row dict for `insert` |
+| `rows` | array | | List of row dicts for bulk `insert` |
+| `where` | string | | SQL WHERE clause (without `WHERE` keyword) |
+| `set_values` | object | | Column→value dict for `update` |
+| `order_by` | string | | ORDER BY clause for `select` |
+| `limit` | integer | | Max rows for `select` |
+| `sql` | string | | Raw SQL for `execute` |
+| `params` | array | | Positional params for parameterized `execute` |
+| `if_not_exists` | boolean | | Use `IF NOT EXISTS` on `create_table` (default: `true`) |
+
+```bash
+python tools/python/database_tool.py --action create_table --db sessions.db --table tasks --columns "id INTEGER PRIMARY KEY, title TEXT, status TEXT"
+python tools/python/database_tool.py --action insert --db sessions.db --table tasks --row '{"title":"Fix bug","status":"todo"}'
+python tools/python/database_tool.py --action select --db sessions.db --table tasks --where "status = 'todo'"
+```
+
+---
+
+### `session_manager`
+
+**Schema:** `tools/defs/session_manager.json`  
+**Implementation:** `tools/python/session_manager.py`
+
+Manage work sessions with unique IDs and track agent activity, file changes, and notes across the lifecycle of a task.
+
+| Action | Description |
+|--------|-------------|
+| `create` | Create a new session |
+| `status` | Get session details and summary |
+| `log_change` | Log a file change within a session |
+| `log_agent` | Record agent invocation |
+| `log_tool` | Record tool invocation |
+| `add_note` | Add a free-text note |
+| `close` | Close a session with a summary |
+| `list` | List all sessions |
+| `active` | Get the current active session |
+
+```bash
+python tools/python/session_manager.py --action create --description "Implement user auth"
+python tools/python/session_manager.py --action list
+python tools/python/session_manager.py --action close --session_id 20260215_120000
+```
+
+---
+
+### `log_manager`
+
+**Schema:** `tools/defs/log_manager.json`  
+**Implementation:** `tools/python/log_manager.py`
+
+Central logging infrastructure. Writes structured JSONL entries to `logs/master.jsonl` and supports querying, summarizing, and rotating logs. All tool invocations and agent decisions should flow through `log_manager`.
+
+| Action | Description |
+|--------|-------------|
+| `write` | Append a log entry |
+| `query` | Filter entries by session, agent, or tool |
+| `summary` | Aggregate stats for a session |
+| `rotate` | Archive old log files |
+| `tail` | Return the last N entries |
+
+```bash
+python tools/python/log_manager.py --action summary --session_id 20260215_120000
+python tools/python/log_manager.py --action query --session_id 20260215_120000 --tool read_file
+python tools/python/log_manager.py --action tail --n 20
+```
+
+---
+
+## Session Management Tools
+
+### `session_clean`
+
+**Schema:** `tools/defs/session_clean.json`  
+**Implementation:** `tools/python/session_clean.py`
+
+Reset Overlord11 between tasks. Purges all workspace session folders and clears active entries from `Consciousness.md`, while **preserving** `Memory.md` (permanent preferences and rules) and the `logs/` directory (audit trail).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✓ | `clean` (full reset), `purge_workspace`, `reset_consciousness`, `status` |
+| `archive` | boolean | | Move sessions to `workspace/archive/` instead of deleting (default: `false`) |
+| `older_than_days` | integer | | Only purge sessions older than N days (default: 0 = all) |
+| `dry_run` | boolean | | Report what would be cleaned without making changes (default: `false`) |
+| `session_id` | string | | Session ID for logging this cleanup |
+
+**What is preserved:** `Memory.md`, `logs/`, `Consciousness.md` Shared Context and Agent Registry sections.
+
+**What is purged:** `workspace/SESSION_ID/` folders, `Consciousness.md` active entries (Cross-Agent Signals, Work In Progress, Pending Handoffs, Error States).
+
+```bash
+python tools/python/session_clean.py --action status
+python tools/python/session_clean.py --action clean --dry_run true
+python tools/python/session_clean.py --action clean --archive true
+python tools/python/session_clean.py --action purge_workspace --older_than_days 7
 ```

@@ -126,7 +126,8 @@
         "project_docs_init",
         "launcher_generator",
         "ui_design_system",
-        "execute_python"
+        "execute_python",
+        "notification_tool"
       ]
     },
     "analyst": {
@@ -145,7 +146,9 @@
         "save_memory",
         "consciousness_tool",
         "response_formatter",
-        "file_converter"
+        "file_converter",
+        "data_visualizer",
+        "notification_tool"
       ]
     },
     "writer": {
@@ -181,7 +184,8 @@
         "cleanup_tool",
         "ui_design_system",
         "consciousness_tool",
-        "error_handler"
+        "error_handler",
+        "notification_tool"
       ]
     },
     "publisher": {
@@ -194,7 +198,9 @@
         "read_file",
         "write_file",
         "replace",
-        "publisher_tool"
+        "publisher_tool",
+        "response_formatter",
+        "data_visualizer"
       ]
     },
     "cleanup": {
@@ -205,6 +211,7 @@
       "entry_point": false,
       "tools": [
         "cleanup_tool",
+        "session_clean",
         "read_file",
         "glob",
         "search_file_content",
@@ -226,7 +233,7 @@
       "impl": "tools/python/list_directory.py"
     },
     "glob": {
-      "def": "tools/defs/glob.json",
+      "def": "tools/defs/glob_tool.json",
       "impl": "tools/python/glob_tool.py"
     },
     "search_file_content": {
@@ -235,7 +242,7 @@
     },
     "replace": {
       "def": "tools/defs/replace.json",
-      "impl": "tools/python/replace_tool.py"
+      "impl": "tools/python/replace.py"
     },
     "run_shell_command": {
       "def": "tools/defs/run_shell_command.json",
@@ -251,11 +258,11 @@
     },
     "calculator": {
       "def": "tools/defs/calculator.json",
-      "impl": "tools/python/calculator_tool.py"
+      "impl": "tools/python/calculator.py"
     },
     "save_memory": {
       "def": "tools/defs/save_memory.json",
-      "impl": "tools/python/save_memory_tool.py"
+      "impl": "tools/python/save_memory.py"
     },
     "web_scraper": {
       "def": "tools/defs/web_scraper.json",
@@ -328,6 +335,62 @@
     "execute_python": {
       "def": "tools/defs/execute_python.json",
       "impl": "tools/python/execute_python.py"
+    },
+    "log_manager": {
+      "def": "tools/defs/log_manager.json",
+      "impl": "tools/python/log_manager.py"
+    },
+    "session_manager": {
+      "def": "tools/defs/session_manager.json",
+      "impl": "tools/python/session_manager.py"
+    },
+    "datetime_tool": {
+      "def": "tools/defs/datetime_tool.json",
+      "impl": "tools/python/datetime_tool.py"
+    },
+    "database_tool": {
+      "def": "tools/defs/database_tool.json",
+      "impl": "tools/python/database_tool.py"
+    },
+    "http_request": {
+      "def": "tools/defs/http_request.json",
+      "impl": "tools/python/http_request.py"
+    },
+    "json_tool": {
+      "def": "tools/defs/json_tool.json",
+      "impl": "tools/python/json_tool.py"
+    },
+    "hash_tool": {
+      "def": "tools/defs/hash_tool.json",
+      "impl": "tools/python/hash_tool.py"
+    },
+    "zip_tool": {
+      "def": "tools/defs/zip_tool.json",
+      "impl": "tools/python/zip_tool.py"
+    },
+    "regex_tool": {
+      "def": "tools/defs/regex_tool.json",
+      "impl": "tools/python/regex_tool.py"
+    },
+    "env_tool": {
+      "def": "tools/defs/env_tool.json",
+      "impl": "tools/python/env_tool.py"
+    },
+    "diff_tool": {
+      "def": "tools/defs/diff_tool.json",
+      "impl": "tools/python/diff_tool.py"
+    },
+    "session_clean": {
+      "def": "tools/defs/session_clean.json",
+      "impl": "tools/python/session_clean.py"
+    },
+    "data_visualizer": {
+      "def": "tools/defs/data_visualizer.json",
+      "impl": "tools/python/data_visualizer.py"
+    },
+    "notification_tool": {
+      "def": "tools/defs/notification_tool.json",
+      "impl": "tools/python/notification_tool.py"
     }
   },
   "orchestration": {
@@ -350,7 +413,21 @@
     ],
     "memory_file": "Consciousness.md",
     "log_sessions": true,
-    "log_dir": "logs/"
+    "log_dir": "logs/",
+    "cache": {
+      "enabled": true,
+      "ttl_seconds": 3600,
+      "max_entries": 500,
+      "cache_file": "workspace/tool_cache.json",
+      "excluded_tools": []
+    }
+  },
+  "notifications": {
+    "enabled": true,
+    "on_job_complete": true,
+    "on_job_failed": true,
+    "on_error": true,
+    "on_agent_notification": true
   },
   "quality": {
     "min_test_coverage": 80,

@@ -16,6 +16,11 @@ from typing import Any, List, Optional
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
 
+try:
+    from .tool_cache import ToolCache
+except ImportError:
+    from tool_cache import ToolCache  # type: ignore[no-redef]
+
 
 @dataclass
 class ToolCall:
@@ -102,6 +107,9 @@ class ToolExecutor:
         self._config = config
         self._tool_map: dict = {}
         self._build_tool_map()
+        # Initialise the tool result cache using the orchestration.cache config block
+        cache_cfg = config.get("orchestration", {}).get("cache", {})
+        self._cache = ToolCache(config=cache_cfg, project_root=_BASE_DIR)
 
     def _build_tool_map(self) -> None:
         """Index available tools from config, resolving impl paths relative to project root."""
@@ -124,9 +132,28 @@ class ToolExecutor:
         return mod
 
     def execute(self, tool_call: ToolCall) -> dict:
-        """Execute a tool call, returning a result dict."""
+        """
+        Execute a tool call, returning a result dict.
+
+        Before running the tool, the cache is consulted.  On a hit the
+        stored result is returned immediately with `cached=True` and
+        `duration_ms=0`.  On a miss the tool runs normally and a
+        successful result is stored in the cache for future calls.
+        """
         start = time.monotonic()
         tool_name = tool_call.tool_name
+
+        # ── Cache lookup ────────────────────────────────────────────────
+        cached = self._cache.get(tool_name, tool_call.params)
+        if cached is not None:
+            return {
+                "status": "success",
+                "result": cached,
+                "tool": tool_name,
+                "duration_ms": 0.0,
+                "cached": True,
+                "cache_age_s": cached.get("cache_age_s"),
+            }
 
         # Resolve the implementation path
         impl_path: Optional[Path] = self._tool_map.get(tool_name)
@@ -148,25 +175,29 @@ class ToolExecutor:
         try:
             result = self._call_python_main(impl_path, tool_call.params)
             duration_ms = (time.monotonic() - start) * 1000
-            return {
+            outcome = {
                 "status": "success",
                 "result": result,
                 "tool": tool_name,
                 "duration_ms": round(duration_ms, 2),
             }
-        except Exception as direct_err:
+            self._cache.put(tool_name, tool_call.params, outcome)
+            return outcome
+        except Exception:
             pass  # Fall through to subprocess strategy
 
         # Strategy 2: subprocess with JSON params
         try:
             result = self._call_subprocess(impl_path, tool_call.params)
             duration_ms = (time.monotonic() - start) * 1000
-            return {
+            outcome = {
                 "status": "success",
                 "result": result,
                 "tool": tool_name,
                 "duration_ms": round(duration_ms, 2),
             }
+            self._cache.put(tool_name, tool_call.params, outcome)
+            return outcome
         except Exception as sub_err:
             duration_ms = (time.monotonic() - start) * 1000
             return {

@@ -5,9 +5,9 @@ Find-and-replace text within a file. Replaces the first occurrence by default,
 or all occurrences with --replace_all. Returns the number of replacements made.
 
 Usage:
-    python replace_tool.py --path src/main.py --old_str "foo" --new_str "bar"
-    python replace_tool.py --path config.json --old_str "localhost" --new_str "0.0.0.0" --replace_all
-    python replace_tool.py --session_id 20260322_120000 --path file.py --old_str "x" --new_str "y"
+    python replace.py --path src/main.py --old_str "foo" --new_str "bar"
+    python replace.py --path config.json --old_str "localhost" --new_str "0.0.0.0" --replace_all
+    python replace.py --session_id 20260322_120000 --path file.py --old_str "x" --new_str "y"
 """
 
 import json

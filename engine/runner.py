@@ -47,8 +47,16 @@ class EngineRunner:
         user_input: str,
         session_id: Optional[str] = None,
         agent_id: str = "OVR_DIR_01",
+        streaming: bool = True,
     ) -> dict:
-        """Run the agent loop and return a result dict."""
+        """
+        Run the agent loop and return a result dict.
+
+        When streaming=True (default), each provider call streams tokens back
+        through the EventStream as TOKEN events.  The frontend can subscribe to
+        these events to render the LLM response in real time.  Falls back to
+        non-streaming automatically if the provider does not support it.
+        """
         max_loops: int = self._config.get("orchestration", {}).get("max_loops", 10)
 
         # Session setup
@@ -94,18 +102,62 @@ class EngineRunner:
             loop += 1
             self.events.emit(EventType.AGENT_START, agent_id=agent_id, loop=loop)
 
-            # Call provider
+            # Call provider — streaming when enabled, non-streaming as fallback.
+            # TOKEN events are batched: we accumulate up to _TOKEN_BATCH_SIZE
+            # characters before emitting to avoid flooding the SSE queue.
+            _TOKEN_BATCH_SIZE = 6
+
             try:
-                response = self._bridge.call_provider(
-                    messages=messages,
-                    system=system_prompt,
-                    event_callback=lambda name, payload: self.events.emit(
-                        EventType.PROVIDER_TRACE,
-                        session_id=sid,
-                        phase=name,
-                        **payload,
-                    ),
-                )
+                if streaming:
+                    # Mutable container so the nested closure can modify it.
+                    _buf: list[str] = []
+
+                    def _token_cb(chunk: str) -> None:
+                        _buf.append(chunk)
+                        # Flush on newline or once the batch is large enough.
+                        if "\n" in chunk or sum(len(c) for c in _buf) >= _TOKEN_BATCH_SIZE:
+                            text = "".join(_buf)
+                            _buf.clear()
+                            self.events.emit(
+                                EventType.TOKEN,
+                                session_id=sid,
+                                agent_id=agent_id,
+                                loop=loop,
+                                text=text,
+                            )
+
+                    response = self._bridge.call_provider_streaming(
+                        messages=messages,
+                        system=system_prompt,
+                        token_callback=_token_cb,
+                        event_callback=lambda name, payload: self.events.emit(
+                            EventType.PROVIDER_TRACE,
+                            session_id=sid,
+                            phase=name,
+                            **payload,
+                        ),
+                    )
+                    # Flush any remaining buffered tokens.
+                    if _buf:
+                        self.events.emit(
+                            EventType.TOKEN,
+                            session_id=sid,
+                            agent_id=agent_id,
+                            loop=loop,
+                            text="".join(_buf),
+                        )
+                        _buf.clear()
+                else:
+                    response = self._bridge.call_provider(
+                        messages=messages,
+                        system=system_prompt,
+                        event_callback=lambda name, payload: self.events.emit(
+                            EventType.PROVIDER_TRACE,
+                            session_id=sid,
+                            phase=name,
+                            **payload,
+                        ),
+                    )
             except Exception as exc:
                 self.events.emit(EventType.ERROR, message=str(exc), loop=loop)
                 session.log_event("error", {"message": str(exc), "loop": loop})
@@ -157,6 +209,30 @@ class EngineRunner:
                 tool_log = session.log_tool_call(tc.tool_name, tc.params, result)
 
                 if result["status"] == "success":
+                    if result.get("cached"):
+                        # Served from cache — emit a distinct event so the
+                        # frontend can display a cache-hit indicator.
+                        self.events.emit(
+                            EventType.TOOL_CACHE_HIT,
+                            tool=tc.tool_name,
+                            cache_age_s=result.get("cache_age_s"),
+                            loop=loop,
+                            call_index=index,
+                        )
+
+                    # notification_tool signals the engine to broadcast a
+                    # NOTIFICATION event directly over the SSE pipe so the
+                    # frontend can show a browser toast immediately.
+                    inner = result.get("result", {})
+                    if isinstance(inner, dict) and inner.get("_notification"):
+                        self.events.emit(
+                            EventType.NOTIFICATION,
+                            title=inner.get("title", ""),
+                            message=inner.get("message", ""),
+                            severity=inner.get("severity", "info"),
+                            session_id=inner.get("session_id") or sid,
+                        )
+
                     self.events.emit(
                         EventType.TOOL_RESULT,
                         tool=tc.tool_name,
@@ -164,6 +240,7 @@ class EngineRunner:
                         result=result.get("result"),
                         loop=loop,
                         call_index=index,
+                        cached=result.get("cached", False),
                         trace_path=tool_log.get("trace_path"),
                     )
                 else:

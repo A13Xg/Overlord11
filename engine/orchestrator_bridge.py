@@ -300,6 +300,253 @@ class OrchestratorBridge:
         return response["choices"][0]["message"]["content"]
 
     # ------------------------------------------------------------------
+    # Streaming provider calls
+    # ------------------------------------------------------------------
+
+    def call_provider_streaming(
+        self,
+        messages: List[dict],
+        system: str,
+        token_callback,
+        event_callback=None,
+    ) -> str:
+        """
+        Like call_provider() but streams tokens as they arrive.
+
+        token_callback(text: str) is invoked for each chunk of text received
+        from the provider.  Falls back to non-streaming if the provider does
+        not support it or if streaming fails.
+
+        Returns the full accumulated response string.
+        """
+        active = self._providers.get("active", "anthropic")
+        order = [active] + [p for p in self._fallback_order if p != active]
+        configured = [p for p in self._providers.keys() if p != "active"]
+        for p in configured:
+            if p not in order:
+                order.append(p)
+        if self._sticky_provider and self._sticky_provider in order:
+            order = [self._sticky_provider] + [p for p in order if p != self._sticky_provider]
+
+        if not self._provider_diagnostics_done:
+            self._diagnose_providers(order, event_callback=event_callback)
+
+        last_err: Optional[Exception] = None
+        for provider_name in order:
+            provider_cfg = self._providers.get(provider_name, {})
+            if not provider_cfg:
+                continue
+            if not self._provider_availability.get(provider_name, True):
+                continue
+            api_key = os.environ.get(provider_cfg.get("api_key_env", ""), "")
+            if not api_key:
+                self._provider_availability[provider_name] = False
+                continue
+            try:
+                model_order = self._get_model_fallback_order(provider_name, provider_cfg)
+                for model_name in model_order:
+                    try:
+                        self._emit_provider_trace(
+                            event_callback, "model_attempt_stream",
+                            provider=provider_name, model=model_name,
+                        )
+                        result = self._dispatch_streaming(
+                            provider_name, provider_cfg, messages, system,
+                            api_key, model_name, token_callback,
+                        )
+                        self._sticky_provider = provider_name
+                        self._sticky_model_by_provider[provider_name] = model_name
+                        return result
+                    except Exception as exc:
+                        self._logger.warning(
+                            "Streaming failed for %s/%s (%s); trying next", provider_name, model_name, exc
+                        )
+                        last_err = exc
+                        continue
+            except Exception as exc:
+                last_err = exc
+                continue
+
+        # All streaming attempts failed — fall back to non-streaming
+        self._logger.warning("All streaming attempts failed (%s); falling back to non-streaming", last_err)
+        return self.call_provider(messages=messages, system=system, event_callback=event_callback)
+
+    def _dispatch_streaming(
+        self,
+        provider: str,
+        cfg: dict,
+        messages: List[dict],
+        system: str,
+        api_key: str,
+        model: str,
+        token_callback,
+    ) -> str:
+        if provider == "anthropic":
+            return self._call_anthropic_streaming(cfg, messages, system, api_key, model, token_callback)
+        if provider == "gemini":
+            return self._call_gemini_streaming(cfg, messages, system, api_key, model, token_callback)
+        if provider == "openai":
+            return self._call_openai_streaming(cfg, messages, system, api_key, model, token_callback)
+        raise ValueError(f"Unknown provider for streaming: {provider}")
+
+    def _call_anthropic_streaming(
+        self,
+        cfg: dict,
+        messages: List[dict],
+        system: str,
+        api_key: str,
+        model: str,
+        token_callback,
+    ) -> str:
+        """
+        Stream from Anthropic Messages API using server-sent events.
+        SSE format: event: content_block_delta → data: {delta: {type: text_delta, text: "..."}}
+        """
+        url = f"{cfg.get('api_base', 'https://api.anthropic.com/v1')}/messages"
+        payload = {
+            "model": model or cfg.get("model", "claude-opus-4-5"),
+            "max_tokens": cfg.get("max_tokens", 8192),
+            "temperature": cfg.get("temperature", 0.7),
+            "system": system,
+            "messages": messages,
+            "stream": True,
+        }
+        headers = {
+            "Content-Type": "application/json",
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+        }
+
+        accumulated = ""
+        for line in self._stream_lines(url, payload, headers):
+            if not line.startswith("data: "):
+                continue
+            json_str = line[6:].strip()
+            if not json_str or json_str == "[DONE]":
+                continue
+            try:
+                chunk = json.loads(json_str)
+            except json.JSONDecodeError:
+                continue
+            if chunk.get("type") == "content_block_delta":
+                delta = chunk.get("delta", {})
+                if delta.get("type") == "text_delta":
+                    text = delta.get("text", "")
+                    if text:
+                        accumulated += text
+                        token_callback(text)
+        return accumulated
+
+    def _call_openai_streaming(
+        self,
+        cfg: dict,
+        messages: List[dict],
+        system: str,
+        api_key: str,
+        model: str,
+        token_callback,
+    ) -> str:
+        """
+        Stream from OpenAI Chat Completions API using server-sent events.
+        SSE format: data: {choices: [{delta: {content: "..."}}]}  →  data: [DONE]
+        """
+        url = f"{cfg.get('api_base', 'https://api.openai.com/v1')}/chat/completions"
+        all_messages = [{"role": "system", "content": system}] + messages
+        payload = {
+            "model": model or cfg.get("model", "gpt-4o"),
+            "max_tokens": cfg.get("max_tokens", 8192),
+            "temperature": cfg.get("temperature", 0.7),
+            "messages": all_messages,
+            "stream": True,
+        }
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        }
+
+        accumulated = ""
+        for line in self._stream_lines(url, payload, headers):
+            if not line.startswith("data: "):
+                continue
+            json_str = line[6:].strip()
+            if not json_str or json_str == "[DONE]":
+                continue
+            try:
+                chunk = json.loads(json_str)
+                text = chunk["choices"][0]["delta"].get("content") or ""
+                if text:
+                    accumulated += text
+                    token_callback(text)
+            except (json.JSONDecodeError, KeyError, IndexError):
+                continue
+        return accumulated
+
+    def _call_gemini_streaming(
+        self,
+        cfg: dict,
+        messages: List[dict],
+        system: str,
+        api_key: str,
+        model: str,
+        token_callback,
+    ) -> str:
+        """
+        Stream from Gemini streamGenerateContent endpoint.
+        Response body is a JSON array of candidate objects delivered incrementally.
+        We parse complete JSON objects as brace depth reaches zero.
+        """
+        selected_model = model or cfg.get("model", "gemini-2.5-pro")
+        api_base = cfg.get("api_base", "https://generativelanguage.googleapis.com/v1beta")
+        url = f"{api_base}/models/{selected_model}:streamGenerateContent?key={api_key}&alt=sse"
+
+        contents = []
+        for msg in messages:
+            role = "user" if msg.get("role") == "user" else "model"
+            contents.append({"role": role, "parts": [{"text": msg.get("content", "")}]})
+
+        payload: dict = {
+            "contents": contents,
+            "generationConfig": {
+                "maxOutputTokens": cfg.get("max_tokens", 8192),
+                "temperature": cfg.get("temperature", 0.7),
+            },
+        }
+        if system:
+            payload["systemInstruction"] = {"parts": [{"text": system}]}
+
+        headers = {"Content-Type": "application/json"}
+        accumulated = ""
+
+        # Gemini with alt=sse returns SSE format like Anthropic/OpenAI
+        for line in self._stream_lines(url, payload, headers):
+            if not line.startswith("data: "):
+                continue
+            json_str = line[6:].strip()
+            if not json_str:
+                continue
+            try:
+                chunk = json.loads(json_str)
+                text = chunk["candidates"][0]["content"]["parts"][0]["text"]
+                if text:
+                    accumulated += text
+                    token_callback(text)
+            except (json.JSONDecodeError, KeyError, IndexError):
+                continue
+        return accumulated
+
+    def _stream_lines(self, url: str, payload: dict, headers: dict, timeout: int = 300):
+        """
+        Open an HTTP POST connection and yield decoded lines as they arrive
+        from the socket.  Used by all three streaming provider methods.
+        """
+        import urllib.request
+        data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            for raw_line in resp:
+                yield raw_line.decode("utf-8", errors="replace").rstrip("\r\n")
+
+    # ------------------------------------------------------------------
     # HTTP helper
     # ------------------------------------------------------------------
 

@@ -22,14 +22,6 @@ import os
 import sys
 from pathlib import Path
 
-# ---------------------------------------------------------------------------
-# Windows console encoding safety
-# ---------------------------------------------------------------------------
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-
-
 def safe_str(val, max_len: int = 200) -> str:
     """Encoding-safe string conversion. Prevents UnicodeEncodeError on cp1252/cp437 terminals.
 
@@ -445,6 +437,9 @@ def _persist_design_system(content: str, output_format: str, page: str | None) -
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    if sys.platform == "win32":
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
     p = argparse.ArgumentParser(description="Generate a UI/UX design system")
     p.add_argument("--style_id", default=None,
                    help="UI style ID (e.g. minimal-zen)")
