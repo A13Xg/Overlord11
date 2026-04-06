@@ -1,0 +1,66 @@
+{
+  "name": "http_request",
+  "description": "Full-featured HTTP client supporting GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS methods. Handles JSON bodies, custom headers, bearer/basic authentication, query parameters, and automatic response parsing. Use web_fetch for simple GET requests; use this tool when you need non-GET methods, auth tokens, or structured request bodies.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "method": {
+        "type": "string",
+        "description": "HTTP method to use.",
+        "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+        "default": "GET"
+      },
+      "url": {
+        "type": "string",
+        "description": "Full URL including protocol (e.g., https://api.example.com/items)."
+      },
+      "headers": {
+        "type": "object",
+        "description": "Optional dict of HTTP headers (e.g., {'Content-Type': 'application/json', 'X-Custom': 'value'}).",
+        "additionalProperties": { "type": "string" }
+      },
+      "params": {
+        "type": "object",
+        "description": "Optional dict of URL query parameters appended to the URL.",
+        "additionalProperties": {}
+      },
+      "json_body": {
+        "description": "Request body as a JSON-serializable value. Automatically sets Content-Type: application/json. Mutually exclusive with form_data and body."
+      },
+      "form_data": {
+        "type": "object",
+        "description": "Request body as form fields. Sets Content-Type: application/x-www-form-urlencoded. Mutually exclusive with json_body and body.",
+        "additionalProperties": { "type": "string" }
+      },
+      "body": {
+        "type": "string",
+        "description": "Raw string request body. Use when json_body and form_data are not appropriate."
+      },
+      "timeout_seconds": {
+        "type": "integer",
+        "description": "Request timeout in seconds. Defaults to 30.",
+        "default": 30
+      },
+      "follow_redirects": {
+        "type": "boolean",
+        "description": "Whether to follow HTTP redirects. Defaults to true.",
+        "default": true
+      },
+      "auth_bearer": {
+        "type": "string",
+        "description": "Bearer token to include in the Authorization header (e.g., a JWT or API key)."
+      },
+      "auth_basic": {
+        "type": "string",
+        "description": "Basic auth credentials as 'username:password' string."
+      },
+      "return_format": {
+        "type": "string",
+        "description": "How to parse the response body. 'auto' detects from Content-Type header.",
+        "enum": ["auto", "json", "text"],
+        "default": "auto"
+      }
+    },
+    "required": ["method", "url"]
+  }
+}

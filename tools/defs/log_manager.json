@@ -1,0 +1,32 @@
+{
+  "name": "log_manager",
+  "description": "Central logging system for all tool invocations, LLM decisions, and agent activity. Writes structured JSONL entries to a master log and per-session log files. Supports querying recent log entries and generating session summaries. Logs are automatically rotated when they exceed 50 MB.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "The logging action to perform.",
+        "enum": ["log_tool", "log_decision", "log_agent_switch", "log_error", "log_event", "query", "summary", "list_sessions"]
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session identifier (e.g., '20260215_120000'). Required for most write actions."
+      },
+      "data": {
+        "type": "object",
+        "description": "Payload for the action. Contents depend on action type: log_tool expects {tool, params, result, duration_ms}; log_decision expects {agent, decision, reasoning, context}; log_agent_switch expects {from, to, reason}; log_error expects {source, error, traceback}; log_event expects {event_type, ...}."
+      },
+      "type_filter": {
+        "type": "string",
+        "description": "For 'query' action: filter results to this log entry type (e.g., 'tool_invocation', 'llm_decision', 'error')."
+      },
+      "last_n": {
+        "type": "integer",
+        "description": "For 'query' action: number of most recent entries to return. Defaults to 50.",
+        "default": 50
+      }
+    },
+    "required": ["action"]
+  }
+}

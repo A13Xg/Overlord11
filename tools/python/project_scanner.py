@@ -145,7 +145,11 @@ def scan_project(root_path: str, max_depth: int = 5) -> dict:
     """Perform a deep scan of a project directory."""
     root = Path(root_path).resolve()
     if not root.exists():
-        return {"error": f"Path does not exist: {root}"}
+        return {
+            "status": "error",
+            "error": f"Path does not exist: {root}",
+            "hint": "Verify the path with list_directory or provide an absolute path.",
+        }
 
     start_time = time.time()
 

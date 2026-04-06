@@ -1,41 +1,30 @@
 {
   "name": "code_analyzer",
-  "description": "Perform static analysis on source code files to identify bugs, code smells, security vulnerabilities, complexity issues, and style violations. Supports Python, JavaScript, TypeScript, and other common languages. Returns structured findings with severity levels and line numbers.",
+  "description": "Perform static analysis on source code files to measure complexity, detect code smells, analyze imports, and extract function signatures. Supports Python, JavaScript, TypeScript, Go, Rust, Java, and C#. Returns structured findings with line numbers.",
   "parameters": {
     "type": "object",
     "properties": {
       "path": {
         "type": "string",
-        "description": "Path to the file or directory to analyze. For a directory, analyzes all supported source files recursively."
+        "description": "Path to the project root directory to analyze recursively. Required unless 'file' is provided."
+      },
+      "file": {
+        "type": "string",
+        "description": "Path to a single file to analyze. When provided, 'path' is ignored."
       },
       "language": {
         "type": "string",
-        "description": "Programming language of the files. Auto-detected from file extensions if not specified.",
-        "enum": ["python", "javascript", "typescript", "go", "rust", "java", "auto"],
-        "default": "auto"
+        "description": "Filter analysis to files of a specific language. Auto-detected from file extensions if not specified.",
+        "enum": ["python", "javascript", "typescript", "go", "rust", "java", "csharp"],
+        "default": null
       },
-      "checks": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "enum": ["bugs", "security", "complexity", "style", "duplication", "all"]
-        },
-        "description": "Which categories of checks to run. Defaults to ['all'].",
-        "default": ["all"]
-      },
-      "min_severity": {
+      "check": {
         "type": "string",
-        "description": "Minimum severity level to report. Defaults to 'warning'.",
-        "enum": ["info", "warning", "error", "critical"],
-        "default": "warning"
-      },
-      "output_format": {
-        "type": "string",
-        "description": "Output format: 'text' for human-readable, 'json' for structured data.",
-        "enum": ["text", "json"],
-        "default": "text"
+        "description": "Which category of analysis to run. Defaults to 'all'.",
+        "enum": ["all", "complexity", "smells", "imports", "functions"],
+        "default": "all"
       }
     },
-    "required": ["path"]
+    "required": []
   }
 }

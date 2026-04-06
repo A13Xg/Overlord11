@@ -1,55 +1,137 @@
+"""
+Overlord11 - List Directory Tool
+=====================================
+List the contents of a directory with metadata (size, type, modification time).
+Optionally recurse into subdirectories.
+
+Usage:
+    python list_directory.py --path /some/dir
+    python list_directory.py --path ./src --recursive --filter_extension .py
+    python list_directory.py --path . --include_hidden
+"""
+
+import json
 import os
-from typing import List, Dict, Any
+import sys
+from datetime import datetime
+from typing import List, Optional
+
 
 def list_directory(
-    dir_path: str,
-    ignore: List[str] = None,
-    file_filtering_options: Dict[str, Any] = None
-) -> str:
+    path: str,
+    recursive: bool = False,
+    include_hidden: bool = False,
+    filter_extension: Optional[str] = None,
+) -> dict:
     """
-    Lists the names of files and subdirectories directly within a specified directory path.
-    Can optionally ignore entries matching provided glob patterns.
+    List the contents of a directory.
 
     Args:
-        dir_path: The path to the directory to list.
-        ignore: Optional: List of glob patterns to ignore. (Advanced filtering not implemented in this basic version).
-        file_filtering_options: Optional: Dictionary containing file filtering options like 'respect_git_ignore' (bool) and 'respect_gemini_ignore' (bool). (Advanced filtering not implemented in this basic version).
+        path:             Absolute or relative path to the directory to list.
+        recursive:        Whether to recursively list subdirectories.
+                          Defaults to False.
+        include_hidden:   Whether to include hidden files and directories
+                          (those starting with '.'). Defaults to False.
+        filter_extension: Optional file extension filter (e.g., '.py', '.json').
+                          Only files with this extension are returned.
+                          Directories are always included when recursive=True.
 
     Returns:
-        A string containing the formatted directory listing or an error message.
+        dict with keys:
+            status   – "success" or "error"
+            path     – the resolved directory path
+            entries  – list of entry dicts (name, type, size, modified, path)
+            error    – error message if status is "error"
     """
-    if ignore is None:
-        ignore = []
-    if file_filtering_options is None:
-        file_filtering_options = {}
+    resolved = os.path.abspath(path)
 
-    # For a more robust solution that handles 'ignore' patterns and 'respect_git_ignore'/'.geminiignore'
-    # a dedicated library for file filtering (e.g., pathspec) or integration with tools like ripgrep
-    # would be necessary. This basic implementation only lists directory contents and does not apply ignore patterns.
+    if not os.path.exists(resolved):
+        return {"status": "error", "error": f"Path not found: {path}"}
+    if not os.path.isdir(resolved):
+        return {"status": "error", "error": f"Not a directory: {path}"}
 
-    if not os.path.isdir(dir_path):
-        return f"Error: Directory not found at {dir_path}"
-    
-    try:
-        entries = os.listdir(dir_path)
-        output = f"Directory listing for {dir_path}:\n"
-        for entry in entries:
-            full_path = os.path.join(dir_path, entry)
-            # A very basic check for ignore patterns (not fully robust glob matching)
-            # This part would need significant enhancement for full implementation of 'ignore'
-            is_ignored = False
-            for pattern in ignore:
-                if (pattern.endswith('/') and os.path.isdir(full_path) and entry.startswith(pattern[:-1])) or \
-                   (not pattern.endswith('/') and entry == pattern):
-                    is_ignored = True
-                    break
-            
-            if not is_ignored:
-                if os.path.isdir(full_path):
-                    output += f"[DIR] {entry}\n"
-                else:
-                    output += f"      {entry}\n"
-        return output
-    except Exception as e:
-        return f"Error listing directory {dir_path}: {e}"
+    # Normalise extension filter
+    ext_filter = filter_extension.lower() if filter_extension else None
+    if ext_filter and not ext_filter.startswith("."):
+        ext_filter = "." + ext_filter
 
+    entries: List[dict] = []
+
+    def _scan(dir_path: str):
+        try:
+            names = sorted(os.listdir(dir_path))
+        except PermissionError:
+            return
+
+        for name in names:
+            if not include_hidden and name.startswith("."):
+                continue
+
+            full = os.path.join(dir_path, name)
+            is_dir = os.path.isdir(full)
+
+            # Apply extension filter to files only
+            if ext_filter and not is_dir:
+                if not name.lower().endswith(ext_filter):
+                    continue
+
+            try:
+                stat = os.stat(full)
+                size = stat.st_size if not is_dir else None
+                modified = datetime.fromtimestamp(stat.st_mtime).isoformat()
+            except OSError:
+                size = None
+                modified = None
+
+            entries.append({
+                "name": name,
+                "type": "directory" if is_dir else "file",
+                "size": size,
+                "modified": modified,
+                "path": full,
+            })
+
+            if recursive and is_dir:
+                _scan(full)
+
+    _scan(resolved)
+
+    return {
+        "status": "success",
+        "path": resolved,
+        "entries": entries,
+        "count": len(entries),
+    }
+
+
+def main():
+    import argparse
+    import io
+
+    if sys.platform == "win32":
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+
+    parser = argparse.ArgumentParser(description="Overlord11 List Directory Tool")
+    parser.add_argument("--path", required=True, help="Directory path to list")
+    parser.add_argument("--recursive", action="store_true",
+                        help="Recursively list subdirectories")
+    parser.add_argument("--include_hidden", action="store_true",
+                        help="Include hidden files and directories")
+    parser.add_argument("--filter_extension", default=None,
+                        help="Only show files with this extension (e.g. .py)")
+
+    args = parser.parse_args()
+
+    result = list_directory(
+        path=args.path,
+        recursive=args.recursive,
+        include_hidden=args.include_hidden,
+        filter_extension=args.filter_extension,
+    )
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    sys.exit(0 if result["status"] == "success" else 1)
+
+
+if __name__ == "__main__":
+    main()

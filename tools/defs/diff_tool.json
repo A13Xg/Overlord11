@@ -1,0 +1,47 @@
+{
+  "name": "diff_tool",
+  "description": "Compare two strings or files and produce unified diffs or structured side-by-side comparisons. Use to review code changes, verify rewrites preserved intended behavior, audit file modifications, or apply patches. Returns line-by-line statistics (added, removed, changed blocks) in addition to the diff content.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Operation to perform. diff_strings: compare two string values. diff_files: compare two files. patch_apply: apply a unified diff patch to a string.",
+        "enum": ["diff_strings", "diff_files", "patch_apply"]
+      },
+      "a": {
+        "type": "string",
+        "description": "First string to compare (diff_strings), or source text to patch (patch_apply)."
+      },
+      "b": {
+        "type": "string",
+        "description": "Second string to compare (diff_strings), or the unified diff patch content (patch_apply)."
+      },
+      "file_a": {
+        "type": "string",
+        "description": "Path to the first file (diff_files action)."
+      },
+      "file_b": {
+        "type": "string",
+        "description": "Path to the second file (diff_files action)."
+      },
+      "context": {
+        "type": "integer",
+        "description": "Number of unchanged lines to show around each change in the diff. Defaults to 3.",
+        "default": 3
+      },
+      "output_format": {
+        "type": "string",
+        "description": "Output format: 'unified' returns a standard unified diff string; 'side_by_side' returns a structured list of change blocks.",
+        "enum": ["unified", "side_by_side"],
+        "default": "unified"
+      },
+      "encoding": {
+        "type": "string",
+        "description": "File encoding for diff_files. Defaults to utf-8.",
+        "default": "utf-8"
+      }
+    },
+    "required": ["action"]
+  }
+}

@@ -83,26 +83,30 @@ def run_shell_command(
 
     if not execution_dir.is_dir():
         return {
-            "Command": command,
-            "Directory": str(execution_dir),
-            "Stdout": "(empty)",
-            "Stderr": f"Error: Directory not found: {execution_dir}",
-            "Error": "DirectoryNotFound",
-            "Exit Code": 1,
-            "Shell": shell_info,
-            "Environment": describe_environment(),
+            "status": "error",
+            "command": command,
+            "directory": str(execution_dir),
+            "stdout": "(empty)",
+            "stderr": f"Error: Directory not found: {execution_dir}",
+            "error": "DirectoryNotFound",
+            "hint": "Verify the working_dir path exists before running the command.",
+            "exit_code": 1,
+            "shell": shell_info,
+            "environment": describe_environment(),
         }
 
     if not shell_info["path"]:
         return {
-            "Command": command,
-            "Directory": str(execution_dir),
-            "Stdout": "(empty)",
-            "Stderr": "No supported shell executable was found on PATH.",
-            "Error": "ShellNotFound",
-            "Exit Code": 1,
-            "Shell": shell_info,
-            "Environment": describe_environment(),
+            "status": "error",
+            "command": command,
+            "directory": str(execution_dir),
+            "stdout": "(empty)",
+            "stderr": "No supported shell executable was found on PATH.",
+            "error": "ShellNotFound",
+            "hint": "Ensure bash, sh, or cmd.exe is available in PATH.",
+            "exit_code": 1,
+            "shell": shell_info,
+            "environment": describe_environment(),
         }
 
     run_env = os.environ.copy()
@@ -138,15 +142,17 @@ def run_shell_command(
         error_message = str(exc)
         exit_code = 1
 
+    succeeded = exit_code == 0 and error_message == "(none)"
     return {
-        "Command": command,
-        "Directory": str(execution_dir),
-        "Stdout": stdout_output,
-        "Stderr": stderr_output,
-        "Error": error_message,
-        "Exit Code": exit_code,
-        "Shell": shell_info,
-        "Environment": describe_environment(),
+        "status": "success" if succeeded else "error",
+        "command": command,
+        "directory": str(execution_dir),
+        "stdout": stdout_output,
+        "stderr": stderr_output,
+        "error": error_message,
+        "exit_code": exit_code,
+        "shell": shell_info,
+        "environment": describe_environment(),
     }
 
 
@@ -156,14 +162,16 @@ def main(**kwargs):
         command = kwargs.get("command")
         if not command:
             return {
-                "Command": "",
-                "Directory": str(Path(kwargs.get("working_dir", ".")).resolve()),
-                "Stdout": "(empty)",
-                "Stderr": "Missing required parameter: command",
-                "Error": "MissingCommand",
-                "Exit Code": 2,
-                "Shell": _detect_shell(),
-                "Environment": describe_environment(),
+                "status": "error",
+                "command": "",
+                "directory": str(Path(kwargs.get("working_dir", ".")).resolve()),
+                "stdout": "(empty)",
+                "stderr": "Missing required parameter: command",
+                "error": "MissingCommand",
+                "hint": "Provide the 'command' parameter with the shell command to execute.",
+                "exit_code": 2,
+                "shell": _detect_shell(),
+                "environment": describe_environment(),
             }
         return run_shell_command(**kwargs)
 

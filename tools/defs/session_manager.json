@@ -1,0 +1,27 @@
+{
+  "name": "session_manager",
+  "description": "Manages work sessions with unique IDs. Creates session workspaces, tracks file changes and agent/tool usage, appends notes, and closes sessions with a final summary. Sessions are indexed in a workspace/session_index.json file and each gets a dedicated directory with output/ and temp/ subdirectories.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "The session action to perform.",
+        "enum": ["create", "status", "log_change", "log_agent", "log_tool", "add_note", "close", "list", "active"]
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session ID (format: YYYYMMDD_HHMMSS). Required for all actions except 'create', 'list', and 'active'."
+      },
+      "description": {
+        "type": "string",
+        "description": "Human-readable description. Used when creating a session or closing one as a close summary."
+      },
+      "data": {
+        "type": "object",
+        "description": "Payload for the action. log_change expects {file, action, summary, diff_preview}; log_agent expects {agent_id}; log_tool expects {tool_name}; add_note expects {note}; close expects {summary}; create optionally accepts {description, tags}; list optionally accepts {status_filter}."
+      }
+    },
+    "required": ["action"]
+  }
+}

@@ -82,12 +82,12 @@ def _generate_run_py(project_name: str, version: str, description: str,
     # Build the mode entries as Python source
     modes_src = "    MODES = [\n"
     for m in modes:
-        modes_src += "        {{\n"
+        modes_src += "        {\n"
         modes_src += f'            "key": "{m["key"]}",\n'
         modes_src += f'            "label": "{m["label"]}",\n'
         modes_src += f'            "cmd": {repr(m["cmd"])},\n'
         modes_src += f'            "desc": "{m.get("desc", "")}",\n'
-        modes_src += "        }},\n"
+        modes_src += "        },\n"
     modes_src += "    ]"
 
     # Check if there's more than one mode (enables "run all" option)

@@ -679,15 +679,23 @@ def generate_scaffold(template_name: str, project_name: str,
                       output_path: str, description: str = "") -> dict:
     """Generate a project scaffold from a template."""
     if template_name not in TEMPLATES:
-        return {"error": f"Unknown template: {template_name}",
-                "available": list(TEMPLATES.keys())}
+        return {
+            "status": "error",
+            "error": f"Unknown template: {template_name}",
+            "hint": f"Use one of the available templates: {', '.join(TEMPLATES.keys())}",
+            "available": list(TEMPLATES.keys()),
+        }
 
     template = TEMPLATES[template_name]
     output_dir = Path(output_path).resolve()
     description = description or f"A {template['language']} project"
 
     if output_dir.exists() and any(output_dir.iterdir()):
-        return {"error": f"Output directory is not empty: {output_dir}"}
+        return {
+            "status": "error",
+            "error": f"Output directory is not empty: {output_dir}",
+            "hint": "Provide an empty or non-existent output path.",
+        }
 
     start_time = time.time()
     files_created = []

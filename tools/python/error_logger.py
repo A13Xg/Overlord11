@@ -112,25 +112,18 @@ def log_error(project_dir: str, title: str, severity: str = "major",
     error_id = _next_error_id(content)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-    error_block = (
-        f"### {error_id}: {title}\n"
-        f"- **Severity**: {_severity_tag(severity)}\n"
-        f"- **Logged**: {timestamp}\n"
-        f"- **Source**: `{source}`\n" if source else ""
-    )
-    # Rebuild properly if source was empty
-    if not source:
+    if source:
         error_block = (
             f"### {error_id}: {title}\n"
             f"- **Severity**: {_severity_tag(severity)}\n"
             f"- **Logged**: {timestamp}\n"
+            f"- **Source**: `{source}`\n"
         )
     else:
         error_block = (
             f"### {error_id}: {title}\n"
             f"- **Severity**: {_severity_tag(severity)}\n"
             f"- **Logged**: {timestamp}\n"
-            f"- **Source**: `{source}`\n"
         )
 
     error_block += f"- **Status**: OPEN\n"

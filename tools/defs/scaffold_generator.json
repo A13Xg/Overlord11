@@ -6,8 +6,8 @@
     "properties": {
       "template": {
         "type": "string",
-        "description": "Template to use for scaffolding. Available: python_cli, python_api, python_lib, node_api, static_site, overlord_agent, overlord_tool.",
-        "enum": ["python_cli", "python_api", "python_lib", "node_api", "static_site", "overlord_agent", "overlord_tool"]
+        "description": "Template to use for scaffolding. Available: python_cli, python_api, node_api, react_app.",
+        "enum": ["python_cli", "python_api", "node_api", "react_app"]
       },
       "name": {
         "type": "string",

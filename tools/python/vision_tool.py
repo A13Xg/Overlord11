@@ -275,12 +275,18 @@ def ocr(image_path: str) -> dict:
                 "char_count": len(text.strip()),
             }
         except Exception as exc:
-            # Fall through to base64 fallback
-            pass
+            # Tesseract failed — log and fall through to base64 fallback
+            tesseract_error = str(exc)
+            if HAS_LOG:
+                log_error("system", "vision_tool.ocr", tesseract_error)
+        else:
+            tesseract_error = None
+    else:
+        tesseract_error = None
 
     # Fallback: return base64 for LLM to perform OCR
     b64 = _image_to_b64(path)
-    return {
+    fallback = {
         "status": "ok_fallback",
         "file": str(path),
         "method": "base64_llm_fallback",
@@ -290,10 +296,13 @@ def ocr(image_path: str) -> dict:
             "Preserve formatting where possible."
         ),
         "note": (
-            "pytesseract not installed. Pass the base64 payload to a vision-capable LLM "
+            "pytesseract not installed or failed. Pass the base64 payload to a vision-capable LLM "
             "for OCR. Install: pip install pytesseract Pillow"
         ),
     }
+    if tesseract_error:
+        fallback["tesseract_error"] = tesseract_error
+    return fallback
 
 
 def list_images(directory: str, recursive: bool = False) -> dict:
