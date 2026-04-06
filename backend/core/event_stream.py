@@ -37,6 +37,10 @@ class EventBroadcaster:
                 except asyncio.TimeoutError:
                     # Send heartbeat to keep connection alive
                     yield ": ping\n\n"
+                except asyncio.CancelledError:
+                    break
+        except asyncio.CancelledError:
+            return
         finally:
             try:
                 self._queues[job_id].remove(q)

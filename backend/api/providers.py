@@ -110,4 +110,12 @@ async def update_selection(req: SelectionRequest):
 
     prefs = {"provider": req.provider, "model": req.model}
     _save_prefs(prefs)
+
+    # Persist selection into config.json so the engine picks it up at job start.
+    cfg["providers"]["active"] = req.provider
+    cfg["providers"][req.provider]["model"] = req.model
+    _CONFIG_PATH.write_text(
+        json.dumps(cfg, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
     return prefs

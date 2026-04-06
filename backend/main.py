@@ -33,7 +33,10 @@ from .core.session_store import store
 async def lifespan(app: FastAPI):
     store.load()
     bridge.start_worker()
-    yield
+    try:
+        yield
+    finally:
+        await bridge.stop_worker()
 
 
 app = FastAPI(

@@ -163,10 +163,55 @@ body::after {
 .exec-section { background: var(--panel); border: 1px solid var(--border); padding: 10px 12px; }
 .exec-section h3 { font-size: 11px; letter-spacing: .15em; color: var(--txt2); margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
 #event-feed { font-size: 12px; max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
-.ev-line { padding: 3px 0; border-bottom: 1px solid rgba(30,58,30,.3); display: flex; gap: 8px; }
+.ev-line {
+  padding: 5px 8px;
+  border: 1px solid rgba(30,58,30,.45);
+  background: linear-gradient(90deg, rgba(0,255,65,.03), rgba(20,26,20,.82));
+  display: grid;
+  grid-template-columns: 58px auto 96px 1fr;
+  gap: 8px;
+  align-items: start;
+}
 .ev-time { color: var(--txt3); flex-shrink: 0; font-size: 10px; margin-top: 1px; }
-.ev-type { flex-shrink: 0; font-size: 10px; font-weight: bold; min-width: 80px; }
-.ev-body { color: var(--txt2); word-break: break-all; }
+.ev-branch, .syslog-branch {
+  color: var(--txt3);
+  white-space: pre;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+.ev-type { flex-shrink: 0; font-size: 10px; font-weight: bold; min-width: 80px; letter-spacing: .08em; }
+.ev-body { color: var(--txt2); word-break: break-word; white-space: pre-wrap; }
+.ev-toggle {
+  color: var(--txt3);
+  margin-right: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+.ev-line.collapsible .ev-toggle { color: var(--teal); }
+.ev-line.kind-agent {
+  border-left: 3px solid rgba(0,229,204,.6);
+  background: linear-gradient(90deg, rgba(0,229,204,.08), rgba(20,26,20,.92));
+}
+.ev-line.kind-tool {
+  border-left: 3px solid rgba(255,176,0,.55);
+  background: linear-gradient(90deg, rgba(255,176,0,.08), rgba(20,26,20,.92));
+}
+.ev-line.kind-error {
+  border-left: 3px solid rgba(255,42,42,.6);
+  background: linear-gradient(90deg, rgba(255,42,42,.08), rgba(20,26,20,.92));
+}
+.ev-line.kind-complete {
+  border-left: 3px solid rgba(0,255,65,.55);
+  background: linear-gradient(90deg, rgba(0,255,65,.08), rgba(20,26,20,.92));
+}
+.ev-line.kind-status, .ev-line.kind-session {
+  border-left: 3px solid rgba(122,173,122,.45);
+}
+.ev-line.clickable, .syslog-line.clickable { cursor: pointer; }
+.ev-line.clickable:hover, .syslog-line.clickable:hover {
+  border-color: var(--teal);
+  background: linear-gradient(90deg, rgba(0,229,204,.08), rgba(20,26,20,.92));
+}
 .ev-AGENT_START .ev-type { color: var(--teal); }
 .ev-AGENT_COMPLETE .ev-type { color: var(--green); }
 .ev-TOOL_CALL .ev-type { color: var(--amber); }
@@ -182,6 +227,7 @@ body::after {
 .progress-label { font-size: 11px; color: var(--txt2); margin-left: 6px; }
 
 /* ARTIFACTS PANEL */
+#artifact-actions { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
 #artifact-list { display: flex; flex-direction: column; gap: 6px; }
 .artifact-item {
   background: var(--panel); border: 1px solid var(--border); padding: 8px 12px;
@@ -194,16 +240,75 @@ body::after {
 .artifact-empty { color: var(--txt3); padding: 30px; text-align: center; }
 
 /* PRODUCT PANEL */
+#product-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+#product-files { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.product-file-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--teal);
+  padding: 6px 10px;
+  font-family: var(--font);
+  font-size: 11px;
+  cursor: pointer;
+}
+.product-file-btn:hover { border-color: var(--teal); background: rgba(0,229,204,.08); }
+.product-file-btn.active { border-color: var(--green); color: var(--green); }
+.panel-action-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--teal);
+  padding: 6px 10px;
+  font-family: var(--font);
+  font-size: 11px;
+  cursor: pointer;
+}
+.panel-action-btn:hover { border-color: var(--teal); background: rgba(0,229,204,.08); }
 #product-output {
   background: var(--panel); border: 1px solid var(--border); padding: 12px;
   font-size: 12px; color: var(--txt2); white-space: pre-wrap; word-break: break-word;
   min-height: 200px; line-height: 1.6;
 }
+#product-output pre {
+  background: rgba(10,12,10,.9);
+  border: 1px solid var(--border);
+  padding: 10px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  margin: 10px 0;
+}
+#product-output code { color: var(--amber); }
+#product-output p { margin-bottom: 10px; }
+#product-output h1, #product-output h2, #product-output h3 { color: var(--green); margin: 12px 0 8px; }
+#product-output iframe {
+  width: 100%;
+  min-height: 480px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
 
 /* SYSTEM LOG PANEL */
-#syslog-feed { font-size: 11px; display: flex; flex-direction: column; gap: 2px; }
-.syslog-line { padding: 2px 4px; border-radius: 2px; color: var(--txt2); line-height: 1.5; }
-.syslog-line:nth-child(odd) { background: rgba(20,26,20,.5); }
+#syslog-feed { font-size: 11px; display: flex; flex-direction: column; gap: 4px; }
+.syslog-line {
+  padding: 5px 8px;
+  border-radius: 2px;
+  color: var(--txt2);
+  line-height: 1.5;
+  display: grid;
+  grid-template-columns: 62px auto 120px 1fr;
+  gap: 8px;
+  background: rgba(20,26,20,.55);
+  border: 1px solid rgba(30,58,30,.4);
+}
+.syslog-line:nth-child(odd) { background: rgba(20,26,20,.72); }
+.syslog-time { color: var(--txt3); }
+.syslog-type { font-size: 10px; letter-spacing: .08em; }
+.syslog-body { white-space: pre-wrap; word-break: break-word; }
+.syslog-line.kind-session .syslog-type,
+.syslog-line.kind-status .syslog-type { color: var(--txt2); }
+.syslog-line.kind-agent .syslog-type { color: var(--teal); }
+.syslog-line.kind-tool .syslog-type { color: var(--amber); }
+.syslog-line.kind-error .syslog-type { color: var(--red); }
+.syslog-line.kind-complete .syslog-type { color: var(--green); }
 .cursor-blink::after { content: '█'; animation: blink .9s step-end infinite; color: var(--green); }
 @keyframes blink { 50% { opacity: 0; } }
 
@@ -290,7 +395,7 @@ body::after {
 #preview-overlay.open { display: flex; }
 #preview-box {
   background: var(--panel); border: 1px solid var(--border);
-  width: min(720px, 94vw); max-height: 85vh;
+  width: min(1100px, 96vw); max-height: 90vh;
   display: flex; flex-direction: column;
 }
 #preview-header { padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
@@ -300,6 +405,35 @@ body::after {
 #preview-download { padding: 3px 10px; background: transparent; border: 1px solid var(--teal); color: var(--teal); font-family: var(--font); font-size: 11px; cursor: pointer; }
 #preview-content { overflow-y: auto; flex: 1; padding: 12px; }
 #preview-pre { font-size: 12px; color: var(--txt2); white-space: pre-wrap; word-break: break-all; line-height: 1.5; }
+#preview-content iframe {
+  width: 100%;
+  min-height: 72vh;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+#preview-content img {
+  max-width: 100%;
+  max-height: 74vh;
+  display: block;
+  margin: 0 auto;
+  border: 1px solid var(--border);
+}
+#preview-content pre {
+  background: rgba(10,12,10,.9);
+  border: 1px solid var(--border);
+  padding: 10px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  margin: 10px 0;
+}
+#preview-content code { color: var(--amber); }
+#preview-content p { margin-bottom: 10px; }
+#preview-content h1, #preview-content h2, #preview-content h3 { color: var(--green); margin: 12px 0 8px; }
+#preview-meta {
+  color: var(--txt3);
+  font-size: 11px;
+  margin-right: 6px;
+}
 
 /* ─────────────────────────────────────────────
    UTILITIES
@@ -404,11 +538,19 @@ body::after {
 
         <!-- ARTIFACTS -->
         <div id="tab-artifacts" class="tab-panel">
+          <div id="artifact-actions">
+            <button class="panel-action-btn" onclick="downloadWorkspaceZip()">↓ DOWNLOAD SESSION ZIP</button>
+          </div>
           <div id="artifact-list"><div class="artifact-empty cursor-blink">NO JOB SELECTED</div></div>
         </div>
 
         <!-- PRODUCT -->
         <div id="tab-product" class="tab-panel">
+          <div id="product-actions">
+            <button class="panel-action-btn" onclick="captureProjectScreenshot()">📸 CAPTURE PROJECT SCREENSHOT</button>
+            <button class="panel-action-btn" onclick="downloadWorkspaceZip()">↓ DOWNLOAD SESSION ZIP</button>
+          </div>
+          <div id="product-files"></div>
           <div id="product-output" class="cursor-blink">NO OUTPUT YET</div>
         </div>
 
@@ -469,6 +611,7 @@ body::after {
     <div id="preview-header">
       <span id="preview-filename"></span>
       <div id="preview-header-right">
+        <span id="preview-meta"></span>
         <button id="preview-download" onclick="downloadArtifact()">↓ DOWNLOAD</button>
         <button id="preview-close" onclick="closePreview()">✕</button>
       </div>
@@ -490,6 +633,9 @@ let sse = null;
 let currentPreviewJob = null;
 let currentPreviewFile = null;
 let logFooterCollapsed = false;
+let artifactCache = {};
+let selectedProductPath = null;
+let collapsedEventKeys = new Set();
 
 /* ═══════════════════════════════════════════════════════
    INIT
@@ -794,33 +940,72 @@ function renderEventFeed(events) {
   feed.scrollTop = feed.scrollHeight;
 }
 
+function collapseAllExpandedBranches() {
+  const feed = document.getElementById('event-feed');
+  Array.from(feed.children).forEach((row) => {
+    if (row.classList.contains('collapsible') && row.dataset.collapsed !== 'true') {
+      const key = row.dataset.eventKey;
+      if (key) {
+        collapsedEventKeys.add(key);
+        row.dataset.collapsed = 'true';
+        const toggle = row.querySelector('.ev-toggle');
+        if (toggle) toggle.textContent = '▸';
+      }
+    }
+  });
+  applyEventCollapseVisibility();
+}
+
 function appendEventLine(ev) {
+  // Collapse all previously expanded branches when a new agent loop starts
+  if (ev.type === 'AGENT_START' && (ev.loop || 0) > 1) {
+    collapseAllExpandedBranches();
+  }
   const feed = document.getElementById('event-feed');
   const div = document.createElement('div');
-  div.className = `ev-line ev-${ev.type || 'STATUS'}`;
+  const meta = getTreeMeta(ev);
+  const body = formatEventBody(ev);
+  const eventKey = getEventKey(ev);
+  const collapsible = isEventCollapsible(ev);
+  div.className = `ev-line ev-${ev.type || 'STATUS'} kind-${meta.kind}`;
+  if (collapsible) div.classList.add('collapsible');
+  div.dataset.depth = String(meta.depth || 0);
+  div.dataset.eventKey = eventKey;
+  div.dataset.collapsed = collapsedEventKeys.has(eventKey) ? 'true' : 'false';
+  if (ev.trace_path && selectedJobId) {
+    div.classList.add('clickable');
+    div.ondblclick = () => openArtifactPath(selectedJobId, ev.trace_path);
+  }
   const ts = ev.timestamp ? ev.timestamp.slice(11, 19) : '';
-  let body = '';
-  if (ev.type === 'TOOL_CALL')     body = `${ev.tool || ''} ${JSON.stringify(ev.params || {})}`;
-  else if (ev.type === 'TOOL_RESULT') body = `${ev.tool || ''} (${ev.duration_ms || 0}ms)`;
-  else if (ev.type === 'TOOL_ERROR')  body = `${ev.tool || ''} — ${ev.error || ''}`;
-  else if (ev.type === 'AGENT_START') body = `Agent ${ev.agent_id || ''} loop ${ev.loop || ''}`;
-  else if (ev.type === 'AGENT_COMPLETE') body = `Agent ${ev.agent_id || ''} done (loop ${ev.loop || ''})`;
-  else if (ev.type === 'SESSION_START') body = `Session ${ev.session_id || ''} started`;
-  else if (ev.type === 'SESSION_END')   body = `Session ${ev.session_id || ''} → ${ev.status || ''}`;
-  else if (ev.message)   body = ev.message;
-  else if (ev.status)    body = `Status → ${ev.status}`;
-  else body = JSON.stringify(ev).slice(0, 120);
-  div.innerHTML = `<span class="ev-time">${ts}</span><span class="ev-type">${ev.type || ''}</span><span class="ev-body">${escHtml(body)}</span>`;
+  const toggleGlyph = collapsible ? (collapsedEventKeys.has(eventKey) ? '▸' : '▾') : '·';
+  div.innerHTML = `<span class="ev-time">${ts}</span><span class="ev-branch">${escHtml(meta.branch)}</span><span class="ev-type"><span class="ev-toggle">${toggleGlyph}</span>${ev.type || ''}</span><span class="ev-body">${escHtml(body)}</span>`;
+  if (collapsible) {
+    const toggle = div.querySelector('.ev-toggle');
+    if (toggle) {
+      toggle.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleEventCollapse(eventKey);
+      };
+    }
+  }
   feed.appendChild(div);
+  applyEventCollapseVisibility();
   feed.scrollTop = feed.scrollHeight;
 }
 
-function appendSyslogLine(text) {
+function appendSyslogLine(ev) {
   const feed = document.getElementById('syslog-feed');
   const div = document.createElement('div');
-  div.className = 'syslog-line';
-  const ts = new Date().toISOString().slice(11, 19);
-  div.textContent = `[${ts}] ${text}`;
+  const meta = getTreeMeta(ev);
+  const ts = ev.timestamp ? ev.timestamp.slice(11, 19) : new Date().toISOString().slice(11, 19);
+  const label = [ev.type || 'EVENT', ev.job_id ? `[${ev.job_id}]` : ''].filter(Boolean).join(' ');
+  div.className = `syslog-line kind-${meta.kind}`;
+  if (ev.trace_path && ev.job_id) {
+    div.classList.add('clickable');
+    div.onclick = () => openArtifactPath(ev.job_id, ev.trace_path);
+  }
+  div.innerHTML = `<span class="syslog-time">[${ts}]</span><span class="syslog-branch">${escHtml(meta.branch)}</span><span class="syslog-type">${escHtml(label)}</span><span class="syslog-body">${escHtml(formatEventBody(ev))}</span>`;
   feed.appendChild(div);
   feed.scrollTop = feed.scrollHeight;
 }
@@ -830,8 +1015,28 @@ function appendSyslogLine(text) {
 ═══════════════════════════════════════════════════════ */
 function renderProductPanel(job) {
   const el = document.getElementById('product-output');
+  const filesEl = document.getElementById('product-files');
+  const artifacts = artifactCache[job.job_id] || [];
+  const outputFiles = artifacts.filter(a => a.category === 'outputs' || a.category === 'output');
+
+  filesEl.innerHTML = '';
+  outputFiles.forEach(file => {
+    const btn = document.createElement('button');
+    btn.className = 'product-file-btn' + (selectedProductPath === file.relative_path ? ' active' : '');
+    btn.textContent = file.relative_path;
+    btn.onclick = () => openArtifactPath(job.job_id, file.relative_path);
+    filesEl.appendChild(btn);
+  });
+
+  if (selectedProductPath && outputFiles.some(f => f.relative_path === selectedProductPath)) {
+    return;
+  }
+  if (outputFiles.length) {
+    loadProductArtifact(job.job_id, outputFiles[0].relative_path);
+    return;
+  }
   if (job.output) {
-    el.textContent = job.output;
+    renderProductContent(job.output);
     el.classList.remove('cursor-blink');
   } else if (job.status === 'running') {
     el.textContent = 'EXECUTING…';
@@ -842,6 +1047,52 @@ function renderProductPanel(job) {
   }
 }
 
+async function captureProjectScreenshot() {
+  if (!selectedJobId) {
+    appendFooterLog('WARN: Select a job first to capture screenshot');
+    return;
+  }
+
+  const artifacts = artifactCache[selectedJobId] || [];
+  const htmlArtifact = selectedProductPath && /\.html?$/i.test(selectedProductPath)
+    ? selectedProductPath
+    : (artifacts.find(a => /\.html?$/i.test(a.relative_path || a.name)) || {}).relative_path;
+
+  if (!htmlArtifact) {
+    appendFooterLog('WARN: No HTML output found for screenshot capture');
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/artifacts/${selectedJobId}/actions/screenshot`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({relative_path: htmlArtifact}),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({detail: res.statusText}));
+      throw new Error(err.detail || res.statusText);
+    }
+    const data = await res.json();
+    appendFooterLog(`SCREENSHOT READY: ${data.relative_path}`);
+    await loadArtifacts(selectedJobId);
+    await openArtifactPath(selectedJobId, data.relative_path);
+  } catch (e) {
+    appendFooterLog('ERROR: screenshot capture failed: ' + e.message);
+  }
+}
+
+function downloadWorkspaceZip() {
+  if (!selectedJobId) {
+    appendFooterLog('WARN: Select a job first to download workspace zip');
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = `/api/artifacts/${selectedJobId}/download/workspace.zip`;
+  a.download = `${selectedJobId}.zip`;
+  a.click();
+}
+
 /* ═══════════════════════════════════════════════════════
    ARTIFACTS
 ═══════════════════════════════════════════════════════ */
@@ -850,20 +1101,23 @@ async function loadArtifacts(jobId) {
   el.innerHTML = '<div class="artifact-empty" style="color:var(--txt3)">LOADING…</div>';
   try {
     const list = await fetch(`/api/artifacts/${jobId}`).then(r => r.json());
+    artifactCache[jobId] = list;
     el.innerHTML = '';
     if (!list.length) {
       el.innerHTML = '<div class="artifact-empty">NO ARTIFACTS YET</div>';
+      if (selectedJobId === jobId) renderProductPanel(jobs.find(j => j.job_id === jobId) || {job_id: jobId});
       return;
     }
     list.forEach(a => {
       const div = document.createElement('div');
       div.className = 'artifact-item';
-      div.onclick = () => previewArtifact(jobId, a.name);
+      div.onclick = () => openArtifactPath(jobId, a.relative_path || a.name);
       const kb = (a.size / 1024).toFixed(1);
       const mtime = new Date(a.mtime * 1000).toISOString().slice(0, 19).replace('T', ' ');
-      div.innerHTML = `<span class="artifact-name">📄 ${escHtml(a.name)}</span><span class="artifact-meta">${kb} KB · ${mtime}</span>`;
+      div.innerHTML = `<span class="artifact-name">📄 ${escHtml(a.relative_path || a.name)}</span><span class="artifact-meta">${escHtml(a.category || 'artifact')} · ${kb} KB · ${mtime}</span>`;
       el.appendChild(div);
     });
+    if (selectedJobId === jobId) renderProductPanel(jobs.find(j => j.job_id === jobId) || {job_id: jobId});
   } catch (e) {
     el.innerHTML = `<div class="artifact-empty" style="color:var(--red)">ERROR: ${escHtml(e.message)}</div>`;
   }
@@ -873,18 +1127,62 @@ async function loadArtifacts(jobId) {
    FILE PREVIEW
 ═══════════════════════════════════════════════════════ */
 async function previewArtifact(jobId, name) {
+  return openArtifactPath(jobId, name);
+}
+
+async function openArtifactPath(jobId, relativePath) {
   currentPreviewJob = jobId;
-  currentPreviewFile = name;
-  document.getElementById('preview-filename').textContent = name;
-  document.getElementById('preview-pre').textContent = 'LOADING…';
+  currentPreviewFile = relativePath;
+  document.getElementById('preview-filename').textContent = relativePath;
+  const previewContent = document.getElementById('preview-content');
+  const previewMeta = document.getElementById('preview-meta');
+  previewMeta.textContent = '';
+  previewContent.innerHTML = '<pre id="preview-pre">LOADING…</pre>';
   document.getElementById('preview-overlay').classList.add('open');
+  if (selectedJobId === jobId) {
+    selectedProductPath = relativePath;
+    const buttons = document.querySelectorAll('.product-file-btn');
+    buttons.forEach(btn => btn.classList.toggle('active', btn.textContent === relativePath));
+  }
+  const url = artifactFileUrl(jobId, relativePath);
+  const ext = fileExt(relativePath);
   try {
-    const res = await fetch(`/api/artifacts/${jobId}/${encodeURIComponent(name)}`);
+    if (['pdf', 'html', 'htm'].includes(ext)) {
+      previewMeta.textContent = ext.toUpperCase();
+      previewContent.innerHTML = `<iframe src="${url}" title="Artifact preview"></iframe>`;
+      return;
+    }
+    if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) {
+      previewMeta.textContent = ext.toUpperCase();
+      previewContent.innerHTML = `<img src="${url}" alt="Artifact image preview">`;
+      return;
+    }
+
+    const res = await fetch(url);
     if (!res.ok) throw new Error(res.statusText);
     const text = await res.text();
-    document.getElementById('preview-pre').textContent = text;
+    const contentType = (res.headers.get('content-type') || '').toLowerCase();
+
+    if (ext === 'json' || contentType.includes('application/json')) {
+      previewMeta.textContent = 'JSON';
+      try {
+        previewContent.innerHTML = `<pre>${escHtml(JSON.stringify(JSON.parse(text), null, 2))}</pre>`;
+      } catch (e) {
+        previewContent.innerHTML = `<pre>${escHtml(text)}</pre>`;
+      }
+      return;
+    }
+
+    if (ext === 'md' || contentType.includes('text/markdown')) {
+      previewMeta.textContent = 'MARKDOWN';
+      previewContent.innerHTML = renderMarkdown(text);
+      return;
+    }
+
+    previewMeta.textContent = ext ? ext.toUpperCase() : 'TEXT';
+    previewContent.innerHTML = `<pre>${escHtml(text)}</pre>`;
   } catch (e) {
-    document.getElementById('preview-pre').textContent = 'ERROR: ' + e.message;
+    previewContent.innerHTML = `<pre>ERROR: ${escHtml(e.message)}</pre>`;
   }
 }
 
@@ -896,9 +1194,19 @@ function closePreview(e) {
 function downloadArtifact() {
   if (!currentPreviewJob || !currentPreviewFile) return;
   const a = document.createElement('a');
-  a.href = `/api/artifacts/${currentPreviewJob}/${encodeURIComponent(currentPreviewFile)}`;
-  a.download = currentPreviewFile;
+  a.href = artifactFileUrl(currentPreviewJob, currentPreviewFile);
+  a.download = currentPreviewFile.split('/').pop();
   a.click();
+}
+
+function artifactFileUrl(jobId, relativePath) {
+  return `/api/artifacts/${jobId}/file/${relativePath.split('/').map(encodeURIComponent).join('/')}`;
+}
+
+function fileExt(path) {
+  const name = (path || '').toLowerCase();
+  const dot = name.lastIndexOf('.');
+  return dot >= 0 ? name.slice(dot + 1) : '';
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -939,8 +1247,8 @@ function handleEvent(ev) {
   const jobId = ev.job_id;
 
   // Append to system log tab
-  const sysText = ev.type + (jobId ? ` [${jobId}]` : '') + ' ' + (ev.message || ev.status || JSON.stringify(ev).slice(0, 80));
-  appendSyslogLine(sysText);
+  const sysText = ev.type + (jobId ? ` [${jobId}]` : '') + ' ' + formatEventBody(ev);
+  appendSyslogLine(ev);
   appendFooterLog(sysText);
 
   if (!jobId) return;
@@ -955,6 +1263,7 @@ function handleEvent(ev) {
       if (selectedJobId === jobId) {
         updateJobControls(job);
         renderExecutionPanel(job);
+        renderProductPanel(job);
       }
     } else {
       // New job from restart — reload
@@ -969,11 +1278,66 @@ function handleEvent(ev) {
       job.events = job.events || [];
       job.events.push(ev);
       appendEventLine(ev);
+      if (ev.type === 'ARTIFACT_CREATED') {
+        loadArtifacts(jobId);
+      }
       if (ev.type === 'JOB_COMPLETE' || ev.type === 'SESSION_END') {
         refreshJob(jobId);
+        loadArtifacts(jobId);
       }
     }
   }
+}
+
+function isEventCollapsible(ev) {
+  const type = ev.type || '';
+  return type === 'SESSION_START' || type === 'AGENT_START' || type === 'TOOL_CALL' || type === 'PROVIDER_TRACE';
+}
+
+function getEventKey(ev) {
+  return [
+    ev.timestamp || '',
+    ev.type || '',
+    ev.agent_id || '',
+    ev.loop || '',
+    ev.call_index || '',
+    ev.tool || '',
+    ev.phase || '',
+  ].join('|');
+}
+
+function toggleEventCollapse(eventKey) {
+  if (collapsedEventKeys.has(eventKey)) {
+    collapsedEventKeys.delete(eventKey);
+  } else {
+    collapsedEventKeys.add(eventKey);
+  }
+  const feed = document.getElementById('event-feed');
+  Array.from(feed.children).forEach((row) => {
+    if (row.dataset.eventKey === eventKey) {
+      row.dataset.collapsed = collapsedEventKeys.has(eventKey) ? 'true' : 'false';
+      const toggle = row.querySelector('.ev-toggle');
+      if (toggle) toggle.textContent = collapsedEventKeys.has(eventKey) ? '▸' : '▾';
+    }
+  });
+  applyEventCollapseVisibility();
+}
+
+function applyEventCollapseVisibility() {
+  const feed = document.getElementById('event-feed');
+  const rows = Array.from(feed.children);
+  const collapsedDepthStack = [];
+  rows.forEach((row) => {
+    const depth = Number(row.dataset.depth || '0');
+    while (collapsedDepthStack.length && depth <= collapsedDepthStack[collapsedDepthStack.length - 1]) {
+      collapsedDepthStack.pop();
+    }
+    const hidden = collapsedDepthStack.length > 0 && depth > collapsedDepthStack[collapsedDepthStack.length - 1];
+    row.style.display = hidden ? 'none' : '';
+    if (!hidden && row.dataset.collapsed === 'true') {
+      collapsedDepthStack.push(depth);
+    }
+  });
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -989,6 +1353,104 @@ function appendFooterLog(text) {
   // Keep max 200 lines
   while (body.children.length > 200) body.removeChild(body.firstChild);
   if (!logFooterCollapsed) body.scrollTop = body.scrollHeight;
+}
+
+function getTreeMeta(ev) {
+  const type = ev.type || 'STATUS';
+  if (type === 'SESSION_START' || type === 'SESSION_END') {
+    return {depth: 0, branch: '■ ', kind: 'session'};
+  }
+  if (type === 'STATUS' || type === 'JOB_COMPLETE') {
+    return {depth: 0, branch: '■ ', kind: type === 'JOB_COMPLETE' ? 'complete' : 'status'};
+  }
+  if (type === 'SYSTEM_PROFILE' || type === 'ARTIFACT_CREATED') {
+    return {depth: 1, branch: buildTreeBranch(1, true), kind: 'status'};
+  }
+  if (type === 'PROVIDER_TRACE') {
+    return {depth: 2, branch: buildTreeBranch(2, false), kind: ev.phase && String(ev.phase).includes('failed') ? 'error' : 'status'};
+  }
+  if (type === 'AGENT_START' || type === 'AGENT_COMPLETE') {
+    return {depth: 1, branch: buildTreeBranch(1, type === 'AGENT_COMPLETE'), kind: type === 'AGENT_COMPLETE' ? 'complete' : 'agent'};
+  }
+  if (type === 'AGENT_MESSAGE') {
+    return {depth: 2, branch: buildTreeBranch(2, true), kind: 'agent'};
+  }
+  if (type === 'TOOL_CALL') {
+    return {depth: 2, branch: buildTreeBranch(2, false), kind: 'tool'};
+  }
+  if (type === 'TOOL_RESULT' || type === 'TOOL_ERROR') {
+    return {depth: 3, branch: buildTreeBranch(3, true), kind: type === 'TOOL_RESULT' ? 'complete' : 'error'};
+  }
+  if (type === 'ERROR') {
+    return {depth: 1, branch: buildTreeBranch(1, true), kind: 'error'};
+  }
+  return {depth: 1, branch: buildTreeBranch(1, false), kind: 'status'};
+}
+
+function buildTreeBranch(depth, isTerminal) {
+  if (depth <= 0) return '■ ';
+  return '│  '.repeat(Math.max(0, depth - 1)) + (isTerminal ? '└─ ' : '├─ ');
+}
+
+function formatEventBody(ev) {
+  if (ev.type === 'PROVIDER_TRACE') {
+    return `${ev.phase || 'provider'} ${formatCompactJson({...ev, type: undefined, timestamp: undefined, job_id: undefined}, 220)}`;
+  }
+  if (ev.type === 'AGENT_MESSAGE') {
+    return `loop ${ev.loop || '?'} request=${ev.request_preview || ''} response=${ev.response_preview || ''}`;
+  }
+  if (ev.type === 'SYSTEM_PROFILE') {
+    return `runtime ${ev.system || 'unknown'} ${ev.release || ''} shell=${ev.shell || 'auto'}`;
+  }
+  if (ev.type === 'ARTIFACT_CREATED') {
+    return `artifact created at ${ev.path || ''}`;
+  }
+  if (ev.type === 'TOOL_CALL') {
+    return `${ev.tool || 'tool'} ${formatCompactJson(ev.params || {}, 180)}`;
+  }
+  if (ev.type === 'TOOL_RESULT') {
+    const resultText = ev.result !== undefined ? ` result=${formatCompactJson(ev.result, 120)}` : '';
+    return `${ev.tool || 'tool'} completed in ${ev.duration_ms || 0}ms${resultText}`;
+  }
+  if (ev.type === 'TOOL_ERROR') {
+    return `${ev.tool || 'tool'} failed: ${ev.error || 'unknown error'}`;
+  }
+  if (ev.type === 'AGENT_START') {
+    return `agent ${ev.agent_id || 'unknown'} entered loop ${ev.loop || '?'}`;
+  }
+  if (ev.type === 'AGENT_COMPLETE') {
+    return `agent ${ev.agent_id || 'unknown'} completed loop ${ev.loop || '?'} with ${ev.response_len || 0} chars`;
+  }
+  if (ev.type === 'SESSION_START') {
+    return `session ${ev.session_id || 'unknown'} started`;
+  }
+  if (ev.type === 'SESSION_END') {
+    return `session ${ev.session_id || 'unknown'} ended with status ${ev.status || 'unknown'} after ${ev.loops || '?'} loops`;
+  }
+  if (ev.type === 'JOB_COMPLETE') {
+    return `job completed with session ${ev.session_id || 'unknown'} and status ${ev.status || 'completed'}`;
+  }
+  if (ev.type === 'STATUS') {
+    return `job status -> ${ev.status || 'unknown'}${ev.error ? ` (${ev.error})` : ''}`;
+  }
+  if (ev.message) {
+    return ev.message;
+  }
+  if (ev.status) {
+    return `status -> ${ev.status}`;
+  }
+  return formatCompactJson(ev, 180);
+}
+
+function formatCompactJson(value, maxLen) {
+  let text = '';
+  try {
+    text = typeof value === 'string' ? value : JSON.stringify(value);
+  } catch (e) {
+    text = String(value);
+  }
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen - 1) + '…';
 }
 
 function toggleLogFooter() {
@@ -1017,9 +1479,55 @@ function clearContentPanels() {
   document.getElementById('exec-empty').style.display = '';
   document.getElementById('exec-info').style.display = 'none';
   document.getElementById('artifact-list').innerHTML = '<div class="artifact-empty cursor-blink">NO JOB SELECTED</div>';
+  document.getElementById('product-files').innerHTML = '';
   document.getElementById('product-output').textContent = 'NO OUTPUT YET';
   document.getElementById('product-output').classList.add('cursor-blink');
   document.getElementById('event-feed').innerHTML = '';
+}
+
+async function loadProductArtifact(jobId, relativePath) {
+  const output = document.getElementById('product-output');
+  selectedProductPath = relativePath;
+  try {
+    const res = await fetch(`/api/artifacts/${jobId}/file/${relativePath.split('/').map(encodeURIComponent).join('/')}`);
+    if (!res.ok) throw new Error(res.statusText);
+    const text = await res.text();
+    renderProductContent(text, relativePath);
+    output.classList.remove('cursor-blink');
+    const buttons = document.querySelectorAll('.product-file-btn');
+    buttons.forEach(btn => btn.classList.toggle('active', btn.textContent === relativePath));
+  } catch (e) {
+    output.textContent = 'ERROR: ' + e.message;
+  }
+}
+
+function renderProductContent(text, relativePath='') {
+  const el = document.getElementById('product-output');
+  if ((relativePath || '').toLowerCase().endsWith('.html')) {
+    const src = `/api/artifacts/${selectedJobId}/file/${relativePath.split('/').map(encodeURIComponent).join('/')}`;
+    el.innerHTML = `<iframe src="${src}" title="Rendered product output"></iframe>`;
+    return;
+  }
+  const looksMarkdown = /```|^#|\n#|\n- |\n\* /m.test(text);
+  if (looksMarkdown) {
+    el.innerHTML = renderMarkdown(text);
+  } else {
+    el.textContent = text;
+  }
+}
+
+function renderMarkdown(text) {
+  let html = escHtml(text);
+  html = html.replace(/```([a-zA-Z0-9_-]+)?\n([\s\S]*?)```/g, (_, lang, code) => `<pre><code data-lang="${lang || ''}">${code.trim()}</code></pre>`);
+  html = html.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  html = html.replace(/\n\n+/g, '</p><p>');
+  html = `<p>${html}</p>`;
+  html = html.replace(/<p><h/g, '<h').replace(/<\/h([123])><\/p>/g, '</h$1>');
+  html = html.replace(/<p><pre>/g, '<pre>').replace(/<\/pre><\/p>/g, '</pre>');
+  return html;
 }
 
 /* keyboard shortcuts */

@@ -187,7 +187,11 @@ class ToolExecutor:
             mod = self._load_module(impl_path)
             if not hasattr(mod, "main"):
                 raise AttributeError(f"No main() in {impl_path.name}")
-            return mod.main(**params)
+            try:
+                return mod.main(**params)
+            except SystemExit as exc:
+                code = exc.code if isinstance(exc.code, int) else 1
+                raise RuntimeError(f"Tool exited via SystemExit(code={code})") from exc
         finally:
             if injected:
                 try:

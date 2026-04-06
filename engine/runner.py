@@ -67,9 +67,23 @@ class EngineRunner:
         self.events = EventStream(verbose=self.verbose, callbacks=existing_callbacks)
 
         self.events.emit(EventType.SESSION_START, session_id=sid, agent_id=agent_id)
+        system_profile = session.record_system_profile(agent_id=agent_id)
+        self.events.emit(
+            EventType.SYSTEM_PROFILE,
+            session_id=sid,
+            system=system_profile.get("system"),
+            release=system_profile.get("release"),
+            shell=(system_profile.get("shell") or {}).get("env") or "auto",
+        )
 
         # Build initial system prompt and message history
         system_prompt = self._bridge.build_system_prompt(agent_id)
+        system_prompt = (
+            system_prompt
+            + "\n\n---\n\n"
+            + "Execution environment profile:\n"
+            + json.dumps(system_profile, indent=2, ensure_ascii=False)
+        )
         messages = [{"role": "user", "content": user_input}]
 
         final_output = ""
@@ -82,20 +96,53 @@ class EngineRunner:
 
             # Call provider
             try:
-                response = self._bridge.call_provider(messages=messages, system=system_prompt)
+                response = self._bridge.call_provider(
+                    messages=messages,
+                    system=system_prompt,
+                    event_callback=lambda name, payload: self.events.emit(
+                        EventType.PROVIDER_TRACE,
+                        session_id=sid,
+                        phase=name,
+                        **payload,
+                    ),
+                )
             except Exception as exc:
                 self.events.emit(EventType.ERROR, message=str(exc), loop=loop)
                 session.log_event("error", {"message": str(exc), "loop": loop})
                 break
 
-            self.events.emit(EventType.AGENT_COMPLETE, agent_id=agent_id, loop=loop, response_len=len(response))
-            session.log_agent(agent_id, messages[-1].get("content", ""), response)
+            agent_log = session.log_agent(agent_id, messages[-1].get("content", ""), response)
+            self.events.emit(
+                EventType.AGENT_COMPLETE,
+                agent_id=agent_id,
+                loop=loop,
+                response_len=len(response),
+                trace_path=agent_log.get("trace_path"),
+            )
+
+            tool_calls = extract_tool_calls(response)
+            cycle = session.log_agent_cycle(
+                agent_id=agent_id,
+                loop=loop,
+                system_prompt=system_prompt,
+                messages=messages,
+                response=response,
+                tool_calls=[{"tool": tc.tool_name, "params": tc.params, "raw": tc.raw} for tc in tool_calls],
+            )
+            self.events.emit(
+                EventType.AGENT_MESSAGE,
+                session_id=sid,
+                agent_id=agent_id,
+                loop=loop,
+                trace_path=cycle["trace_path"],
+                request_preview=messages[-1].get("content", "")[:400],
+                response_preview=response[:400],
+            )
 
             # Append assistant message to context
             messages.append({"role": "assistant", "content": response})
 
             # Check for tool calls
-            tool_calls = extract_tool_calls(response)
             if not tool_calls:
                 # No tools → done
                 final_output = response
@@ -104,22 +151,30 @@ class EngineRunner:
 
             # Execute each tool call
             tool_results = []
-            for tc in tool_calls:
-                self.events.emit(EventType.TOOL_CALL, tool=tc.tool_name, params=tc.params)
+            for index, tc in enumerate(tool_calls, start=1):
+                self.events.emit(EventType.TOOL_CALL, tool=tc.tool_name, params=tc.params, loop=loop, call_index=index)
                 result = self._tool_executor.execute(tc)
-                session.log_tool_call(tc.tool_name, tc.params, result)
+                tool_log = session.log_tool_call(tc.tool_name, tc.params, result)
 
                 if result["status"] == "success":
                     self.events.emit(
                         EventType.TOOL_RESULT,
                         tool=tc.tool_name,
                         duration_ms=result["duration_ms"],
+                        result=result.get("result"),
+                        loop=loop,
+                        call_index=index,
+                        trace_path=tool_log.get("trace_path"),
                     )
                 else:
                     self.events.emit(
                         EventType.TOOL_ERROR,
                         tool=tc.tool_name,
                         error=result["result"],
+                        result=result.get("result"),
+                        loop=loop,
+                        call_index=index,
+                        trace_path=tool_log.get("trace_path"),
                     )
                 tool_results.append(result)
 
@@ -127,6 +182,9 @@ class EngineRunner:
             messages = self._bridge.build_context(messages, tool_results)
 
         self.events.emit(EventType.SESSION_END, session_id=sid, status=status, loops=loop)
+        output_path = session.log_product_output(final_output or (messages[-1].get("content", "") if messages else ""))
+        if output_path:
+            self.events.emit(EventType.ARTIFACT_CREATED, session_id=sid, category="output", path=output_path)
         session.close(status=status)
 
         return {

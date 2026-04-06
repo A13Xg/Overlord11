@@ -3,7 +3,7 @@
   "name": "Overlord11",
   "description": "Provider-agnostic multi-agent LLM toolset",
   "providers": {
-    "active": "anthropic",
+    "active": "gemini",
     "anthropic": {
       "model": "claude-opus-4-5",
       "available_models": {
@@ -21,15 +21,28 @@
       "api_base": "https://api.anthropic.com/v1"
     },
     "gemini": {
-      "model": "gemini-2.5-pro",
+      "model": "gemini-3.1-pro-preview",
       "available_models": {
-        "gemini-2.5-pro": "Most capable Gemini — best for complex tasks, long context (1M tokens), multimodal",
-        "gemini-2.5-flash": "Fast + capable — best balance of speed and quality for most tasks",
-        "gemini-2.5-flash-lite": "Ultra-fast / cheapest — high-volume, latency-critical workloads",
-        "gemini-2.0-pro": "Previous Pro generation — strong reasoning, multimodal support",
-        "gemini-2.0-flash": "Previous Flash — fast, reliable, widely supported",
-        "gemini-1.5-pro": "Legacy long-context model — 2M token window, good for document-heavy tasks",
-        "gemini-1.5-flash": "Legacy fast model — cost-effective for simpler tasks"
+        "gemini-3.1-pro-preview": "Latest Pro Preview — advanced reasoning, tool use, 1M context, agentic workflows (Feb 2026)",
+        "gemini-3-flash-preview": "Latest Flash Preview — frontier multimodal, strongest agentic/vibe-coding, 1M context (Dec 2025)",
+        "gemini-3.1-flash-lite-preview": "Latest Flash-Lite Preview — fastest budget model, 1M context, low-latency (Mar 2026)",
+        "gemini-2.5-pro": "Stable Pro — deep reasoning, 1M context, multimodal, best for complex tasks",
+        "gemini-2.5-flash": "Stable Flash — best price-performance, low-latency, high-volume tasks",
+        "gemini-2.5-flash-lite": "Stable Flash-Lite — fastest/cheapest in 2.5 family, budget high-frequency tasks",
+        "gemini-2.0-flash": "Previous Flash (deprecated) — fast, 1M context, native tool use",
+        "gemini-1.5-pro": "Legacy Pro — 2M context window, good for document-heavy tasks",
+        "gemini-1.5-flash": "Legacy Flash — cost-effective for simpler tasks",
+        "gemma-4-31b-it": "Gemma 4 31B — dense, 256K context, frontier reasoning and coding (Apr 2026)",
+        "gemma-4-26b-a4b-it": "Gemma 4 26B MoE (A4B active) — fast MoE inference, 256K context (Apr 2026)",
+        "gemma-4-e4b-it": "Gemma 4 E4B (4.5B effective) — multimodal with audio, 128K context, laptop/server",
+        "gemma-4-e2b-it": "Gemma 4 E2B (2.3B effective) — multimodal with audio, 128K context, on-device",
+        "gemma-3-27b-it": "Gemma 3 27B — 128K context, multilingual 140+ languages, vision+text",
+        "gemma-3-12b-it": "Gemma 3 12B — balanced capability, 128K context, multimodal",
+        "gemma-3-4b-it": "Gemma 3 4B — lightweight, 128K context, edge deployment",
+        "gemma-3-1b-it": "Gemma 3 1B — smallest Gemma 3, 32K context, ultra-low-resource",
+        "gemma-2-27b-it": "Gemma 2 27B — previous gen large, strong general-purpose",
+        "gemma-2-9b-it": "Gemma 2 9B — previous gen mid, efficient general use",
+        "gemma-2-2b-it": "Gemma 2 2B — previous gen compact, minimal resource footprint"
       },
       "api_key_env": "GOOGLE_GEMINI_API_KEY",
       "max_tokens": 8192,

@@ -115,6 +115,14 @@ class SessionStore:
             return True
         return False
 
+    def append_event(self, job_id: str, event: dict) -> Optional[Job]:
+        job = self._jobs.get(job_id)
+        if job is None:
+            return None
+        job.events.append(event)
+        self.persist()
+        return job
+
     # ------------------------------------------------------------------
     # Persistence
     # ------------------------------------------------------------------

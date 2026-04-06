@@ -26,6 +26,7 @@ class EngineBridge:
         self.job_queue: asyncio.Queue = asyncio.Queue()
         self._current_job_id: Optional[str] = None
         self._worker_task: Optional[asyncio.Task] = None
+        self._shutdown_requested = False
 
     # ------------------------------------------------------------------
     # Worker lifecycle
@@ -33,33 +34,54 @@ class EngineBridge:
 
     def start_worker(self) -> asyncio.Task:
         """Start the background worker that processes jobs sequentially."""
+        if self._worker_task is not None and not self._worker_task.done():
+            return self._worker_task
+        self._shutdown_requested = False
         self._worker_task = asyncio.create_task(self._worker_loop())
         return self._worker_task
 
+    async def stop_worker(self) -> None:
+        """Cancel the background worker and await clean shutdown."""
+        self._shutdown_requested = True
+        if self._worker_task is None:
+            return
+        self._worker_task.cancel()
+        try:
+            await self._worker_task
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self._worker_task = None
+
     async def _worker_loop(self) -> None:
-        while True:
-            job_id = await self.job_queue.get()
-            try:
-                await self.run_job(
-                    job_id=job_id,
-                    store=default_store,
-                    broadcaster=default_broadcaster,
-                )
-            except Exception as exc:
-                default_store.update_job(
-                    job_id,
-                    status=JobStatus.FAILED,
-                    error=str(exc),
-                    completed_at=datetime.now(timezone.utc).isoformat(),
-                )
-                default_broadcaster.publish(job_id, {
-                    "type": "ERROR",
-                    "job_id": job_id,
-                    "message": str(exc),
-                })
-            finally:
-                self.job_queue.task_done()
-                self._current_job_id = None
+        try:
+            while True:
+                job_id = await self.job_queue.get()
+                try:
+                    await self.run_job(
+                        job_id=job_id,
+                        store=default_store,
+                        broadcaster=default_broadcaster,
+                    )
+                except Exception as exc:
+                    default_store.update_job(
+                        job_id,
+                        status=JobStatus.FAILED,
+                        error=str(exc),
+                        completed_at=datetime.now(timezone.utc).isoformat(),
+                    )
+                    default_broadcaster.publish(job_id, {
+                        "type": "ERROR",
+                        "job_id": job_id,
+                        "message": str(exc),
+                    })
+                finally:
+                    self.job_queue.task_done()
+                    self._current_job_id = None
+        except asyncio.CancelledError:
+            if self._current_job_id and not self._shutdown_requested:
+                raise
+            return
 
     # ------------------------------------------------------------------
     # Job execution
@@ -92,9 +114,7 @@ class EngineBridge:
         def _event_callback(event: dict) -> None:
             """Sync callback — called from within EngineRunner.run()."""
             # Append to job event list
-            job_obj = store.get_job(job_id)
-            if job_obj is not None:
-                job_obj.events.append(event)
+            store.append_event(job_id, event)
             broadcaster.publish(job_id, {**event, "job_id": job_id})
 
         runner = EngineRunner(verbose=False)

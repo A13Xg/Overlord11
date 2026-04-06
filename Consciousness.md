@@ -72,6 +72,14 @@ _No active signals._
 
 <!-- Persistent context that all agents should be aware of -->
 
+### [PERSISTENT] Execution Environment Profile
+- **Source**: SYSTEM
+- **Created**: 2026-04-06 00:24
+- **TTL**: persistent
+- **Status**: ACTIVE
+- **Context**: Runtime host is Linux 6.8.0-1044-azure on x86_64. Preferred shell is /bin/bash; Python 3.12.1.
+- **Action**: Use Unix-style shell commands on non-Windows hosts, Windows shell commands only when the runtime profile explicitly shows a Windows shell.
+
 ### [PERSISTENT] Active Model Configuration
 - **Source**: SYSTEM
 - **Created**: 2026-01-12
