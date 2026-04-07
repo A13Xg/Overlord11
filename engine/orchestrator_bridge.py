@@ -8,10 +8,16 @@ import json
 import logging
 import os
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any, List, Optional
+
+try:
+    from .rate_limit import AllProvidersRateLimitedError, RateLimitError, parse_retry_after
+except ImportError:
+    from rate_limit import AllProvidersRateLimitedError, RateLimitError, parse_retry_after  # type: ignore[no-redef]
 
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
@@ -86,6 +92,9 @@ class OrchestratorBridge:
             self._diagnose_providers(order, event_callback=event_callback)
 
         last_err: Optional[Exception] = None
+        attempted_providers: set = set()
+        provider_cooldowns: dict = {}  # provider_name → monotonic timestamp when available
+
         for provider_name in order:
             provider_cfg = self._providers.get(provider_name, {})
             if not provider_cfg:
@@ -109,6 +118,8 @@ class OrchestratorBridge:
                 self._provider_status_detail[provider_name] = f"missing env {provider_cfg.get('api_key_env', '')}"
                 self._emit_provider_trace(event_callback, "provider_skipped", provider=provider_name, reason=self._provider_status_detail[provider_name])
                 continue
+
+            attempted_providers.add(provider_name)
             try:
                 self._provider_status_detail[provider_name] = "request in progress"
                 response = self._dispatch_with_model_fallback(
@@ -121,12 +132,24 @@ class OrchestratorBridge:
                 )
                 self._sticky_provider = provider_name
                 return response
+            except RateLimitError as exc:
+                last_err = exc
+                provider_cooldowns[provider_name] = time.monotonic() + exc.retry_after_s
+                self._provider_status_detail[provider_name] = f"rate limited ({exc.retry_after_s:.0f}s)"
+                self._logger.warning("Provider '%s' rate limited (%.0fs); falling back", provider_name, exc.retry_after_s)
+                self._emit_provider_trace(event_callback, "provider_rate_limited", provider=provider_name, retry_after_s=exc.retry_after_s)
+                continue
             except Exception as exc:
                 last_err = exc
                 self._provider_status_detail[provider_name] = f"all models failed: {exc}"
                 self._logger.warning("Provider '%s' failed across models (%s); falling back", provider_name, exc)
                 self._emit_provider_trace(event_callback, "provider_failed", provider=provider_name, error=str(exc))
                 continue
+
+        # If every attempted provider was rate limited (and none had hard errors), surface that
+        # so the caller can pause and retry instead of treating this as a permanent failure.
+        if provider_cooldowns and provider_cooldowns.keys() == attempted_providers:
+            raise AllProvidersRateLimitedError(provider_cooldowns)
 
         raise RuntimeError(self._format_provider_failure(order, last_err)) from last_err
 
@@ -163,6 +186,8 @@ class OrchestratorBridge:
 
         model_errors: List[str] = []
         last_exc: Optional[Exception] = None
+        # model_name → monotonic timestamp when this model becomes available again.
+        rate_limited_models: dict = {}
 
         for model_name in model_order:
             try:
@@ -181,11 +206,30 @@ class OrchestratorBridge:
                 self._provider_status_detail[provider] = f"success model {model_name}"
                 self._emit_provider_trace(event_callback, "model_success", provider=provider, model=model_name)
                 return response
+            except urllib.error.HTTPError as exc:
+                if exc.code == 429:
+                    retry_s = parse_retry_after(exc)
+                    rate_limited_models[model_name] = time.monotonic() + retry_s
+                    model_errors.append(f"{model_name}: rate limited ({retry_s:.0f}s)")
+                    self._logger.warning("Provider '%s' model '%s' rate limited (%.0fs)", provider, model_name, retry_s)
+                    self._emit_provider_trace(event_callback, "model_rate_limited", provider=provider, model=model_name, retry_after_s=retry_s)
+                    last_exc = exc
+                else:
+                    last_exc = exc
+                    model_errors.append(f"{model_name}: HTTP {exc.code}")
+                    self._logger.warning("Provider '%s' model '%s' failed (HTTP %d)", provider, model_name, exc.code)
+                    self._emit_provider_trace(event_callback, "model_failed", provider=provider, model=model_name, error=str(exc))
             except Exception as exc:
                 last_exc = exc
                 model_errors.append(f"{model_name}: {exc}")
                 self._logger.warning("Provider '%s' model '%s' failed (%s)", provider, model_name, exc)
                 self._emit_provider_trace(event_callback, "model_failed", provider=provider, model=model_name, error=str(exc))
+
+        # If every model failure was a rate limit, surface a RateLimitError so
+        # call_provider() can accumulate per-provider cooldowns.
+        if rate_limited_models and len(rate_limited_models) == len(model_errors):
+            max_ts = max(rate_limited_models.values())
+            raise RateLimitError(provider, "all-models", max_ts - time.monotonic(), "all models rate limited")
 
         joined = "; ".join(model_errors)
         raise RuntimeError(joined or "all model attempts failed") from last_exc
@@ -332,6 +376,9 @@ class OrchestratorBridge:
             self._diagnose_providers(order, event_callback=event_callback)
 
         last_err: Optional[Exception] = None
+        attempted_providers: set = set()
+        provider_cooldowns: dict = {}  # provider_name → monotonic timestamp when available
+
         for provider_name in order:
             provider_cfg = self._providers.get(provider_name, {})
             if not provider_cfg:
@@ -342,8 +389,12 @@ class OrchestratorBridge:
             if not api_key:
                 self._provider_availability[provider_name] = False
                 continue
+
+            attempted_providers.add(provider_name)
             try:
                 model_order = self._get_model_fallback_order(provider_name, provider_cfg)
+                rate_limited_models: dict = {}
+
                 for model_name in model_order:
                     try:
                         self._emit_provider_trace(
@@ -357,17 +408,46 @@ class OrchestratorBridge:
                         self._sticky_provider = provider_name
                         self._sticky_model_by_provider[provider_name] = model_name
                         return result
+                    except urllib.error.HTTPError as exc:
+                        if exc.code == 429:
+                            retry_s = parse_retry_after(exc)
+                            rate_limited_models[model_name] = time.monotonic() + retry_s
+                            self._logger.warning(
+                                "Streaming rate limited for %s/%s (%.0fs)", provider_name, model_name, retry_s
+                            )
+                            self._emit_provider_trace(
+                                event_callback, "model_rate_limited",
+                                provider=provider_name, model=model_name, retry_after_s=retry_s,
+                            )
+                            last_err = exc
+                        else:
+                            self._logger.warning(
+                                "Streaming failed for %s/%s (HTTP %d); trying next", provider_name, model_name, exc.code
+                            )
+                            last_err = exc
+                        continue
                     except Exception as exc:
                         self._logger.warning(
                             "Streaming failed for %s/%s (%s); trying next", provider_name, model_name, exc
                         )
                         last_err = exc
                         continue
+
+                # All models for this provider were rate limited
+                if rate_limited_models and len(rate_limited_models) == len(model_order):
+                    max_ts = max(rate_limited_models.values())
+                    provider_cooldowns[provider_name] = max_ts
+                    continue
+
             except Exception as exc:
                 last_err = exc
                 continue
 
-        # All streaming attempts failed — fall back to non-streaming
+        # All streaming attempts failed — check if everything was rate limited.
+        if provider_cooldowns and provider_cooldowns.keys() == attempted_providers:
+            raise AllProvidersRateLimitedError(provider_cooldowns)
+
+        # Fall back to non-streaming
         self._logger.warning("All streaming attempts failed (%s); falling back to non-streaming", last_err)
         return self.call_provider(messages=messages, system=system, event_callback=event_callback)
 

@@ -34,6 +34,9 @@ class EventType(str, Enum):
     # Notifications: emitted by notification_tool to push browser toasts to the operator.
     # Payload: {title: str, message: str, severity: str, session_id: str|None}
     NOTIFICATION = "NOTIFICATION"
+    # Rate limit: emitted when all providers are exhausted and the runner is pausing.
+    # Payload: {wait_s: float, resume_at: str (ISO), retry_num: int, providers: list[str]}
+    RATE_LIMITED = "RATE_LIMITED"
 
 
 class EventStream:

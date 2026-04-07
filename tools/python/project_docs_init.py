@@ -9,8 +9,8 @@ Initializes the standardized documentation files within a sandboxed project dire
   - ErrorLog.md         — Error tracking with severity and resolution
 
 Usage:
-    python project_docs_init.py --project_dir /path/to/project --project_name "My App"
-    python project_docs_init.py --project_dir /path/to/project --project_name "My App" --language python
+    python project_docs_init.py --project_dir /path/to/task --project_name "My App"
+    python project_docs_init.py --project_dir /path/to/task --project_name "My App" --language python
 """
 
 import io
@@ -23,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from log_manager import log_tool_invocation
+from task_workspace import env_task_dir
 
 
 def _timestamp() -> str:
@@ -64,8 +65,13 @@ _(To be filled: describe the project's core purpose, target users, and key value
 
 ### Directory Structure
 ```
-{project_name}/
-  (describe the project layout here)
+task-root/
+  app/                  # software project source, if applicable
+  agent/                # agent notes/data
+  tools/                # tool caches, web scrape results, screenshots
+  logs/                 # json manifests and logs
+  ProjectOverview.md    # root-level documentation
+  (finished deliverables live at task root)
 ```
 
 ### Key Components
@@ -251,9 +257,9 @@ block_secrets_in_commits = true
 default_output_tier = 1
 # Allowed: 0 | 1 | 2
 
-# Where to save generated output files
-output_dir = output/
-# Allowed: any valid relative path
+# Where to save final deliverables
+output_dir = ./
+# Allowed: any valid relative path within the task root
 ```
 
 ---
@@ -401,7 +407,8 @@ def main():
 
 
     parser = argparse.ArgumentParser(description="Overlord11 Project Docs Initializer")
-    parser.add_argument("--project_dir", required=True, help="Path to project directory")
+    parser.add_argument("--project_dir", default=None, help="Path to task directory")
+    parser.add_argument("--task_dir", default=None, help="Alias for --project_dir")
     parser.add_argument("--project_name", default="Untitled Project", help="Project name")
     parser.add_argument("--language", default="", help="Primary language/stack")
     parser.add_argument("--description", default="", help="Short project description")
@@ -410,8 +417,12 @@ def main():
     args = parser.parse_args()
     start = time.time()
 
+    project_dir = args.task_dir or args.project_dir or (str(env_task_dir()) if env_task_dir() else None)
+    if not project_dir:
+        parser.error("--project_dir is required when no task workspace is active")
+
     result = init_all(
-        project_dir=args.project_dir,
+        project_dir=project_dir,
         project_name=args.project_name,
         language=args.language,
         description=args.description
@@ -423,7 +434,7 @@ def main():
         log_tool_invocation(
             session_id=args.session_id,
             tool_name="project_docs_init",
-            params={"project_dir": args.project_dir, "project_name": args.project_name},
+            params={"project_dir": project_dir, "project_name": args.project_name},
             result={"status": result.get("status", "unknown")},
             duration_ms=duration_ms
         )

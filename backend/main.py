@@ -3,6 +3,7 @@ Overlord11 Tactical WebUI — FastAPI application entry point.
 """
 
 import logging
+import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -13,6 +14,26 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
+
+# ── Load .env file into os.environ before any other imports ──────────────────
+# The setup wizard writes API keys to <project_root>/.env.  We load them here
+# so they are available to the engine on every server start without requiring
+# the python-dotenv package.
+_ENV_FILE = _BASE_DIR / ".env"
+if _ENV_FILE.exists():
+    try:
+        for _line in _ENV_FILE.read_text(encoding="utf-8").splitlines():
+            _line = _line.strip()
+            if not _line or _line.startswith("#") or "=" not in _line:
+                continue
+            _key, _, _val = _line.partition("=")
+            _key = _key.strip()
+            _val = _val.strip().strip('"').strip("'")
+            if _key and _key not in os.environ:  # don't override explicit env vars
+                os.environ[_key] = _val
+    except OSError:
+        pass
+# ─────────────────────────────────────────────────────────────────────────────
 
 # Ensure project root on sys.path for engine imports
 if str(_BASE_DIR) not in sys.path:

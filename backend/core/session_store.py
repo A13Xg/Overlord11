@@ -21,6 +21,7 @@ class JobStatus(str, Enum):
     QUEUED = "queued"
     RUNNING = "running"
     PAUSED = "paused"
+    RATE_LIMITED = "rate_limited"
     COMPLETED = "completed"
     FAILED = "failed"
 
@@ -42,6 +43,11 @@ class Job:
     # Optional list of job_ids that must reach COMPLETED before this job starts.
     # Enforced by EngineBridge._wait_for_dependencies().
     depends_on: List[str] = field(default_factory=list)
+    # What to do when all providers return 429: "pause" | "stop" | "try_different_model"
+    # "pause" (default): exponential backoff starting at initial_wait_s, doubling each hit, max 8 hours
+    # "stop": fail the job immediately
+    # "try_different_model": wait only as long as the shortest provider Retry-After, then retry
+    rate_limit_action: str = "pause"
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -64,6 +70,7 @@ class Job:
             artifacts=d.get("artifacts", []),
             events=d.get("events", []),
             depends_on=d.get("depends_on", []),
+            rate_limit_action=d.get("rate_limit_action", "pause"),
         )
 
 
@@ -86,6 +93,7 @@ class SessionStore:
         title: str,
         prompt: str,
         depends_on: Optional[List[str]] = None,
+        rate_limit_action: str = "pause",
     ) -> Job:
         job_id = secrets.token_hex(4)  # 8-char hex
         job = Job(
@@ -102,6 +110,7 @@ class SessionStore:
             artifacts=[],
             events=[],
             depends_on=list(depends_on) if depends_on else [],
+            rate_limit_action=rate_limit_action,
         )
         with self._lock:
             self._jobs[job_id] = job
@@ -169,8 +178,16 @@ class SessionStore:
             with self._lock:
                 for item in data:
                     job = Job.from_dict(item)
-                    # Jobs that were running/queued when server last died → failed
-                    if job.status in (JobStatus.RUNNING, JobStatus.QUEUED):
+                    # Jobs that were in-flight when the server last died → failed.
+                    # Includes RATE_LIMITED (runner was sleeping) and PAUSED
+                    # (no worker will ever resume them after restart).
+                    _interrupted = (
+                        JobStatus.RUNNING,
+                        JobStatus.QUEUED,
+                        JobStatus.RATE_LIMITED,
+                        JobStatus.PAUSED,
+                    )
+                    if job.status in _interrupted:
                         job.status = JobStatus.FAILED
                         job.error = "Server restarted — job interrupted"
                     self._jobs[job.job_id] = job

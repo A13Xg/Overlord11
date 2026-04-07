@@ -44,6 +44,7 @@ from collections import defaultdict
 
 sys.path.insert(0, str(Path(__file__).parent))
 from log_manager import log_tool_invocation, log_error
+from task_workspace import ensure_env_task_layout
 
 # ---------------------------------------------------------------------------
 # Optional dependency probes
@@ -1398,7 +1399,11 @@ def act_scrape_full(url: str, output_dir: str = None,
         raise Exception(f"Invalid URL: {url}")
 
     if not output_dir:
-        output_dir = f"workspace/scrape_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        layout = ensure_env_task_layout()
+        if layout:
+            output_dir = str(layout["tools_web"] / f"scrape_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+        else:
+            output_dir = f"workspace/scrape_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     odir = Path(output_dir)
     odir.mkdir(parents=True, exist_ok=True)
 
@@ -1558,7 +1563,11 @@ def act_download_images(url: str, output_dir: str = None,
     if not ok:
         return {"status": "error", "error": f"Invalid URL: {url}"}
     if not output_dir:
-        output_dir = f"workspace/images_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        layout = ensure_env_task_layout()
+        if layout:
+            output_dir = str(layout["tools_web"] / f"images_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+        else:
+            output_dir = f"workspace/images_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     odir = Path(output_dir)
     fp = fetch_page(url, want_js=wait_for_js)
     # Extract more candidates than needed so the scorer has a large pool

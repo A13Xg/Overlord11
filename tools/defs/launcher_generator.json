@@ -6,7 +6,7 @@
     "properties": {
       "project_dir": {
         "type": "string",
-        "description": "Absolute path to the project directory where run.py will be created."
+        "description": "Absolute path to the software project directory where run.py will be created. In task-aware runs this is usually <task>/app."
       },
       "project_name": {
         "type": "string",

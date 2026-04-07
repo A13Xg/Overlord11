@@ -19,7 +19,7 @@
       },
       "output": {
         "type": "string",
-        "description": "File path to save the captured screenshot. Auto-generated if omitted."
+        "description": "File path to save the captured screenshot. Defaults to the active task's tools/vision/ directory when available."
       },
       "region": {
         "type": "string",

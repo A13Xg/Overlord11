@@ -103,16 +103,23 @@ body::after {
 .job-status-row { display: flex; align-items: center; gap: 5px; }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .status-label { font-size: 10px; letter-spacing: .08em; }
-.s-queued    { color: var(--amber); }
-.s-running   { color: var(--teal); }
-.s-paused    { color: var(--txt3); }
-.s-completed { color: var(--green); }
-.s-failed    { color: var(--red); }
-.dot-queued    { background: var(--amber); }
-.dot-running   { background: var(--teal); animation: pulse 1.8s ease-in-out infinite; }
-.dot-paused    { background: var(--txt3); }
-.dot-completed { background: var(--green); }
-.dot-failed    { background: var(--red); }
+.s-queued       { color: var(--amber); }
+.s-running      { color: var(--teal); }
+.s-paused       { color: var(--txt3); }
+.s-completed    { color: var(--green); }
+.s-failed       { color: var(--red); }
+.s-rate_limited { color: #f59e0b; }
+.dot-queued      { background: var(--amber); }
+.dot-running     { background: var(--teal); animation: pulse 1.8s ease-in-out infinite; }
+.dot-paused      { background: var(--txt3); }
+.dot-completed   { background: var(--green); }
+.dot-failed      { background: var(--red); }
+.dot-rate_limited { background: #f59e0b; animation: rl-blink 1.2s step-start infinite; }
+@keyframes rl-blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.rl-banner { display:none; background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.35);
+  border-radius:4px; padding:5px 8px; font-size:10px; color:#f59e0b;
+  margin-top:4px; letter-spacing:.05em; }
+.rl-banner.visible { display:block; }
 @keyframes pulse {
   0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--teal); }
   50% { opacity: .6; box-shadow: 0 0 0 4px rgba(0,229,204,.15); }
@@ -258,66 +265,107 @@ body::after {
 .progress-bar span { font-size: 13px; color: var(--teal); }
 .progress-label { font-size: 11px; color: var(--txt2); margin-left: 6px; }
 
-/* ARTIFACTS PANEL */
-#artifact-actions { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
-#artifact-list { display: flex; flex-direction: column; gap: 6px; }
-.artifact-item {
-  background: var(--panel); border: 1px solid var(--border); padding: 8px 12px;
-  display: flex; justify-content: space-between; align-items: center;
-  cursor: pointer; transition: background .15s;
-}
-.artifact-item:hover { background: rgba(0,255,65,.05); border-color: var(--teal); }
-.artifact-name { color: var(--teal); font-size: 13px; }
-.artifact-meta { color: var(--txt3); font-size: 11px; }
-.artifact-empty { color: var(--txt3); padding: 30px; text-align: center; }
+/* ─── FILE EXPLORER (replaces ARTIFACTS + PRODUCT tabs) ─── */
+#tab-files.active { display: flex; padding: 0; overflow: hidden; }
+#file-explorer { display: flex; width: 100%; height: 100%; overflow: hidden; }
 
-/* PRODUCT PANEL */
-#product-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-#product-files { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-.product-file-btn {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--teal);
-  padding: 6px 10px;
-  font-family: var(--font);
-  font-size: 11px;
-  cursor: pointer;
+/* Tree panel */
+#file-tree-panel {
+  width: 264px; min-width: 160px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--border); overflow: hidden; background: var(--surface);
 }
-.product-file-btn:hover { border-color: var(--teal); background: rgba(0,229,204,.08); }
-.product-file-btn.active { border-color: var(--green); color: var(--green); }
+#file-tree-toolbar {
+  display: flex; align-items: center; gap: 4px; padding: 5px 8px;
+  border-bottom: 1px solid var(--border); background: var(--panel); flex-shrink: 0;
+}
+.ftree-btn {
+  background: transparent; border: 1px solid var(--border); color: var(--txt2);
+  padding: 3px 7px; font-family: var(--font); font-size: 11px; cursor: pointer;
+  letter-spacing: .06em; transition: all .12s;
+}
+.ftree-btn:hover { border-color: var(--teal); color: var(--teal); background: rgba(0,229,204,.07); }
+#file-tree-stats { color: var(--txt3); font-size: 10px; margin-left: auto; letter-spacing: .04em; }
+#file-tree-body { flex: 1; overflow-y: auto; padding: 2px 0; }
+.ftree-empty { color: var(--txt3); padding: 28px 12px; text-align: center; font-size: 11px; letter-spacing: .06em; }
+
+/* Tree sections */
+.ftree-section { }
+.ftree-section-hdr {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 8px; font-size: 10px; letter-spacing: .14em;
+  cursor: pointer; user-select: none;
+  border-bottom: 1px solid rgba(30,58,30,.35);
+  transition: color .12s;
+}
+.ftree-section-hdr:hover .ftree-section-label { opacity: .9; }
+.ftree-toggle-glyph { font-size: 9px; color: var(--txt3); width: 9px; }
+.ftree-section-label { font-weight: bold; }
+.ftree-section-count { margin-left: auto; color: var(--txt3); font-size: 10px; }
+.ftree-section-items { }
+
+/* Individual file rows */
+.ftree-item {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 8px 4px 18px;
+  font-size: 11px; color: var(--txt2); cursor: pointer;
+  white-space: nowrap; overflow: hidden;
+  border-left: 2px solid transparent;
+  transition: background .1s, color .1s;
+}
+.ftree-item:hover { background: rgba(0,255,65,.04); color: var(--txt); }
+.ftree-item.selected { background: rgba(0,229,204,.09); color: var(--teal); border-left-color: var(--teal); }
+.ftree-item.is-product { color: var(--teal); }
+.ftree-item.is-product.selected { color: var(--green); border-left-color: var(--green); background: rgba(0,255,65,.07); }
+.ftree-icon { flex-shrink: 0; width: 13px; text-align: center; font-size: 11px; opacity: .8; }
+.ftree-name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.ftree-size { color: var(--txt3); font-size: 10px; flex-shrink: 0; padding-left: 4px; }
+.ftree-new-dot {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--teal);
+  flex-shrink: 0; animation: pulse 1.8s ease-in-out infinite;
+}
+
+/* Preview panel */
+#file-preview-panel {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--panel);
+}
+#file-preview-bar {
+  display: flex; align-items: center; gap: 8px; padding: 5px 10px;
+  border-bottom: 1px solid var(--border); background: var(--surface);
+  font-size: 11px; min-height: 30px; flex-shrink: 0;
+}
+#file-preview-name { color: var(--teal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+#file-preview-type {
+  color: var(--txt3); font-size: 10px; letter-spacing: .08em; flex-shrink: 0;
+  border: 1px solid var(--border); padding: 1px 5px;
+}
+#file-preview-meta { color: var(--txt3); font-size: 10px; flex-shrink: 0; }
+#file-preview-content { flex: 1; overflow: auto; }
+#file-preview-content iframe { width: 100%; height: 100%; border: none; display: block; }
+#file-preview-content img { max-width: 100%; display: block; margin: 20px auto; max-height: calc(100% - 40px); }
+#file-preview-content pre {
+  margin: 0; padding: 14px; font-size: 12px; line-height: 1.6;
+  color: var(--txt2); white-space: pre-wrap; word-break: break-word;
+}
+.fp-placeholder { color: var(--txt3); padding: 40px; text-align: center; font-size: 11px; letter-spacing: .06em; line-height: 2; }
+.fp-rendered-md { padding: 16px 20px; color: var(--txt2); font-size: 13px; line-height: 1.75; }
+.fp-rendered-md h1,.fp-rendered-md h2,.fp-rendered-md h3 { color: var(--teal); margin: 14px 0 6px; }
+.fp-rendered-md code { color: var(--amber); background: rgba(255,176,0,.08); padding: 1px 4px; }
+.fp-rendered-md pre { background: rgba(10,12,10,.9); border: 1px solid var(--border); padding: 10px; margin: 8px 0; }
+
+/* Section accent colours */
+.ftree-section-hdr.sec-product .ftree-section-label { color: var(--green); }
+.ftree-section-hdr.sec-tools   .ftree-section-label { color: var(--amber); }
+.ftree-section-hdr.sec-agent   .ftree-section-label { color: var(--teal); }
+.ftree-section-hdr.sec-logs    .ftree-section-label { color: var(--txt3); }
+.ftree-section-hdr.sec-other   .ftree-section-label { color: var(--txt2); }
+
+/* Keep panel-action-btn for screenshot/zip buttons */
 .panel-action-btn {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--teal);
-  padding: 6px 10px;
-  font-family: var(--font);
-  font-size: 11px;
-  cursor: pointer;
+  background: transparent; border: 1px solid var(--border); color: var(--teal);
+  padding: 3px 8px; font-family: var(--font); font-size: 11px; cursor: pointer;
 }
 .panel-action-btn:hover { border-color: var(--teal); background: rgba(0,229,204,.08); }
-#product-output {
-  background: var(--panel); border: 1px solid var(--border); padding: 12px;
-  font-size: 12px; color: var(--txt2); white-space: pre-wrap; word-break: break-word;
-  min-height: 200px; line-height: 1.6;
-}
-#product-output pre {
-  background: rgba(10,12,10,.9);
-  border: 1px solid var(--border);
-  padding: 10px;
-  overflow-x: auto;
-  white-space: pre-wrap;
-  margin: 10px 0;
-}
-#product-output code { color: var(--amber); }
-#product-output p { margin-bottom: 10px; }
-#product-output h1, #product-output h2, #product-output h3 { color: var(--green); margin: 12px 0 8px; }
-#product-output iframe {
-  width: 100%;
-  min-height: 480px;
-  border: 1px solid var(--border);
-  background: #fff;
-}
-
 /* SYSTEM LOG PANEL */
 #syslog-feed { font-size: 11px; display: flex; flex-direction: column; gap: 4px; }
 .syslog-line {
@@ -522,6 +570,15 @@ body::after {
 @keyframes job-running-glow {
   0%,100% { border-left-color: var(--teal); }
   50%      { border-left-color: #00ffee; box-shadow: inset 0 0 20px rgba(0,229,204,.12); }
+}
+.job-item.rl-active {
+  border-left-color: #f59e0b;
+  box-shadow: inset 0 0 14px rgba(245,158,11,.07);
+  animation: rl-glow 2.4s ease-in-out infinite;
+}
+@keyframes rl-glow {
+  0%,100% { border-left-color: #f59e0b; }
+  50%      { border-left-color: #fbbf24; box-shadow: inset 0 0 20px rgba(245,158,11,.12); }
 }
 .job-progress-bar {
   height: 2px; background: rgba(0,229,204,.2);
@@ -827,8 +884,7 @@ body::after {
       <!-- TABS -->
       <div id="tabs">
         <button class="tab-btn active" onclick="switchTab('execution', this)">[ EXECUTION ]</button>
-        <button class="tab-btn" onclick="switchTab('artifacts', this)">[ ARTIFACTS ]</button>
-        <button class="tab-btn" onclick="switchTab('product', this)">[ PRODUCT ]</button>
+        <button class="tab-btn" onclick="switchTab('files', this)">[ FILES ]</button>
         <button class="tab-btn" onclick="switchTab('syslog', this)">[ SYSTEM LOG ]</button>
       </div>
 
@@ -858,22 +914,34 @@ body::after {
           </div>
         </div>
 
-        <!-- ARTIFACTS -->
-        <div id="tab-artifacts" class="tab-panel">
-          <div id="artifact-actions">
-            <button class="panel-action-btn" onclick="downloadWorkspaceZip()">↓ DOWNLOAD SESSION ZIP</button>
+        <!-- FILES — split file explorer replacing ARTIFACTS + PRODUCT -->
+        <div id="tab-files" class="tab-panel">
+          <div id="file-explorer">
+            <!-- Left: tree -->
+            <div id="file-tree-panel">
+              <div id="file-tree-toolbar">
+                <button class="ftree-btn" onclick="refreshFilesPanel()" title="Refresh">↺ REFRESH</button>
+                <button class="ftree-btn" onclick="captureProjectScreenshot()" title="Screenshot">◫ SHOT</button>
+                <button class="ftree-btn" onclick="downloadWorkspaceZip()" title="Download ZIP">↓ ZIP</button>
+                <span id="file-tree-stats"></span>
+              </div>
+              <div id="file-tree-body">
+                <div class="ftree-empty">NO JOB SELECTED</div>
+              </div>
+            </div>
+            <!-- Right: preview -->
+            <div id="file-preview-panel">
+              <div id="file-preview-bar">
+                <span id="file-preview-name" style="color:var(--txt3)">— SELECT A FILE —</span>
+                <span id="file-preview-type"></span>
+                <span id="file-preview-meta"></span>
+                <button class="ftree-btn" id="file-dl-btn" onclick="downloadCurrentFile()" style="display:none;margin-left:auto">↓ DOWNLOAD</button>
+              </div>
+              <div id="file-preview-content">
+                <div class="fp-placeholder">SELECT A FILE FROM THE TREE TO PREVIEW<br><span style="color:var(--txt3);font-size:10px">━━━━━━━━━━━━━━━━━</span></div>
+              </div>
+            </div>
           </div>
-          <div id="artifact-list"><div class="artifact-empty cursor-blink">NO JOB SELECTED</div></div>
-        </div>
-
-        <!-- PRODUCT -->
-        <div id="tab-product" class="tab-panel">
-          <div id="product-actions">
-            <button class="panel-action-btn" onclick="captureProjectScreenshot()">📸 CAPTURE PROJECT SCREENSHOT</button>
-            <button class="panel-action-btn" onclick="downloadWorkspaceZip()">↓ DOWNLOAD SESSION ZIP</button>
-          </div>
-          <div id="product-files"></div>
-          <div id="product-output" class="cursor-blink">NO OUTPUT YET</div>
         </div>
 
         <!-- SYSTEM LOG -->
@@ -926,6 +994,14 @@ body::after {
       <div class="form-group">
         <label>PROMPT / OBJECTIVE</label>
         <textarea id="new-job-prompt" rows="6" placeholder="Describe the task..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>IF RATE LIMITED</label>
+        <select id="new-job-rl-action">
+          <option value="pause" selected>PAUSE — wait &amp; retry (5m → 10m → 20m … max 8h)</option>
+          <option value="try_different_model">TRY DIFFERENT MODEL — wait Retry-After, use fastest available</option>
+          <option value="stop">STOP — fail immediately</option>
+        </select>
       </div>
     </div>
     <div id="modal-footer">
@@ -1048,7 +1124,6 @@ let currentPreviewJob = null;
 let currentPreviewFile = null;
 let logFooterCollapsed = false;
 let artifactCache = {};
-let selectedProductPath = null;
 let collapsedEventKeys = new Set();
 
 // Streaming state — tracks the current live token stream
@@ -1297,11 +1372,15 @@ function startClock() {
 async function loadProviders() {
   try {
     const [provRes, selRes] = await Promise.all([
-      apiFetch('/api/providers').then(r => r.json()),
-      apiFetch('/api/config/selection').then(r => r.json())
+      apiFetch('/api/providers'),
+      apiFetch('/api/config/selection')
     ]);
-    providerData = provRes;
-    renderProviderSelects(selRes);
+    if (provRes.ok && selRes.ok) {
+      providerData = await provRes.json();
+      renderProviderSelects(await selRes.json());
+    } else {
+      appendFooterLog('WARN: Could not load providers: HTTP ' + (provRes.ok ? selRes.status : provRes.status));
+    }
   } catch (e) {
     appendFooterLog('WARN: Could not load providers: ' + e.message);
   }
@@ -1365,8 +1444,9 @@ async function saveSelection() {
 ═══════════════════════════════════════════════════════ */
 async function loadJobs() {
   try {
-    const data = await apiFetch('/api/jobs').then(r => r.json());
-    jobs = data;
+    const res = await apiFetch('/api/jobs');
+    if (!res.ok) { appendFooterLog('ERROR: Could not load jobs: HTTP ' + res.status); return; }
+    jobs = await res.json();
     renderJobList();
   } catch (e) {
     appendFooterLog('ERROR: Could not load jobs: ' + e.message);
@@ -1391,14 +1471,21 @@ function renderJobList() {
     if (j.status === 'running') {
       waveform = `<div class="waveform"><span></span><span></span><span></span><span></span></div>`;
     }
+    const rlResumeAt = j._rl_resume_at || null;
+    const rlRetry    = j._rl_retry ? ` [RETRY #${j._rl_retry}]` : '';
+    const rlBannerHtml = rlResumeAt
+      ? `<div class="rl-banner visible" data-resume="${rlResumeAt}">RATE LIMITED${rlRetry} — <span class="rl-countdown">…</span></div>`
+      : `<div class="rl-banner"></div>`;
+    const displayStatus = j.status === 'rate_limited' ? 'RATE LIMITED' : j.status.toUpperCase();
     div.innerHTML = `
       <div class="job-title">${escHtml(j.title)}</div>
       <div class="job-status-row">
         <div class="status-dot dot-${j.status}"></div>
-        <span class="status-label s-${j.status}">${j.status.toUpperCase()}</span>
+        <span class="status-label s-${j.status}">${displayStatus}</span>
         ${waveform}
       </div>
-      <div style="font-size:10px;color:var(--txt3)">${ts}</div>`;
+      <div style="font-size:10px;color:var(--txt3)">${ts}</div>
+      ${rlBannerHtml}`;
     el.appendChild(div);
   });
 }
@@ -1413,8 +1500,7 @@ function selectJob(jobId) {
   updateJobControls(job);
   document.getElementById('selected-job-title').textContent = job.title.toUpperCase();
   renderExecutionPanel(job);
-  renderProductPanel(job);
-  loadArtifacts(jobId);
+  renderFilesPanel(jobId);
 }
 
 function updateJobControls(job) {
@@ -1422,7 +1508,7 @@ function updateJobControls(job) {
   document.getElementById('ctrl-start').disabled   = !['queued','failed','completed'].includes(s);
   document.getElementById('ctrl-pause').disabled   = s !== 'running';
   document.getElementById('ctrl-resume').disabled  = s !== 'paused';
-  document.getElementById('ctrl-stop').disabled    = !['running','queued','paused'].includes(s);
+  document.getElementById('ctrl-stop').disabled    = !['running','queued','paused','rate_limited'].includes(s);
   document.getElementById('ctrl-restart').disabled = false;
   document.getElementById('ctrl-delete').disabled  = false;
 }
@@ -1440,7 +1526,7 @@ function updateJobInList(jobData) {
     if (job) {
       updateJobControls(job);
       renderExecutionPanel(job);
-      renderProductPanel(job);
+      renderFilesPanel(job.job_id || selectedJobId);
     }
   }
 }
@@ -1518,23 +1604,32 @@ function closeNewJobModal(e) {
   document.getElementById('modal-overlay').classList.remove('open');
   document.getElementById('new-job-title').value = '';
   document.getElementById('new-job-prompt').value = '';
+  document.getElementById('new-job-rl-action').value = 'pause';
 }
 async function submitNewJob() {
-  const title  = document.getElementById('new-job-title').value.trim();
-  const prompt = document.getElementById('new-job-prompt').value.trim();
+  const title           = document.getElementById('new-job-title').value.trim();
+  const prompt          = document.getElementById('new-job-prompt').value.trim();
+  const rate_limit_action = document.getElementById('new-job-rl-action').value;
   if (!title || !prompt) { alert('Title and prompt are required.'); return; }
   try {
-    const job = await apiFetch('/api/jobs', {
+    const res = await apiFetch('/api/jobs', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({title, prompt})
-    }).then(r => r.json());
+      body: JSON.stringify({title, prompt, rate_limit_action})
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({detail: res.statusText}));
+      appendFooterLog('ERROR creating job: ' + (err.detail || res.statusText));
+      return;
+    }
+    const job = await res.json();
     jobs.unshift(job);
     renderJobList();
     selectJob(job.job_id);
     document.getElementById('modal-overlay').classList.remove('open');
     document.getElementById('new-job-title').value = '';
     document.getElementById('new-job-prompt').value = '';
+    document.getElementById('new-job-rl-action').value = 'pause';
     appendFooterLog('JOB CREATED: ' + job.job_id + ' — ' + title);
   } catch (e) {
     appendFooterLog('ERROR creating job: ' + e.message);
@@ -1549,7 +1644,7 @@ function renderExecutionPanel(job) {
   document.getElementById('exec-info').style.display = '';
 
   const meta = document.getElementById('exec-job-meta');
-  const statusColor = {queued:'var(--amber)',running:'var(--teal)',paused:'var(--txt3)',completed:'var(--green)',failed:'var(--red)'}[job.status] || 'var(--txt)';
+  const statusColor = {queued:'var(--amber)',running:'var(--teal)',paused:'var(--txt3)',rate_limited:'var(--amber)',completed:'var(--green)',failed:'var(--red)'}[job.status] || 'var(--txt)';
   meta.innerHTML = `
     <div><span style="color:var(--txt3)">ID:      </span>${escHtml(job.job_id)}</div>
     <div><span style="color:var(--txt3)">STATUS:  </span><span style="color:${statusColor}">${job.status.toUpperCase()}</span></div>
@@ -1645,40 +1740,227 @@ function appendSyslogLine(ev) {
 }
 
 /* ═══════════════════════════════════════════════════════
-   PRODUCT PANEL
+   FILE EXPLORER
 ═══════════════════════════════════════════════════════ */
-function renderProductPanel(job) {
-  const el = document.getElementById('product-output');
-  const filesEl = document.getElementById('product-files');
-  const artifacts = artifactCache[job.job_id] || [];
-  const outputFiles = artifacts.filter(a => a.category === 'outputs' || a.category === 'output');
+let _ftJobId = null;
+let _ftArtifacts = [];
+let _ftSelectedPath = null;
+let _ftCollapsed = {};   // section key → bool
 
-  filesEl.innerHTML = '';
-  outputFiles.forEach(file => {
-    const btn = document.createElement('button');
-    btn.className = 'product-file-btn' + (selectedProductPath === file.relative_path ? ' active' : '');
-    btn.textContent = file.relative_path;
-    btn.onclick = () => openArtifactPath(job.job_id, file.relative_path);
-    filesEl.appendChild(btn);
+const _FT_SECTION_ORDER  = ['product','outputs','output','artifacts','tools','agent','logs','traces'];
+const _FT_SECTION_LABELS = {
+  product:   'DELIVERABLES',
+  tools:     'TOOLS OUTPUT',
+  agent:     'AGENT NOTES',
+  logs:      'LOGS',
+  outputs:   'OUTPUTS',
+  output:    'OUTPUT',
+  artifacts: 'ARTIFACTS',
+  traces:    'TRACES',
+};
+const _FT_SECTION_CLASS = {
+  product: 'sec-product',
+  tools:   'sec-tools',
+  agent:   'sec-agent',
+  logs:    'sec-logs',
+};
+
+function _ftIcon(ext) {
+  const m = {
+    html:'◱', htm:'◱', md:'◧', markdown:'◧', json:'⊡', py:'⊞', js:'⊞', ts:'⊞',
+    txt:'◫', log:'◨', csv:'▦', pdf:'◳', zip:'◉', sh:'⊟', bat:'⊟',
+    png:'◪', jpg:'◪', jpeg:'◪', gif:'◪', webp:'◪', bmp:'◪', svg:'◪',
+  };
+  return m[ext] || '◻';
+}
+
+function _ftFmtSize(bytes) {
+  if (bytes < 1024)     return bytes + ' B';
+  if (bytes < 1048576)  return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1048576).toFixed(1) + ' MB';
+}
+
+// Format seconds into a human-readable countdown: "45s" / "9m 30s" / "1h 47m"
+function _fmtWait(secs) {
+  if (secs <= 0)    return 'NOW';
+  if (secs < 60)    return Math.ceil(secs) + 's';
+  if (secs < 3600)  { const m=Math.floor(secs/60),s=Math.ceil(secs%60); return s?`${m}m ${s}s`:`${m}m`; }
+  const h=Math.floor(secs/3600), m=Math.ceil((secs%3600)/60); return m?`${h}h ${m}m`:`${h}h`;
+}
+
+async function renderFilesPanel(jobIdOrJob) {
+  const jobId = (typeof jobIdOrJob === 'string') ? jobIdOrJob : jobIdOrJob.job_id;
+  if (!jobId) return;
+  _ftJobId = jobId;
+
+  const treeBody = document.getElementById('file-tree-body');
+  treeBody.innerHTML = '<div class="ftree-empty" style="color:var(--txt3)">LOADING…</div>';
+
+  try {
+    const list = await apiFetch(`/api/artifacts/${jobId}`).then(r => r.json());
+    _ftArtifacts = list;
+    artifactCache[jobId] = list;
+    _ftBuildTree(jobId, list);
+
+    // Auto-select first product file if nothing currently selected for this job
+    if (!_ftSelectedPath || _ftJobId !== jobId) {
+      const first = list.find(a => a.category === 'product') || list[0];
+      if (first) _ftSelectFile(jobId, first.relative_path, false);
+    }
+  } catch (e) {
+    treeBody.innerHTML = `<div class="ftree-empty" style="color:var(--red)">ERROR: ${escHtml(e.message)}</div>`;
+  }
+}
+
+function _ftBuildTree(jobId, artifacts) {
+  const treeBody = document.getElementById('file-tree-body');
+  treeBody.innerHTML = '';
+
+  if (!artifacts.length) {
+    const job = jobs.find(j => j.job_id === jobId);
+    const msg = (job && job.status === 'running') ? 'EXECUTING — FILES WILL APPEAR HERE' : 'NO FILES YET';
+    treeBody.innerHTML = `<div class="ftree-empty">${msg}</div>`;
+    document.getElementById('file-tree-stats').textContent = '';
+    return;
+  }
+
+  // Group by category preserving section order
+  const bySection = {};
+  artifacts.forEach(a => {
+    const cat = a.category || 'artifacts';
+    (bySection[cat] = bySection[cat] || []).push(a);
   });
 
-  if (selectedProductPath && outputFiles.some(f => f.relative_path === selectedProductPath)) {
-    return;
+  const now = Date.now() / 1000;
+  const recentCutoff = 300; // 5 minutes = "new" dot
+
+  const orderedKeys = [..._FT_SECTION_ORDER.filter(k => bySection[k]),
+                       ...Object.keys(bySection).filter(k => !_FT_SECTION_ORDER.includes(k))];
+
+  orderedKeys.forEach(cat => {
+    const items = bySection[cat];
+    const label = _FT_SECTION_LABELS[cat] || cat.toUpperCase();
+    const secClass = _FT_SECTION_CLASS[cat] || 'sec-other';
+    const isCollapsed = _ftCollapsed[cat] === true;
+
+    const section = document.createElement('div');
+    section.className = 'ftree-section';
+
+    const hdr = document.createElement('div');
+    hdr.className = `ftree-section-hdr ${secClass}`;
+    hdr.innerHTML = `<span class="ftree-toggle-glyph">${isCollapsed ? '▸' : '▾'}</span><span class="ftree-section-label">${label}</span><span class="ftree-section-count">${items.length}</span>`;
+    hdr.onclick = () => {
+      _ftCollapsed[cat] = !_ftCollapsed[cat];
+      itemsDiv.style.display = _ftCollapsed[cat] ? 'none' : '';
+      hdr.querySelector('.ftree-toggle-glyph').textContent = _ftCollapsed[cat] ? '▸' : '▾';
+    };
+
+    const itemsDiv = document.createElement('div');
+    itemsDiv.className = 'ftree-section-items';
+    itemsDiv.style.display = isCollapsed ? 'none' : '';
+
+    items.forEach(a => {
+      const ext = fileExt(a.relative_path || a.name);
+      const isNew = (now - (a.mtime || 0)) < recentCutoff;
+      const row = document.createElement('div');
+      row.className = `ftree-item${cat === 'product' ? ' is-product' : ''}${_ftSelectedPath === a.relative_path ? ' selected' : ''}`;
+      row.dataset.path = a.relative_path;
+      row.title = a.relative_path;
+      row.innerHTML = `<span class="ftree-icon">${_ftIcon(ext)}</span><span class="ftree-name">${escHtml(a.name)}</span>${isNew ? '<span class="ftree-new-dot"></span>' : ''}<span class="ftree-size">${_ftFmtSize(a.size)}</span>`;
+      row.onclick = () => _ftSelectFile(jobId, a.relative_path, true);
+      itemsDiv.appendChild(row);
+    });
+
+    section.appendChild(hdr);
+    section.appendChild(itemsDiv);
+    treeBody.appendChild(section);
+  });
+
+  // Stats bar
+  const totalSize = artifacts.reduce((s, a) => s + (a.size || 0), 0);
+  document.getElementById('file-tree-stats').textContent = `${artifacts.length} files · ${_ftFmtSize(totalSize)}`;
+}
+
+function _ftSelectFile(jobId, relativePath, scrollIntoView) {
+  _ftSelectedPath = relativePath;
+  // Update selection highlight in tree
+  document.querySelectorAll('.ftree-item').forEach(el => {
+    el.classList.toggle('selected', el.dataset.path === relativePath);
+  });
+  if (scrollIntoView) {
+    const sel = document.querySelector(`.ftree-item[data-path="${CSS.escape(relativePath)}"]`);
+    if (sel) sel.scrollIntoView({ block: 'nearest' });
   }
-  if (outputFiles.length) {
-    loadProductArtifact(job.job_id, outputFiles[0].relative_path);
-    return;
+  _ftPreviewInline(jobId, relativePath);
+}
+
+async function _ftPreviewInline(jobId, relativePath) {
+  const artifact = _ftArtifacts.find(a => a.relative_path === relativePath);
+  const ext = fileExt(relativePath);
+  const nameEl  = document.getElementById('file-preview-name');
+  const typeEl  = document.getElementById('file-preview-type');
+  const metaEl  = document.getElementById('file-preview-meta');
+  const dlBtn   = document.getElementById('file-dl-btn');
+  const content = document.getElementById('file-preview-content');
+
+  nameEl.textContent  = relativePath;
+  typeEl.textContent  = ext ? ext.toUpperCase() : 'FILE';
+  metaEl.textContent  = artifact ? _ftFmtSize(artifact.size) : '';
+  dlBtn.style.display = 'inline-block';
+  content.innerHTML   = '<div class="fp-placeholder">LOADING…</div>';
+
+  const url = artifactFileUrl(jobId, relativePath);
+
+  try {
+    if (['html', 'htm', 'pdf'].includes(ext)) {
+      const iframe = document.createElement('iframe');
+      iframe.src   = url;
+      iframe.title = relativePath;
+      content.innerHTML = '';
+      content.appendChild(iframe);
+      return;
+    }
+    if (['png','jpg','jpeg','gif','webp','bmp','svg'].includes(ext)) {
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = relativePath;
+      content.innerHTML = '';
+      content.appendChild(img);
+      return;
+    }
+
+    const res = await apiFetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+
+    if (ext === 'json') {
+      try {
+        content.innerHTML = `<pre>${escHtml(JSON.stringify(JSON.parse(text), null, 2))}</pre>`;
+      } catch { content.innerHTML = `<pre>${escHtml(text)}</pre>`; }
+      return;
+    }
+    if (ext === 'md' || ext === 'markdown') {
+      content.innerHTML = `<div class="fp-rendered-md">${renderMarkdown(text)}</div>`;
+      return;
+    }
+    content.innerHTML = `<pre>${escHtml(text)}</pre>`;
+  } catch (e) {
+    content.innerHTML = `<pre style="color:var(--red)">ERROR: ${escHtml(e.message)}</pre>`;
   }
-  if (job.output) {
-    renderProductContent(job.output);
-    el.classList.remove('cursor-blink');
-  } else if (job.status === 'running') {
-    el.textContent = 'EXECUTING…';
-    el.classList.add('cursor-blink');
-  } else {
-    el.textContent = 'NO OUTPUT YET';
-    el.classList.add('cursor-blink');
-  }
+}
+
+async function refreshFilesPanel() {
+  if (!selectedJobId) return;
+  _ftSelectedPath = null; // force re-select
+  await renderFilesPanel(selectedJobId);
+}
+
+function downloadCurrentFile() {
+  if (!_ftJobId || !_ftSelectedPath) return;
+  const a = document.createElement('a');
+  a.href = artifactFileUrl(_ftJobId, _ftSelectedPath);
+  a.download = _ftSelectedPath.split('/').pop();
+  a.click();
 }
 
 async function captureProjectScreenshot() {
@@ -1687,9 +1969,9 @@ async function captureProjectScreenshot() {
     return;
   }
 
-  const artifacts = artifactCache[selectedJobId] || [];
-  const htmlArtifact = selectedProductPath && /\.html?$/i.test(selectedProductPath)
-    ? selectedProductPath
+  const artifacts = _ftArtifacts.length ? _ftArtifacts : (artifactCache[selectedJobId] || []);
+  const htmlArtifact = (_ftSelectedPath && /\.html?$/i.test(_ftSelectedPath))
+    ? _ftSelectedPath
     : (artifacts.find(a => /\.html?$/i.test(a.relative_path || a.name)) || {}).relative_path;
 
   if (!htmlArtifact) {
@@ -1709,8 +1991,8 @@ async function captureProjectScreenshot() {
     }
     const data = await res.json();
     appendFooterLog(`SCREENSHOT READY: ${data.relative_path}`);
-    await loadArtifacts(selectedJobId);
-    await openArtifactPath(selectedJobId, data.relative_path);
+    await renderFilesPanel(selectedJobId);
+    _ftSelectFile(selectedJobId, data.relative_path, true);
   } catch (e) {
     appendFooterLog('ERROR: screenshot capture failed: ' + e.message);
   }
@@ -1728,33 +2010,22 @@ function downloadWorkspaceZip() {
 }
 
 /* ═══════════════════════════════════════════════════════
-   ARTIFACTS
+   ARTIFACTS — shim kept for backward compat with SSE
+   handler and screenshot capture; delegates to Files panel
 ═══════════════════════════════════════════════════════ */
 async function loadArtifacts(jobId) {
-  const el = document.getElementById('artifact-list');
-  el.innerHTML = '<div class="artifact-empty" style="color:var(--txt3)">LOADING…</div>';
+  // Refresh the artifact cache and, if the Files tab is visible, rebuild the tree.
   try {
     const list = await apiFetch(`/api/artifacts/${jobId}`).then(r => r.json());
     artifactCache[jobId] = list;
-    el.innerHTML = '';
-    if (!list.length) {
-      el.innerHTML = '<div class="artifact-empty">NO ARTIFACTS YET</div>';
-      if (selectedJobId === jobId) renderProductPanel(jobs.find(j => j.job_id === jobId) || {job_id: jobId});
-      return;
+    if (selectedJobId === jobId) {
+      _ftArtifacts = list;
+      _ftBuildTree(jobId, list);
+      const totalSize = list.reduce((s, a) => s + (a.size || 0), 0);
+      document.getElementById('file-tree-stats').textContent =
+        list.length ? `${list.length} files · ${_ftFmtSize(totalSize)}` : '';
     }
-    list.forEach(a => {
-      const div = document.createElement('div');
-      div.className = 'artifact-item';
-      div.onclick = () => openArtifactPath(jobId, a.relative_path || a.name);
-      const kb = (a.size / 1024).toFixed(1);
-      const mtime = new Date(a.mtime * 1000).toISOString().slice(0, 19).replace('T', ' ');
-      div.innerHTML = `<span class="artifact-name">📄 ${escHtml(a.relative_path || a.name)}</span><span class="artifact-meta">${escHtml(a.category || 'artifact')} · ${kb} KB · ${mtime}</span>`;
-      el.appendChild(div);
-    });
-    if (selectedJobId === jobId) renderProductPanel(jobs.find(j => j.job_id === jobId) || {job_id: jobId});
-  } catch (e) {
-    el.innerHTML = `<div class="artifact-empty" style="color:var(--red)">ERROR: ${escHtml(e.message)}</div>`;
-  }
+  } catch (_) { /* silent — tree will show stale data */ }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1774,21 +2045,27 @@ async function openArtifactPath(jobId, relativePath) {
   previewContent.innerHTML = '<pre id="preview-pre">LOADING…</pre>';
   document.getElementById('preview-overlay').classList.add('open');
   if (selectedJobId === jobId) {
-    selectedProductPath = relativePath;
-    const buttons = document.querySelectorAll('.product-file-btn');
-    buttons.forEach(btn => btn.classList.toggle('active', btn.textContent === relativePath));
+    _ftSelectFile(jobId, relativePath, true);
   }
   const url = artifactFileUrl(jobId, relativePath);
   const ext = fileExt(relativePath);
   try {
     if (['pdf', 'html', 'htm'].includes(ext)) {
       previewMeta.textContent = ext.toUpperCase();
-      previewContent.innerHTML = `<iframe src="${url}" title="Artifact preview"></iframe>`;
+      const iframe = document.createElement('iframe');
+      iframe.src   = url;
+      iframe.title = 'Artifact preview';
+      previewContent.innerHTML = '';
+      previewContent.appendChild(iframe);
       return;
     }
     if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) {
       previewMeta.textContent = ext.toUpperCase();
-      previewContent.innerHTML = `<img src="${url}" alt="Artifact image preview">`;
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = 'Artifact image preview';
+      previewContent.innerHTML = '';
+      previewContent.appendChild(img);
       return;
     }
 
@@ -1851,7 +2128,7 @@ function switchTab(name, btn) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
-  if (name === 'artifacts' && selectedJobId) loadArtifacts(selectedJobId);
+  if (name === 'files' && selectedJobId) renderFilesPanel(selectedJobId);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1933,17 +2210,49 @@ function handleEvent(ev) {
     fireNotification('ENGINE ERROR', ev.message || 'An error occurred', 'error');
   }
 
+  // Rate limit: pause in-place and show countdown
+  if (ev.type === 'RATE_LIMITED') {
+    const job = jobs.find(j => j.job_id === jobId);
+    if (job) {
+      job.status = 'rate_limited';
+      job._rl_resume_at = ev.resume_at || null;
+      job._rl_action    = ev.action || 'pause';
+      job._rl_retry     = ev.retry_num || 1;
+      renderJobList();
+      if (selectedJobId === jobId) updateJobControls(job);
+      const actionLabel = {
+        pause: 'PAUSE',
+        try_different_model: 'TRY DIFFERENT MODEL',
+        stop: 'STOP',
+      }[ev.action] || 'PAUSE';
+      fireNotification(
+        'RATE LIMITED',
+        `${actionLabel} — retry #${ev.retry_num || 1} in ${_fmtWait(ev.wait_s || 300)}`,
+        'warning',
+      );
+    }
+  }
+
   // Update in-memory job if status event
   if (ev.type === 'STATUS' || ev.type === 'JOB_COMPLETE') {
     const job = jobs.find(j => j.job_id === jobId);
     if (job) {
-      if (ev.status) job.status = ev.status;
+      if (ev.status) {
+        job.status = ev.status;
+        // Clear rate-limit countdown when status returns to running
+        if (ev.status === 'running') job._rl_resume_at = null;
+      }
+      if (ev.resume_at) job._rl_resume_at = ev.resume_at;
       if (ev.session_id) job.session_id = ev.session_id;
       renderJobList();
       if (selectedJobId === jobId) {
         updateJobControls(job);
         renderExecutionPanel(job);
-        renderProductPanel(job);
+        // Only reload the file tree when a job reaches a terminal state to
+        // avoid excessive re-renders during execution.
+        if (ev.type === 'JOB_COMPLETE' || ev.status === 'completed' || ev.status === 'failed') {
+          renderFilesPanel(jobId);
+        }
       }
     } else {
       // New job from restart — reload
@@ -1959,7 +2268,7 @@ function handleEvent(ev) {
       job.events.push(ev);
       appendEventLine(ev);
       if (ev.type === 'ARTIFACT_CREATED') {
-        loadArtifacts(jobId);
+        loadArtifacts(jobId); // refreshes tree if Files tab is active
       }
       if (ev.type === 'JOB_COMPLETE' || ev.type === 'SESSION_END') {
         refreshJob(jobId);
@@ -2116,6 +2425,12 @@ function formatEventBody(ev) {
   if (ev.type === 'AGENT_COMPLETE') {
     return `agent ${ev.agent_id || 'unknown'} completed loop ${ev.loop || '?'} with ${ev.response_len || 0} chars`;
   }
+  if (ev.type === 'RATE_LIMITED') {
+    const wait   = ev.wait_s ? `${ev.wait_s}s` : '?';
+    const retry  = ev.retry_num ? ` (retry #${ev.retry_num})` : '';
+    const action = ev.action ? ` [${ev.action.replace(/_/g,' ')}]` : '';
+    return `rate limited${action}${retry} — waiting ${wait}, resuming at ${ev.resume_at || '?'}`;
+  }
   if (ev.type === 'SESSION_START') {
     return `session ${ev.session_id || 'unknown'} started`;
   }
@@ -2180,55 +2495,75 @@ function setStatusBar(msg) {
 function clearContentPanels() {
   document.getElementById('exec-empty').style.display = '';
   document.getElementById('exec-info').style.display = 'none';
-  document.getElementById('artifact-list').innerHTML = '<div class="artifact-empty cursor-blink">NO JOB SELECTED</div>';
-  document.getElementById('product-files').innerHTML = '';
-  document.getElementById('product-output').textContent = 'NO OUTPUT YET';
-  document.getElementById('product-output').classList.add('cursor-blink');
   document.getElementById('event-feed').innerHTML = '';
-}
-
-async function loadProductArtifact(jobId, relativePath) {
-  const output = document.getElementById('product-output');
-  selectedProductPath = relativePath;
-  try {
-    const res = await apiFetch(`/api/artifacts/${jobId}/file/${relativePath.split('/').map(encodeURIComponent).join('/')}`);
-    if (!res.ok) throw new Error(res.statusText);
-    const text = await res.text();
-    renderProductContent(text, relativePath);
-    output.classList.remove('cursor-blink');
-    const buttons = document.querySelectorAll('.product-file-btn');
-    buttons.forEach(btn => btn.classList.toggle('active', btn.textContent === relativePath));
-  } catch (e) {
-    output.textContent = 'ERROR: ' + e.message;
-  }
-}
-
-function renderProductContent(text, relativePath='') {
-  const el = document.getElementById('product-output');
-  if ((relativePath || '').toLowerCase().endsWith('.html')) {
-    const src = `/api/artifacts/${selectedJobId}/file/${relativePath.split('/').map(encodeURIComponent).join('/')}`;
-    el.innerHTML = `<iframe src="${src}" title="Rendered product output"></iframe>`;
-    return;
-  }
-  const looksMarkdown = /```|^#|\n#|\n- |\n\* /m.test(text);
-  if (looksMarkdown) {
-    el.innerHTML = renderMarkdown(text);
-  } else {
-    el.textContent = text;
-  }
+  // Reset file explorer
+  _ftJobId = null; _ftArtifacts = []; _ftSelectedPath = null;
+  const tb = document.getElementById('file-tree-body');
+  if (tb) tb.innerHTML = '<div class="ftree-empty">NO JOB SELECTED</div>';
+  const fc = document.getElementById('file-preview-content');
+  if (fc) fc.innerHTML = '<div class="fp-placeholder">SELECT A FILE FROM THE TREE TO PREVIEW</div>';
+  const fn = document.getElementById('file-preview-name');
+  if (fn) fn.textContent = '— SELECT A FILE —';
+  const ft = document.getElementById('file-preview-type');
+  if (ft) ft.textContent = '';
+  const dl = document.getElementById('file-dl-btn');
+  if (dl) dl.style.display = 'none';
+  document.getElementById('file-tree-stats').textContent = '';
 }
 
 function renderMarkdown(text) {
-  let html = escHtml(text);
-  html = html.replace(/```([a-zA-Z0-9_-]+)?\n([\s\S]*?)```/g, (_, lang, code) => `<pre><code data-lang="${lang || ''}">${code.trim()}</code></pre>`);
+  // Protect fenced code blocks first (extract, then restore after escaping)
+  const codeBlocks = [];
+  let html = text.replace(/```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    const idx = codeBlocks.length;
+    codeBlocks.push(`<pre><code data-lang="${escHtml(lang || '')}">${escHtml(code.trim())}</code></pre>`);
+    return `\x00CODE${idx}\x00`;
+  });
+
+  // Escape remaining HTML, then apply inline/block markdown
+  html = escHtml(html);
+
+  // Restore code blocks (their content was already escaped above, so unescape placeholder)
+  html = html.replace(/\x00CODE(\d+)\x00/g, (_, i) => codeBlocks[Number(i)]);
+
+  // Headings
   html = html.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
-  html = html.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
-  html = html.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
+  html = html.replace(/^##\s+(.+)$/gm,  '<h2>$1</h2>');
+  html = html.replace(/^#\s+(.+)$/gm,   '<h1>$1</h1>');
+
+  // Bold / italic
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*([^*]+)\*/g,     '<em>$1</em>');
+
+  // Inline code
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // Bullet lists — convert consecutive "- item" / "* item" lines into <ul>
+  html = html.replace(/((?:^[ \t]*[-*]\s+.+$\n?)+)/gm, (block) => {
+    const items = block.trim().split(/\n/).map(line =>
+      `<li>${line.replace(/^[ \t]*[-*]\s+/, '')}</li>`
+    ).join('');
+    return `<ul>${items}</ul>`;
+  });
+
+  // Numbered lists
+  html = html.replace(/((?:^[ \t]*\d+\.\s+.+$\n?)+)/gm, (block) => {
+    const items = block.trim().split(/\n/).map(line =>
+      `<li>${line.replace(/^[ \t]*\d+\.\s+/, '')}</li>`
+    ).join('');
+    return `<ol>${items}</ol>`;
+  });
+
+  // Paragraphs (double newlines)
   html = html.replace(/\n\n+/g, '</p><p>');
   html = `<p>${html}</p>`;
-  html = html.replace(/<p><h/g, '<h').replace(/<\/h([123])><\/p>/g, '</h$1>');
-  html = html.replace(/<p><pre>/g, '<pre>').replace(/<\/pre><\/p>/g, '</pre>');
+
+  // Clean up block elements that don't belong inside <p>
+  ['h1','h2','h3','pre','ul','ol'].forEach(tag => {
+    html = html.replace(new RegExp(`<p>(<${tag}[^>]*>)`, 'g'), '$1');
+    html = html.replace(new RegExp(`(</${tag}>)</p>`, 'g'), '$1');
+  });
+
   return html;
 }
 
@@ -2335,8 +2670,28 @@ renderJobList = function() {
         item.appendChild(bar);
       }
     }
+    if (job.status === 'rate_limited') {
+      item.classList.add('rl-active');
+    }
   });
+  _tickRlCountdowns();
 };
+
+/* ═══════════════════════════════════════════════════════
+   RATE LIMIT COUNTDOWN TICKER
+═══════════════════════════════════════════════════════ */
+function _tickRlCountdowns() {
+  document.querySelectorAll('.rl-banner.visible').forEach(banner => {
+    const resumeAt = banner.dataset.resume;
+    if (!resumeAt) return;
+    const remaining = Math.max(0, (new Date(resumeAt) - Date.now()) / 1000);
+    const cd = banner.querySelector('.rl-countdown');
+    if (cd) cd.textContent = remaining > 0 ? _fmtWait(remaining) : 'RESUMING…';
+  });
+}
+
+// Update countdowns every second
+setInterval(_tickRlCountdowns, 1000);
 
 /* ═══════════════════════════════════════════════════════
    TEMPLATE PICKER

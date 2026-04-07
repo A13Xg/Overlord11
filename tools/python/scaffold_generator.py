@@ -5,9 +5,9 @@ Generates project scaffolding from templates. Creates directory structures,
 boilerplate files, configuration, and starter code for various project types.
 
 Usage:
-    python scaffold_generator.py --template python_cli --name my_tool --output ./new_project
-    python scaffold_generator.py --template python_api --name my_api --output ./api_project
-    python scaffold_generator.py --template node_api --name my_server --output ./server
+    python scaffold_generator.py --template python_cli --name my_tool --project_dir ./task/app
+    python scaffold_generator.py --template python_api --name my_api --project_dir ./task/app
+    python scaffold_generator.py --template node_api --name my_server --project_dir ./task/app
     python scaffold_generator.py --list-templates
 """
 
@@ -20,6 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from log_manager import log_tool_invocation
+from task_workspace import ensure_env_task_layout
 
 # --- Template Definitions ---
 
@@ -740,6 +741,7 @@ def generate_scaffold(template_name: str, project_name: str,
         "template": template_name,
         "project_name": project_name,
         "output_path": str(output_dir),
+        "project_dir": str(output_dir),
         "language": template["language"],
         "files_created": files_created,
         "dirs_created": dirs_created,
@@ -757,6 +759,7 @@ def main():
     parser.add_argument("--template", default=None, help="Template name")
     parser.add_argument("--name", default=None, help="Project name")
     parser.add_argument("--output", default=None, help="Output directory")
+    parser.add_argument("--project_dir", default=None, help="Project directory (preferred; alias for --output)")
     parser.add_argument("--description", default="", help="Project description")
     parser.add_argument("--list-templates", action="store_true", help="List available templates")
     parser.add_argument("--session_id", default=None, help="Session ID for logging")
@@ -772,7 +775,10 @@ def main():
     if not args.template or not args.name:
         parser.error("--template and --name are required")
 
-    output = args.output or f"./{args.name}"
+    layout = ensure_env_task_layout(include_app=True)
+    output = args.project_dir or args.output
+    if not output:
+        output = str(layout["app"]) if layout else f"./{args.name}"
 
     start = time.time()
     result = generate_scaffold(
@@ -786,7 +792,7 @@ def main():
     log_tool_invocation(
         session_id=session_id,
         tool_name="scaffold_generator",
-        params={"template": args.template, "name": args.name, "output": output},
+        params={"template": args.template, "name": args.name, "project_dir": output},
         result={"status": result.get("status", "error"),
                 "files_created": result.get("total_files", 0)},
         duration_ms=duration_ms

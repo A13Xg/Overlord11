@@ -13,10 +13,10 @@
 | Auth Login Page | High | ✅ | SHA-256 session tokens, tactical matrix-rain theme, FastAPI Depends auth |
 | TTL Enforcement (consciousness_tool) | High | ⬜ | Auto-expire entries past their TTL |
 | Parallel Job Execution | High | ✅ | Worker pool (max_concurrent_jobs), dependency gating (depends_on), parallel tool waves with DependencyAnalyzer, full thread safety |
-| WebUI File Browser + HTML Preview | High | ⬜ | Workspace tree, inline preview (md/html/json/py), fitting extras |
-| Job Templates | Medium | ⬜ | Variety of pre-built templates; no redundant/similar ones |
-| Provider Health Display | High | ⬜ | All models queried; smart fallback; session memory for failures; Gemma models |
-| Setup Wizard | Medium | ⬜ | Master console (server/system) + per-user (auto-start, fallback, alerts) |
+| WebUI File Browser + HTML Preview | High | ✅ | Session file listing, inline preview, HTML product rendering, workspace zip export |
+| Job Templates | Medium | ✅ | Template categories and prompt presets exposed via `backend/api/templates.py` |
+| Provider Health Display | High | ✅ | Provider/model health endpoint plus WebUI health bar integration |
+| Setup Wizard | Medium | ✅ | Per-user setup status, API-key validation, key persistence, completion tracking |
 
 ---
 
@@ -55,6 +55,6 @@
 - All new tools follow the pattern: `tools/defs/<name>.json` + `tools/python/<name>.py`
 - All new tools must be registered in `config.json` and documented in `docs/Tools-Reference.md`
 - All new backend routes go in `backend/api/` as their own module
-- Auth is session-cookie based (FastAPI `SessionMiddleware`); hash storage in `backend/auth/users.json`
+- Auth is bearer-token based (`Authorization: Bearer <token>`); hash storage in `backend/auth/users.json`
 - Parallel job execution: `max_concurrent_jobs` configurable in `config.json` under `orchestration`
 - Provider health: session-level failed-model set; time-based decay (retry after 5 min) for persistent failures

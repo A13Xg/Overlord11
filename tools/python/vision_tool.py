@@ -45,11 +45,13 @@ PROJECT_ROOT = SCRIPT_DIR.parent.parent
 try:
     sys.path.insert(0, str(SCRIPT_DIR))
     from log_manager import log_tool_invocation, log_error
+    from task_workspace import ensure_env_task_layout
     HAS_LOG = True
 except ImportError:
     HAS_LOG = False
     def log_tool_invocation(*a, **kw): pass
     def log_error(*a, **kw): pass
+    def ensure_env_task_layout(*a, **kw): return None
 
 # ---------------------------------------------------------------------------
 # Optional dependency probes
@@ -139,7 +141,11 @@ def screenshot(
     # Determine output path
     if output is None:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output = str(PROJECT_ROOT / "workspace" / f"screenshot_{ts}.{format}")
+        layout = ensure_env_task_layout()
+        if layout:
+            output = str(layout["tools_vision"] / f"screenshot_{ts}.{format}")
+        else:
+            output = str(PROJECT_ROOT / "workspace" / f"screenshot_{ts}.{format}")
 
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)

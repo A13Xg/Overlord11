@@ -21,7 +21,7 @@
       "api_base": "https://api.anthropic.com/v1"
     },
     "gemini": {
-      "model": "gemini-3.1-pro-preview",
+      "model": "gemma-4-31b-it",
       "available_models": {
         "gemini-3.1-pro-preview": "Latest Pro Preview — advanced reasoning, tool use, 1M context, agentic workflows (Feb 2026)",
         "gemini-3-flash-preview": "Latest Flash Preview — frontier multimodal, strongest agentic/vibe-coding, 1M context (Dec 2025)",
@@ -394,7 +394,7 @@
     }
   },
   "orchestration": {
-    "max_loops": 10,
+    "max_loops": 30,
     "max_retries_per_agent": 3,
     "retry_on_empty_output": true,
     "always_review_before_delivery": true,
@@ -422,8 +422,13 @@
       "excluded_tools": []
     },
     "parallel": {
-      "max_concurrent_jobs": 2,
+      "max_concurrent_jobs": 3,
       "max_concurrent_tools": 4
+    },
+    "rate_limit": {
+      "action": "pause",
+      "initial_wait_s": 300,
+      "max_wait_s": 28800
     }
   },
   "notifications": {

@@ -31,6 +31,7 @@ from textwrap import dedent
 
 sys.path.insert(0, str(Path(__file__).parent))
 from log_manager import log_tool_invocation
+from task_workspace import ensure_env_task_layout
 
 
 # ---------------------------------------------------------------------------
@@ -452,7 +453,7 @@ def main():
         os.system("")  # Enable ANSI escape codes on Windows 10+
 
     parser = argparse.ArgumentParser(description="Overlord11 Launcher Generator")
-    parser.add_argument("--project_dir", required=True, help="Path to project directory")
+    parser.add_argument("--project_dir", default=None, help="Path to project directory")
     parser.add_argument("--project_name", required=True, help="Project name for title")
     parser.add_argument("--version", default="0.1.0", help="Project version")
     parser.add_argument("--description", default="", help="Short project description")
@@ -467,8 +468,13 @@ def main():
     color_scheme = json.loads(args.color_scheme) or None
     start = time.time()
 
+    layout = ensure_env_task_layout(include_app=True)
+    project_dir = args.project_dir or (str(layout["app"]) if layout else None)
+    if not project_dir:
+        parser.error("--project_dir is required when no task workspace is active")
+
     result = generate_launcher(
-        project_dir=args.project_dir,
+        project_dir=project_dir,
         project_name=args.project_name,
         version=args.version,
         description=args.description,
@@ -482,7 +488,7 @@ def main():
         log_tool_invocation(
             session_id=args.session_id,
             tool_name="launcher_generator",
-            params={"project_dir": args.project_dir, "project_name": args.project_name},
+            params={"project_dir": project_dir, "project_name": args.project_name},
             result={"status": result.get("status", "unknown")},
             duration_ms=duration_ms,
         )

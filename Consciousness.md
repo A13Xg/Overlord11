@@ -77,11 +77,11 @@ _No active signals._
 
 ### [PERSISTENT] Execution Environment Profile
 - **Source**: SYSTEM
-- **Created**: 2026-04-06
+- **Created**: 2026-04-06 19:21
 - **TTL**: persistent
 - **Status**: ACTIVE
-- **Context**: Runtime host is Windows 11 Pro. Preferred shell is bash (Git Bash / WSL). Python 3.x via PATH. The engine (`engine/runner.py`) detects and records the live system profile at session start — check the injected execution environment block in the system prompt for current values.
-- **Action**: Default to Unix-style shell syntax in tool calls. When `run_shell_command` is used, emit Windows-compatible commands when the session's system profile confirms a Windows host.
+- **Context**: Runtime host is Windows 11 on AMD64. Preferred shell is auto-detected; Python 3.14.3.
+- **Action**: Use Unix-style shell commands on non-Windows hosts, Windows shell commands only when the runtime profile explicitly shows a Windows shell.
 
 ### [PERSISTENT] Active Model Configuration
 - **Source**: SYSTEM
@@ -242,3 +242,12 @@ To prevent context runaway:
 2. Read Work In Progress (already being done?)
 3. Read Pending Handoffs (can I help?)
 4. Read Cross-Agent Signals (relevant context?)
+
+## IRAN_CONFLICT_BRIEF_2026
+- **Category:** finding
+- **TTL:** persistent
+- **Written:** 2026-04-06 19:06:15
+
+Completed a Tier 2 News Brief on the Iran conflict. Established a workflow for geopolitical analysis: Research -> Balanced Synthesis -> Neutrality Review -> HTML Publication. All assets saved in workspace/Iran_Conflict_Brief/
+
+---

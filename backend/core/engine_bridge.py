@@ -30,6 +30,7 @@ Race conditions
 import asyncio
 import logging
 import sys
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -64,7 +65,21 @@ class EngineBridge:
 
         # Maps job_id → asyncio.Event.  Set when the job reaches a terminal
         # state (COMPLETED or FAILED).  Used by dependency gating.
+        # Capped at _MAX_COMPLETION_EVENTS entries: oldest are evicted once the
+        # limit is reached (they are only needed while dependents are waiting).
         self._completion_events: dict[str, asyncio.Event] = {}
+        self._MAX_COMPLETION_EVENTS = 1000
+
+        # Maps job_id → threading.Event passed into the EngineRunner for that
+        # job.  Allows external callers (stop/pause API) to interrupt an
+        # in-progress rate-limit wait without waiting for it to expire.
+        self._job_stop_events: dict[str, threading.Event] = {}
+
+    def signal_stop(self, job_id: str) -> None:
+        """Signal the runner for job_id to abort any current wait immediately."""
+        event = self._job_stop_events.get(job_id)
+        if event is not None:
+            event.set()
 
     # ------------------------------------------------------------------
     # Worker lifecycle
@@ -151,8 +166,19 @@ class EngineBridge:
     # ------------------------------------------------------------------
 
     def _ensure_completion_event(self, job_id: str) -> asyncio.Event:
-        """Return (and register if missing) the completion event for a job."""
+        """Return (and register if missing) the completion event for a job.
+
+        Evicts the oldest already-set events when the dict grows beyond the cap
+        so that long-running servers do not leak memory.
+        """
         if job_id not in self._completion_events:
+            # Evict completed (already-set) events if we're at the cap.
+            if len(self._completion_events) >= self._MAX_COMPLETION_EVENTS:
+                to_remove = [
+                    jid for jid, ev in self._completion_events.items() if ev.is_set()
+                ]
+                for jid in to_remove[:max(1, len(to_remove))]:
+                    del self._completion_events[jid]
             self._completion_events[job_id] = asyncio.Event()
         return self._completion_events[job_id]
 
@@ -295,12 +321,42 @@ class EngineBridge:
             "status": JobStatus.RUNNING.value,
         })
 
+        # stop_event lets the runner abort a rate-limit wait early when the
+        # job is paused, cancelled, or the server is shutting down.
+        stop_event = threading.Event()
+        self._job_stop_events[job_id] = stop_event
+
         def _event_callback(event: dict) -> None:
             """Sync callback invoked from EngineRunner (may be on a thread-pool thread)."""
             store.append_event(job_id, event)
             broadcaster.publish(job_id, {**event, "job_id": job_id})
 
-        runner = EngineRunner(verbose=False)
+            # Drive job status transitions triggered by engine events.
+            event_type = event.get("type", "")
+            if event_type == "RATE_LIMITED":
+                store.update_job(job_id, status=JobStatus.RATE_LIMITED)
+                broadcaster.publish(job_id, {
+                    "type": "STATUS",
+                    "job_id": job_id,
+                    "status": JobStatus.RATE_LIMITED.value,
+                    "wait_s": event.get("wait_s"),
+                    "resume_at": event.get("resume_at"),
+                })
+            elif event_type == "AGENT_START":
+                j = store.get_job(job_id)
+                if j is not None and j.status == JobStatus.RATE_LIMITED:
+                    store.update_job(job_id, status=JobStatus.RUNNING)
+                    broadcaster.publish(job_id, {
+                        "type": "STATUS",
+                        "job_id": job_id,
+                        "status": JobStatus.RUNNING.value,
+                    })
+
+        runner = EngineRunner(
+            verbose=False,
+            stop_event=stop_event,
+            rate_limit_action=job.rate_limit_action,
+        )
         runner.events.callbacks.append(_event_callback)
 
         loop = asyncio.get_running_loop()
@@ -318,6 +374,8 @@ class EngineBridge:
         try:
             result = await loop.run_in_executor(None, _run_sync)
         except Exception as exc:
+            stop_event.set()
+            self._job_stop_events.pop(job_id, None)
             store.update_job(
                 job_id,
                 status=JobStatus.FAILED,
@@ -330,6 +388,9 @@ class EngineBridge:
                 "message": str(exc),
             })
             return
+        finally:
+            stop_event.set()
+            self._job_stop_events.pop(job_id, None)
 
         store.update_job(
             job_id,

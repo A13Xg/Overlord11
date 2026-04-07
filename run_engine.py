@@ -13,6 +13,22 @@ from pathlib import Path
 _BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_BASE_DIR))
 
+# Load .env keys (written by the setup wizard) without requiring python-dotenv
+_ENV_FILE = _BASE_DIR / ".env"
+if _ENV_FILE.exists():
+    try:
+        for _line in _ENV_FILE.read_text(encoding="utf-8").splitlines():
+            _line = _line.strip()
+            if not _line or _line.startswith("#") or "=" not in _line:
+                continue
+            _key, _, _val = _line.partition("=")
+            _key = _key.strip()
+            _val = _val.strip().strip('"').strip("'")
+            if _key and _key not in os.environ:
+                os.environ[_key] = _val
+    except OSError:
+        pass
+
 from engine import EngineRunner, EventStream, EventType  # noqa: E402
 
 # ---------------------------------------------------------------------------

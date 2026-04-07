@@ -42,6 +42,7 @@ if str(_TOOLS_DIR) not in sys.path:
 from log_manager import log_event as _log_event_entry
 from log_manager import log_llm_decision as _log_llm_decision
 from log_manager import log_tool_invocation as _log_tool_invocation
+from task_workspace import ensure_task_layout
 
 
 class EngineSession:
@@ -81,7 +82,9 @@ class EngineSession:
                 self._session_dir = Path(workspace)
                 self._ensure_runtime_dirs()
                 # Load existing logs if present
-                logs_path = self._session_dir / "logs.json"
+                logs_path = self._session_dir / "logs" / "events.json"
+                if not logs_path.exists():
+                    logs_path = self._session_dir / "logs.json"
                 if logs_path.exists():
                     try:
                         self._logs = json.loads(logs_path.read_text(encoding="utf-8"))
@@ -211,7 +214,7 @@ class EngineSession:
             },
         }
         self.write_trace(category="system", payload=profile, stem="system_profile")
-        self.write_artifact("artifacts/system_profile.json", json.dumps(profile, indent=2, ensure_ascii=False))
+        self.write_artifact("agent/system_profile.json", json.dumps(profile, indent=2, ensure_ascii=False))
         self._update_consciousness_environment(profile)
         self.log_event("system_profile", profile)
         return profile
@@ -240,7 +243,7 @@ class EngineSession:
         if not output_text:
             return None
         extension = ".html" if "<html" in output_text.lower() else ".md"
-        relative_path = f"outputs/final_output{extension}"
+        relative_path = f"final_output{extension}"
         self.write_artifact(relative_path, output_text)
         return relative_path
 
@@ -278,7 +281,7 @@ class EngineSession:
     @property
     def outputs_dir(self) -> Optional[Path]:
         if self._session_dir:
-            return self._session_dir / "outputs"
+            return self._session_dir
         return None
 
     @property
@@ -293,7 +296,7 @@ class EngineSession:
         """Write logs.json into the session directory."""
         if not self._session_dir:
             return
-        logs_path = self._session_dir / "logs.json"
+        logs_path = self._session_dir / "logs" / "events.json"
         try:
             logs_path.write_text(
                 json.dumps(self._logs, indent=2, ensure_ascii=False, default=str),
@@ -306,7 +309,12 @@ class EngineSession:
         """Write a structured trace file and append a JSONL timeline entry."""
         self._ensure_runtime_dirs()
         self._trace_counter += 1
-        relative_path = f"traces/{category}/{self._trace_counter:03d}_{stem}.json"
+        if category == "agents":
+            relative_path = f"logs/agents/{self._trace_counter:03d}_{stem}.json"
+        elif category == "tools":
+            relative_path = f"logs/tools/{self._trace_counter:03d}_{stem}.json"
+        else:
+            relative_path = f"logs/system/{self._trace_counter:03d}_{stem}.json"
         self.write_artifact(relative_path, json.dumps(payload, indent=2, ensure_ascii=False, default=str))
         timeline_entry = {
             "index": self._trace_counter,
@@ -315,7 +323,7 @@ class EngineSession:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "summary": stem,
         }
-        timeline_path = self._session_dir / "traces" / "timeline.jsonl" if self._session_dir else None
+        timeline_path = self._session_dir / "logs" / "timeline.jsonl" if self._session_dir else None
         if timeline_path:
             with timeline_path.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(timeline_entry, ensure_ascii=False) + "\n")
@@ -333,8 +341,7 @@ class EngineSession:
     def _ensure_runtime_dirs(self) -> None:
         if not self._session_dir:
             return
-        for name in ("output", "outputs", "artifacts", "traces", "traces/agents", "traces/tools", "traces/system"):
-            (self._session_dir / name).mkdir(parents=True, exist_ok=True)
+        ensure_task_layout(self._session_dir)
 
     def _update_consciousness_environment(self, profile: dict) -> None:
         """Persist the latest execution environment into shared memory."""

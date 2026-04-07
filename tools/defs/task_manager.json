@@ -1,6 +1,6 @@
 {
   "name": "task_manager",
-  "description": "Manages the standardized TaskingLog.md file within the sandboxed project directory. Supports adding tasks, subtasks, marking complete, updating status, and querying the current task list. Ensures no duplicate work across agent sessions.",
+  "description": "Manages the standardized TaskingLog.md file at the root of the active task directory. Supports adding tasks, subtasks, marking complete, updating status, and querying the current task list. Ensures no duplicate work across agent sessions.",
   "parameters": {
     "type": "object",
     "properties": {
@@ -11,7 +11,11 @@
       },
       "project_dir": {
         "type": "string",
-        "description": "Absolute path to the sandboxed project directory containing TaskingLog.md."
+        "description": "Absolute path to the task directory containing TaskingLog.md."
+      },
+      "task_dir": {
+        "type": "string",
+        "description": "Alias for project_dir."
       },
       "task_id": {
         "type": "string",

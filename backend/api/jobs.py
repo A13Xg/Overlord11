@@ -6,9 +6,10 @@ import re
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from ..auth.auth import require_auth
 from ..core.engine_bridge import bridge
 from ..core.event_stream import broadcaster
 from ..core.session_store import Job, JobStatus, store
@@ -31,9 +32,13 @@ def _get_or_404(job_id: str) -> Job:
     return job
 
 
+_VALID_RL_ACTIONS = {"pause", "stop", "try_different_model"}
+
+
 class CreateJobRequest(BaseModel):
     title: str
     prompt: str
+    rate_limit_action: str = "pause"  # "pause" | "stop" | "try_different_model"
 
 
 # ------------------------------------------------------------------
@@ -41,13 +46,18 @@ class CreateJobRequest(BaseModel):
 # ------------------------------------------------------------------
 
 @router.get("")
-async def list_jobs():
+async def list_jobs(_session: dict = Depends(require_auth)):
     return [j.to_dict() for j in store.list_jobs()]
 
 
 @router.post("", status_code=201)
-async def create_job(req: CreateJobRequest):
-    job = store.create_job(title=req.title.strip(), prompt=req.prompt.strip())
+async def create_job(req: CreateJobRequest, _session: dict = Depends(require_auth)):
+    action = req.rate_limit_action if req.rate_limit_action in _VALID_RL_ACTIONS else "pause"
+    job = store.create_job(
+        title=req.title.strip(),
+        prompt=req.prompt.strip(),
+        rate_limit_action=action,
+    )
     return job.to_dict()
 
 
@@ -56,12 +66,12 @@ async def create_job(req: CreateJobRequest):
 # ------------------------------------------------------------------
 
 @router.get("/{job_id}")
-async def get_job(job_id: str):
+async def get_job(job_id: str, _session: dict = Depends(require_auth)):
     return _get_or_404(job_id).to_dict()
 
 
 @router.delete("/{job_id}", status_code=204)
-async def delete_job(job_id: str):
+async def delete_job(job_id: str, _session: dict = Depends(require_auth)):
     _validate_job_id(job_id)
     if not store.delete_job(job_id):
         raise HTTPException(status_code=404, detail="Job not found")
@@ -72,7 +82,7 @@ async def delete_job(job_id: str):
 # ------------------------------------------------------------------
 
 @router.post("/{job_id}/start")
-async def start_job(job_id: str):
+async def start_job(job_id: str, _session: dict = Depends(require_auth)):
     job = _get_or_404(job_id)
     if job.status == JobStatus.RUNNING:
         raise HTTPException(status_code=409, detail="Job is already running")
@@ -89,10 +99,13 @@ async def start_job(job_id: str):
 
 
 @router.post("/{job_id}/stop")
-async def stop_job(job_id: str):
+async def stop_job(job_id: str, _session: dict = Depends(require_auth)):
     job = _get_or_404(job_id)
-    if job.status not in (JobStatus.RUNNING, JobStatus.QUEUED, JobStatus.PAUSED):
+    stoppable = (JobStatus.RUNNING, JobStatus.QUEUED, JobStatus.PAUSED, JobStatus.RATE_LIMITED)
+    if job.status not in stoppable:
         raise HTTPException(status_code=409, detail=f"Cannot stop job in state: {job.status}")
+    # Signal the runner's stop_event so any in-progress rate-limit wait exits immediately.
+    bridge.signal_stop(job_id)
     store.update_job(
         job_id,
         status=JobStatus.FAILED,
@@ -109,10 +122,13 @@ async def stop_job(job_id: str):
 
 
 @router.post("/{job_id}/pause")
-async def pause_job(job_id: str):
+async def pause_job(job_id: str, _session: dict = Depends(require_auth)):
     job = _get_or_404(job_id)
-    if job.status != JobStatus.RUNNING:
-        raise HTTPException(status_code=409, detail="Can only pause a running job")
+    pausable = (JobStatus.RUNNING, JobStatus.RATE_LIMITED)
+    if job.status not in pausable:
+        raise HTTPException(status_code=409, detail="Can only pause a running or rate-limited job")
+    # Signal the runner so a rate-limit wait exits and the job parks in PAUSED state.
+    bridge.signal_stop(job_id)
     store.update_job(job_id, status=JobStatus.PAUSED)
     broadcaster.publish(job_id, {
         "type": "STATUS",
@@ -123,10 +139,11 @@ async def pause_job(job_id: str):
 
 
 @router.post("/{job_id}/resume")
-async def resume_job(job_id: str):
+async def resume_job(job_id: str, _session: dict = Depends(require_auth)):
     job = _get_or_404(job_id)
-    if job.status != JobStatus.PAUSED:
-        raise HTTPException(status_code=409, detail="Job is not paused")
+    resumable = (JobStatus.PAUSED, JobStatus.RATE_LIMITED)
+    if job.status not in resumable:
+        raise HTTPException(status_code=409, detail="Job is not paused or rate-limited")
     store.update_job(job_id, status=JobStatus.RUNNING)
     broadcaster.publish(job_id, {
         "type": "STATUS",
@@ -137,10 +154,14 @@ async def resume_job(job_id: str):
 
 
 @router.post("/{job_id}/restart")
-async def restart_job(job_id: str):
+async def restart_job(job_id: str, _session: dict = Depends(require_auth)):
     job = _get_or_404(job_id)
     new_title = job.title + " (2)"
-    new_job = store.create_job(title=new_title, prompt=job.prompt)
+    new_job = store.create_job(
+        title=new_title,
+        prompt=job.prompt,
+        rate_limit_action=job.rate_limit_action,
+    )
     bridge.enqueue(new_job.job_id)
     store.update_job(new_job.job_id, status=JobStatus.QUEUED)
     broadcaster.publish(new_job.job_id, {

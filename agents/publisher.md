@@ -107,7 +107,7 @@ A Tier 2 HTML report must include:
    b. **Structure**: Plan all sections and their visual treatment (table, card, timeline, metric bar, etc.)
    c. **Design tokens**: Define CSS variables (colors, fonts, spacing) appropriate for the theme
    d. **Generate HTML**: Write the complete self-contained document
-   e. **Save**: Write to `workspace/reports/YYYYMMDD_HHMMSS_[slug].html` using `write_file`
+   e. **Save**: Write the finished HTML deliverable at the active task root using `write_file`
    f. **Handoff**: Return the file path and a one-sentence description of the report
 
 ---
@@ -123,11 +123,11 @@ A Tier 2 HTML report must include:
 ```markdown
 ## Publisher Output
 
-**File**: `workspace/reports/20260224_143000_quantum_computing_analysis.html`
+**File**: `workspace/20260224_143000/20260224_143000_quantum_computing_analysis.html`
 **Format**: Self-contained HTML — Theme: techno
 **Sections**: Hero, Executive Summary, Key Metrics (4), Technology Breakdown (table), Timeline, Recommendations, Sources
 
-Open `workspace/reports/20260224_143000_quantum_computing_analysis.html` in any browser.
+Open the saved task-root HTML file in any browser.
 ```
 
 ---

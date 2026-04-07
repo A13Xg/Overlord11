@@ -1,6 +1,6 @@
 {
   "name": "session_manager",
-  "description": "Manages work sessions with unique IDs. Creates session workspaces, tracks file changes and agent/tool usage, appends notes, and closes sessions with a final summary. Sessions are indexed in a workspace/session_index.json file and each gets a dedicated directory with output/ and temp/ subdirectories.",
+  "description": "Manages work sessions with unique IDs. Creates exactly one canonical task directory per task under workspace/<task_id>/, tracks file changes and agent/tool usage, appends notes, and closes sessions with a final summary. Sessions are indexed in workspace/session_index.json.",
   "parameters": {
     "type": "object",
     "properties": {
@@ -11,7 +11,7 @@
       },
       "session_id": {
         "type": "string",
-        "description": "Session ID (format: YYYYMMDD_HHMMSS). Required for all actions except 'create', 'list', and 'active'."
+        "description": "Session ID / task ID (format: YYYYMMDD_HHMMSS or YYYYMMDD_HHMMSS_NN). Required for all actions except 'create', 'list', and 'active'."
       },
       "description": {
         "type": "string",

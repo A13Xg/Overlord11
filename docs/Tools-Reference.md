@@ -204,10 +204,11 @@ Generate project scaffolding from templates.
 |-----------|------|----------|-------------|
 | `--template` | string | ✓ | Template name: `python_cli`, `python_api`, `node_api` |
 | `--name` | string | ✓ | Project name |
-| `--output` | string | ✓ | Output directory |
+| `--project_dir` | string | | Preferred target directory. In task-aware runs this should usually be `<task>/app` |
+| `--output` | string | | Deprecated alias for `--project_dir` |
 
 ```bash
-python tools/python/scaffold_generator.py --template python_cli --name my_tool --output ./new_project
+python tools/python/scaffold_generator.py --template python_cli --name my_tool --project_dir ./workspace/20260322_143000/app
 python tools/python/scaffold_generator.py --list-templates
 ```
 
@@ -357,7 +358,7 @@ Generate themed, fully self-contained HTML reports from Markdown or plain text c
 | `--title` | string | ✓ | Report title |
 | `--content` | string | ✓ | Input file path (Markdown or plain text) |
 | `--theme` | string | | Visual theme (default: `auto`) — see [Output Tiers](Output-Tiers.md) |
-| `--output` | string | | Output file path (default: auto-generated in `workspace/`) |
+| `--output` | string | | Output file path (default: task root when active, otherwise auto-generated in `workspace/reports/`) |
 
 ```bash
 python tools/python/publisher_tool.py --title "Q1 Analysis" --content report.md --theme modern
@@ -373,7 +374,7 @@ python tools/python/publisher_tool.py --title "Auto Theme Test" --content data.m
 
 **Implementation:** `tools/python/session_manager.py`
 
-Manage work sessions with unique IDs and track agent activity.
+Manage work sessions with unique IDs and track agent activity. Each task gets exactly one canonical directory under `workspace/<task_id>/`.
 
 | Action | Description |
 |--------|-------------|
@@ -441,20 +442,22 @@ python tools/python/ui_design_system.py --project_name "MyApp"
 **Schema:** `tools/defs/task_manager.json`
 **Implementation:** `tools/python/task_manager.py`
 
-Manage tasks in `TaskingLog.md` with T-NNN IDs, checkboxes, and subtasks.
+Manage tasks in root-level `TaskingLog.md` with T-NNN IDs, checkboxes, and subtasks.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ | `create`, `update`, `list`, `complete`, `delete` |
-| `task_id` | string | | Task ID (e.g., `T-001`) — required for update/complete/delete |
-| `title` | string | | Task title — required for create |
-| `status` | string | | Status update: `todo`, `in_progress`, `done`, `blocked` |
+| `action` | string | ✓ | `init`, `add_task`, `add_subtask`, `complete_task`, `complete_subtask`, `update_status`, `query` |
+| `project_dir` | string | | Task root containing `TaskingLog.md` |
+| `task_dir` | string | | Alias for `project_dir` |
+| `task_id` | string | | Task ID (e.g., `T-001`) |
+| `title` | string | | Task title |
+| `status` | string | | Status update: `pending`, `in_progress`, `blocked`, `completed`, `skipped` |
 | `session_id` | string | | Session ID for logging |
 
 ```bash
-python tools/python/task_manager.py --action create --title "Implement auth" --session_id 20260315_120000
-python tools/python/task_manager.py --action update --task_id T-001 --status in_progress
-python tools/python/task_manager.py --action list
+python tools/python/task_manager.py --action add_task --project_dir ./workspace/20260322_143000 --title "Implement auth" --session_id 20260315_120000
+python tools/python/task_manager.py --action update_status --project_dir ./workspace/20260322_143000 --task_id T-001 --status in_progress
+python tools/python/task_manager.py --action query --project_dir ./workspace/20260322_143000
 ```
 
 ---
@@ -464,19 +467,21 @@ python tools/python/task_manager.py --action list
 **Schema:** `tools/defs/error_logger.json`
 **Implementation:** `tools/python/error_logger.py`
 
-Log errors to `ErrorLog.md` with severity, attempts, and resolution tracking.
+Log errors to root-level `ErrorLog.md` with severity, attempts, and resolution tracking.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | ✓ | `log`, `resolve`, `list` |
-| `error` | string | | Error description — required for log |
-| `severity` | string | | `low`, `medium`, `high`, `critical` (default: `medium`) |
-| `resolution` | string | | Resolution description — required for resolve |
+| `action` | string | ✓ | `init`, `log_error`, `add_attempt`, `resolve_error`, `query` |
+| `project_dir` | string | | Task root containing `ErrorLog.md` |
+| `task_dir` | string | | Alias for `project_dir` |
+| `title` | string | | Error title for `log_error` |
+| `severity` | string | | `warning`, `minor`, `major`, `critical` (default: `major`) |
+| `resolution` | string | | Resolution description for `resolve_error` |
 | `session_id` | string | | Session ID for logging |
 
 ```bash
-python tools/python/error_logger.py --action log --error "API timeout on fetch" --severity high
-python tools/python/error_logger.py --action resolve --error "API timeout" --resolution "Added retry logic"
+python tools/python/error_logger.py --action log_error --project_dir ./workspace/20260322_143000 --title "API timeout on fetch" --severity major
+python tools/python/error_logger.py --action resolve_error --project_dir ./workspace/20260322_143000 --error_id E-001 --resolution "Added retry logic"
 ```
 
 ---
@@ -486,18 +491,19 @@ python tools/python/error_logger.py --action resolve --error "API timeout" --res
 **Schema:** `tools/defs/project_docs_init.json`
 **Implementation:** `tools/python/project_docs_init.py`
 
-Initialize the 5 standardized project files in a sandboxed project directory.
+Initialize the 5 standardized task files at the root of a task directory.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `path` | string | ✓ | Project root to initialize |
-| `project_name` | string | | Project name (auto-detected from directory if omitted) |
+| `project_dir` | string | | Task root to initialize |
+| `task_dir` | string | | Alias for `project_dir` |
+| `project_name` | string | | Project name |
 | `session_id` | string | | Session ID for logging |
 
 Creates: `ProjectOverview.md`, `Settings.md`, `TaskingLog.md`, `AInotes.md`, `ErrorLog.md`
 
 ```bash
-python tools/python/project_docs_init.py --path ./my_project --project_name "My Project"
+python tools/python/project_docs_init.py --project_dir ./workspace/20260322_143000 --project_name "My Project"
 ```
 
 ---
@@ -533,13 +539,13 @@ Generate `run.py` (ASCII title, color menu, concurrent mode) + `run.bat` + `run.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `path` | string | ✓ | Project root to generate launchers in |
+| `project_dir` | string | | Software project root to generate launchers in; typically `<task>/app` |
 | `project_name` | string | ✓ | Project name (used in ASCII title) |
 | `modes` | array | | List of run modes for the menu (default: auto-detect) |
 | `session_id` | string | | Session ID for logging |
 
 ```bash
-python tools/python/launcher_generator.py --path ./my_project --project_name "My App"
+python tools/python/launcher_generator.py --project_dir ./workspace/20260322_143000/app --project_name "My App"
 ```
 
 ---

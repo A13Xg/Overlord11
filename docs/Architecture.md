@@ -176,11 +176,12 @@ See [Configuration Reference](Configuration-Reference.md) for every field.
 
 Each agent run produces a **session**:
 
-1. `session_manager.py` creates a session directory under `workspace/YYYYMMDD_HHMMSS/`
+1. `session_manager.py` creates exactly one task directory under `workspace/YYYYMMDD_HHMMSS/`
 2. Each tool call is logged to `logs/sessions/` (JSONL format)
-3. Agent outputs are written to `workspace/YYYYMMDD_HHMMSS/output/`
-4. Session is closed with a summary written to `workspace/YYYYMMDD_HHMMSS/session.json`
-5. Key findings are persisted to `Consciousness.md`
+3. Task-local agent/tool/runtime data is written under `agent/`, `tools/`, and `logs/` inside that task directory
+4. Final deliverables are written at the task-root level; software project files live in `app/` when applicable
+5. Session metadata is written to `workspace/YYYYMMDD_HHMMSS/logs/session.json`
+6. Key findings are persisted to `Consciousness.md`
 
 Sessions are retained for up to 50 runs (configurable via `workspace.max_sessions_retained`).
 

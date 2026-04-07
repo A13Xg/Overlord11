@@ -16,7 +16,7 @@ The framework is designed to work with **any LLM provider** — Anthropic Claude
 
 | Property | Value |
 |----------|-------|
-| Framework | Overlord11 v2.3.0 |
+| Framework | Overlord11 v2.3.1 |
 | Memory file | `Consciousness.md` (shared across all agents) |
 | Config | `config.json` (provider, agent, tool settings) |
 | Tool implementations | `tools/python/` |
@@ -26,7 +26,7 @@ The framework is designed to work with **any LLM provider** — Anthropic Claude
 | WebUI backend | `backend/` (FastAPI, port 7900) |
 | WebUI frontend | `frontend/index.html` |
 | Engine CLI | `run_engine.py` |
-| Workspace | `workspace/` (session outputs) |
+| Workspace | `workspace/` (one task directory per task) |
 | Logs | `logs/` |
 
 ---
@@ -125,7 +125,7 @@ These tools are registered in `config.json` and implemented in `tools/python/`. 
 
 ## Standardized Project Files
 
-Every sandboxed project directory worked on by Overlord11 agents MUST contain these 5 files. They are created automatically by `project_docs_init` and maintained by agents throughout the project lifecycle.
+Every task directory worked on by Overlord11 agents MUST contain these 5 root-level files. They are created automatically by `project_docs_init` and maintained by agents throughout the task lifecycle.
 
 | File | Purpose | Read At Start? |
 |------|---------|----------------|
@@ -333,7 +333,7 @@ design-system/
 
 1. **Always start as Orchestrator** for new requests. Do not invoke specialist agents directly unless explicitly asked.
 2. **Never skip the Reviewer** — all final outputs pass through `OVR_REV_06` before delivery.
-3. **Initialize project docs** — ensure `ProjectOverview.md`, `Settings.md`, `TaskingLog.md`, `AInotes.md`, and `ErrorLog.md` exist in the sandboxed project directory before any work begins. Use `project_docs_init` if missing.
+3. **Initialize task docs** — ensure `ProjectOverview.md`, `Settings.md`, `TaskingLog.md`, `AInotes.md`, and `ErrorLog.md` exist at the task root before any work begins. Use `project_docs_init` if missing.
 4. **Read project docs at session start** — read `ProjectOverview.md`, `Settings.md`, `AInotes.md`, and check `TaskingLog.md` for context and to avoid duplicate work.
 5. **Respect `Settings.md`** — follow all configured AI behavior settings (error handling, verbosity, testing, retry limits).
 6. **Track tasks** — update `TaskingLog.md` via `task_manager` when starting and completing work. Never duplicate a completed task.
@@ -435,14 +435,16 @@ The `SelfHealingEngine` (`engine/self_healing.py`) automatically:
 
 ### Session Artifacts
 
-Each engine run creates a session under `workspace/YYYYMMDD_HHMMSS/`:
+Each task uses exactly one canonical task directory under `workspace/<task_id>/`:
 
 ```
 workspace/20260404_170000/
-  session.json        ← metadata + status
-  logs.json           ← full event log
-  outputs/            ← agent-written files
-  temp/               ← scratch files
+  agent/             ← agent notes/data and system captures
+  tools/             ← task-local tool outputs (cache, web, screenshots)
+  logs/              ← manifests, traces, JSON logs
+  app/               ← software project files when the task is an app build
+  ProjectOverview.md ← root-level task docs
+  final_output.html  ← finished deliverables stay at task root
 ```
 
 ### Tactical WebUI

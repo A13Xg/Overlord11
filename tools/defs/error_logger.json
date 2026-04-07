@@ -11,7 +11,11 @@
       },
       "project_dir": {
         "type": "string",
-        "description": "Absolute path to the sandboxed project directory containing ErrorLog.md."
+        "description": "Absolute path to the task directory containing ErrorLog.md."
+      },
+      "task_dir": {
+        "type": "string",
+        "description": "Alias for project_dir."
       },
       "error_id": {
         "type": "string",

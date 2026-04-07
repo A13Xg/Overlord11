@@ -4,7 +4,8 @@ Overlord11 Engine — Tool Result Cache
 Hash-keyed persistent cache for tool results.
 
 Cache key   = sha256(tool_name + canonical_json(params))
-Cache store = workspace/tool_cache.json   (survives across sessions)
+Cache store = <task>/tools/cache/tool_cache.json by default when a task context
+is active, otherwise workspace/tool_cache.json.
 Eviction    = LRU when max_entries is reached
 Expiry      = per-entry TTL checked on read (lazy expiry)
 
@@ -69,7 +70,8 @@ class ToolCache:
         self._excluded: frozenset[str] = _DEFAULT_EXCLUDED | extra_excluded
 
         cache_file_rel = config.get("cache_file", "workspace/tool_cache.json")
-        self._cache_file: Path = project_root / cache_file_rel
+        self._default_cache_file: Path = project_root / cache_file_rel
+        self._cache_file: Path = self._default_cache_file
         self._cache_file.parent.mkdir(parents=True, exist_ok=True)
 
         # In-memory store: key → {result, tool, params_hash, stored_at, hits}
@@ -78,6 +80,20 @@ class ToolCache:
         self._lock = threading.Lock()
         self._dirty = False  # track whether store has unsaved changes
 
+        self._load()
+
+    def set_task_root(self, task_root: Optional[Path]) -> None:
+        """Switch the cache file to the active task's tools/cache directory."""
+        target = self._default_cache_file
+        if task_root is not None:
+            target = Path(task_root).resolve() / "tools" / "cache" / "tool_cache.json"
+        if target == self._cache_file:
+            return
+        self._save()
+        self._cache_file = target
+        self._cache_file.parent.mkdir(parents=True, exist_ok=True)
+        self._store = {}
+        self._dirty = False
         self._load()
 
     # ------------------------------------------------------------------

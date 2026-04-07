@@ -5,6 +5,40 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.3.1] — 2026-04-07
+
+### Fixed — Critical Security
+
+- **`backend/api/jobs.py`**: All job endpoints (list, get, create, delete, start, stop, pause, resume, restart) were entirely unauthenticated — any unauthenticated caller could create, start, or delete jobs. Added `Depends(require_auth)` to all nine route handlers.
+- **`backend/api/setup.py` `/save-keys`**: Endpoint was completely unprotected, allowing unauthenticated callers to overwrite API keys. Added `Depends(require_auth)`.
+- **`backend/api/setup.py` `/reset`**: Referenced undefined `_SETUP_FILE`, causing an immediate `NameError` crash on any reset attempt. Fixed to call `_get_user_setup_file(username)`.
+- **`frontend/index.html`**: `_ftPreviewInline` and `openArtifactPath` constructed iframe/img elements via `innerHTML` string interpolation with user-derived URLs. Replaced with `document.createElement` to prevent XSS.
+
+### Fixed — Critical Reliability
+
+- **`.env` keys lost on server restart**: The setup wizard writes API keys to `.env` and `os.environ` in the same process, but environment variable mutations don't persist across restarts. Added an inline `.env` file parser to both `backend/main.py` and `run_engine.py` that loads keys before any imports, so the engine always has credentials after a restart. No external `python-dotenv` dependency required.
+- **PAUSED / RATE_LIMITED jobs stuck after restart**: `session_store.load()` only reset `RUNNING` and `QUEUED` jobs to `FAILED` on startup. `PAUSED` and `RATE_LIMITED` jobs were left in limbo with no worker to resume them. Fixed to reset all four interrupted states.
+- **`tool_executor._call_subprocess` swallowed errors**: A non-zero exit code with an empty stderr was treated as success, returning stdout instead of raising. Fixed to always raise `RuntimeError` on non-zero returncode, using stdout as the error message when stderr is empty.
+
+### Fixed — Memory / Stability
+
+- **`engine_bridge._completion_events` unbounded growth**: The dict accumulated one `threading.Event` per job and was never pruned, leaking memory on long-running servers with many jobs. Added a 1 000-entry cap with eviction of already-set (completed) events when the cap is reached.
+
+### Fixed — Frontend Correctness
+
+- **`renderMarkdown` double-escaping code blocks**: `escHtml` was applied before fenced-code extraction, so code block content was HTML-escaped before the `` ``` `` regex ran, causing broken rendering. Rewrote `renderMarkdown` to extract fenced blocks into placeholders first, then HTML-escape the remaining text, then restore blocks.
+- **`renderMarkdown` missing list support**: Bullet (`-` / `*`) and numbered (`1.`) lists rendered as plain text. Added regex-based list conversion.
+- **`loadJobs` / `loadProviders` / `submitNewJob`**: Called `.json()` on responses without checking `res.ok`, silently swallowing HTTP errors. Added `res.ok` guards with user-visible error messages.
+- **`handleEvent` STATUS re-renders**: `renderFilesPanel` was called on every status event (including transient `running` → `running` transitions), causing expensive DOM rebuilds. Changed to only call on terminal states (`completed` / `failed`).
+- **`restart_job`**: New job was created without forwarding `rate_limit_action` from the original, defaulting all restarts to `"pause"` regardless of original intent. Fixed.
+- **Stale `selectedProductPath` global**: Removed orphaned global variable; `openArtifactPath` now delegates to `_ftSelectFile` instead of performing stale DOM queries.
+
+### Changed
+
+- `statusColor` map in `renderExecutionPanel` now includes the `rate_limited` state.
+
+---
+
 ## [2.3.0] — 2026-04-04
 
 ### Added — Internal Execution Engine (`engine/`)
@@ -12,7 +46,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `engine/runner.py` — `EngineRunner` core agent execution loop; runs independently of external CLI tools
 - `engine/orchestrator_bridge.py` — provider-agnostic LLM API caller (Anthropic/Gemini/OpenAI REST) with fallback chain
 - `engine/tool_executor.py` — `ToolCall` dataclass + 3-format parser (JSON, XML, function-call style) + Python/subprocess executor
-- `engine/session_manager.py` — `EngineSession` wrapper over existing session tools; logs events to `sessions/{id}/logs.json`
+- `engine/session_manager.py` — `EngineSession` wrapper over existing session tools; logs task-local runtime data inside `workspace/<task_id>/`
 - `engine/event_stream.py` — `EventStream` with typed events (`AGENT_START`, `TOOL_CALL`, `TOOL_RESULT`, etc.) and callback support
 - `run_engine.py` — CLI entry point: interactive menu for new/resume session, provider/model selection, live ANSI event display
 
@@ -31,7 +65,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - `backend/main.py` — FastAPI app with CORS, all API routers, startup lifecycle
 - `backend/core/session_store.py` — `Job` dataclass + `SessionStore` with file persistence
-- `backend/core/engine_bridge.py` — async engine driver; sequential job queue worker
+- `backend/core/engine_bridge.py` — async engine driver with parallel worker pool and dependency gating
 - `backend/core/event_stream.py` — SSE `EventBroadcaster` with heartbeat keepalives
 - `backend/api/jobs.py` — full job CRUD + start/stop/pause/resume/restart endpoints
 - `backend/api/providers.py` — provider+model management, selection persisted to `.webui_prefs.json`

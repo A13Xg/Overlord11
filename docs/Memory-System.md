@@ -104,7 +104,7 @@ Add your entry to the appropriate section:
 - **Created**: 2026-02-25 12:30
 - **TTL**: 7d
 - **Status**: ACTIVE
-- **Context**: Completed research on 5 Python testing frameworks. Findings in workspace/20260225_123000/output/research.json. Includes popularity data, feature matrix, and 3 source citations.
+- **Context**: Completed research on 5 Python testing frameworks. Findings in workspace/20260225_123000/tools/web/research.json. Includes popularity data, feature matrix, and 3 source citations.
 - **Action**: OVR_ANL_04 can ingest this for comparative analysis. OVR_WRT_05 can use for report.
 ```
 
@@ -117,7 +117,7 @@ When you complete the work described in an entry:
 1. Change `**Status**: ACTIVE` to `**Status**: RESOLVED`
 2. Add a resolution note:
    ```
-   - **Resolution**: Comparative analysis completed. Report at workspace/20260225_140000/output/report.md
+   - **Resolution**: Comparative analysis completed. Report at workspace/20260225_140000/report.md
    ```
 3. After 24 hours, move to the Archive section
 
@@ -163,7 +163,7 @@ Use for: preventing duplicate work across agents or sessions.
 - **Created**: 2026-02-25 11:00
 - **TTL**: 24h
 - **Status**: ACTIVE
-- **Context**: Generating Python FastAPI project in workspace/20260225_110000. Includes user auth and database integration.
+- **Context**: Generating Python FastAPI project in workspace/20260225_110000/app. Includes user auth and database integration.
 - **Action**: Do not duplicate this work. Results will be signaled when complete.
 ```
 
@@ -177,7 +177,7 @@ Use for: one agent's output that is ready for another agent to consume.
 - **Created**: 2026-02-25 13:00
 - **TTL**: 48h
 - **Status**: PENDING
-- **Context**: Statistical analysis complete. Output at workspace/20260225_130000/output/analysis.json. Includes trend data, anomalies, and executive summary bullets.
+- **Context**: Statistical analysis complete. Output at workspace/20260225_130000/logs/analysis.json. Includes trend data, anomalies, and executive summary bullets.
 - **Action**: OVR_WRT_05: transform into executive report (Tier 1). OVR_PUB_07: transform into HTML dashboard (Tier 2) if requested.
 ```
 

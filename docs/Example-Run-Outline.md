@@ -17,11 +17,11 @@
 
   Step 2: Initialize Project Docs
 
-  The Orchestrator checks the sandboxed project directory (workspace/20260322_143000/) for the 5 standardized files.
+  The Orchestrator checks the task root (workspace/20260322_143000/) for the 5 standardized files.
   They don't exist yet.
 
   Tool: project_docs_init
-  Args: --project_dir workspace/20260322_143000/project
+  Args: --project_dir workspace/20260322_143000
         --project_name "TaskForge"
         --language "python"
         --description "CLI task manager with SQLite and REST API"
@@ -35,7 +35,7 @@
   Step 3: Read Settings.md
 
   Tool: read_file
-  Path: workspace/20260322_143000/project/Settings.md
+  Path: workspace/20260322_143000/Settings.md
 
   Extracted config:
     thinking_depth        = moderate
@@ -195,7 +195,7 @@
   Tool: task_manager --action update_status --task_id T-002 --status in_progress
 
   Tool: scaffold_generator --template python_cli --name taskforge
-        --output workspace/20260322_143000/project
+        --project_dir workspace/20260322_143000/app
 
   Coder then customizes the scaffold, creating the full structure:
 
@@ -530,7 +530,7 @@
   Coder runs the test suite:
 
   Tool: run_shell_command
-  Command: cd workspace/20260322_143000/project && python -m pytest tests/ -v
+  Command: cd workspace/20260322_143000/app && python -m pytest tests/ -v
 
   Result:
   tests/test_db.py::test_add_and_get PASSED
@@ -553,7 +553,7 @@
   Coder runs static analysis (since auto_static_analysis=true):
 
   Tool: code_analyzer
-  Target: workspace/20260322_143000/project/taskforge/
+  Target: workspace/20260322_143000/app/taskforge/
 
   Result:
   {
@@ -659,7 +659,7 @@
   Tool: read_file → all 5 source files, all 3 test files
   Tool: code_analyzer → full static analysis on taskforge/
   Tool: run_shell_command → python -m pytest tests/ -v --tb=short
-  Tool: cleanup_tool --action scan_secrets --target_dir workspace/20260322_143000/project
+  Tool: cleanup_tool --action scan_secrets --target_dir workspace/20260322_143000/app
 
   Step 3: Review Findings
 
@@ -723,7 +723,7 @@
   Tool: task_manager --action update_status --task_id T-008 --status in_progress
 
   Tool: cleanup_tool --action full_scan
-        --target_dir workspace/20260322_143000/project
+        --target_dir workspace/20260322_143000/app
 
   Result:
   {
@@ -753,7 +753,7 @@
   }
 
   Tool: cleanup_tool --action clean_temp
-        --target_dir workspace/20260322_143000/project
+        --target_dir workspace/20260322_143000/app
         --dry_run false
 
   Result:
@@ -775,7 +775,7 @@
 
   ## Cleanup Report
 
-  **Target**: workspace/20260322_143000/project
+  **Target**: workspace/20260322_143000/app
   **Verdict**: READY
 
   ### Secrets Scan
@@ -854,7 +854,7 @@
 
   python -m pytest tests/ -v
 
-  Tool: write_file → workspace/20260322_143000/project/README.md
+  Tool: write_file → workspace/20260322_143000/README.md
   Tool: task_manager --action complete_task --task_id T-009
 
   ---
@@ -865,7 +865,7 @@
 
   Orchestrator verifies all tasks are complete:
 
-  Tool: task_manager --action query --project_dir workspace/20260322_143000/project
+  Tool: task_manager --action query --project_dir workspace/20260322_143000
 
   Result:
   {
@@ -944,7 +944,7 @@
 
   ## Delivery: TaskForge v0.1.0
 
-  **Location**: `workspace/20260322_143000/project/`
+  **Location**: `workspace/20260322_143000/`
 
   ### What was built
   - Python CLI task manager with `add`, `complete`, `delete`, `list` (with status/priority filters)

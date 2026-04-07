@@ -51,17 +51,18 @@ def _session_root(job: object) -> Path:
 
 
 def _iter_artifact_files(root: Path):
-    for subdir in ("outputs", "output", "artifacts", "traces"):
+    # Root-level files are the canonical final deliverables for a task.
+    for entry in sorted(root.iterdir()):
+        if entry.is_file():
+            yield "product", entry
+
+    for subdir in ("agent", "tools", "logs", "outputs", "output", "artifacts", "traces"):
         base = root / subdir
         if not base.exists():
             continue
         for entry in sorted(base.rglob("*")):
             if entry.is_file():
                 yield subdir, entry
-
-    logs_json = root / "logs.json"
-    if logs_json.exists():
-        yield "logs", logs_json
 
 
 def _resolve_relative_artifact(root: Path, relative_path: str) -> Path:
@@ -83,7 +84,7 @@ def _select_html_source(root: Path, relative_path: Optional[str]) -> Path:
         return target
 
     for category, entry in _iter_artifact_files(root):
-        if category not in ("outputs", "output", "artifacts"):
+        if category not in ("product", "outputs", "output", "artifacts"):
             continue
         if entry.suffix.lower() in (".html", ".htm"):
             return entry
@@ -122,6 +123,29 @@ def _make_workspace_zip(session_root: Path, target_zip: Path) -> None:
             zf.write(path, arcname=str(rel).replace("\\", "/"))
 
 
+@router.get("/{job_id}/files")
+async def list_session_files(job_id: str):
+    _validate_job_id(job_id)
+    job = store.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    session_root = _session_root(job)
+    if not session_root.exists():
+        return []
+
+    items = []
+    for entry in sorted(session_root.rglob("*")):
+        if entry.is_file():
+            stat = entry.stat()
+            items.append({
+                "name": entry.name,
+                "relative_path": str(entry.relative_to(session_root)).replace("\\", "/"),
+                "size": stat.st_size,
+                "mtime": stat.st_mtime,
+            })
+    return items
+
 @router.get("/{job_id}")
 async def list_artifacts(job_id: str):
     _validate_job_id(job_id)
@@ -136,12 +160,16 @@ async def list_artifacts(job_id: str):
     items = []
     for category, entry in _iter_artifact_files(session_root):
         stat = entry.stat()
+        ext = entry.suffix.lstrip(".").lower()
         items.append({
             "name": entry.name,
             "relative_path": str(entry.relative_to(session_root)).replace("\\", "/"),
             "category": category,
             "size": stat.st_size,
             "mtime": stat.st_mtime,
+            "ext": ext,
+            "is_html": ext in ("html", "htm"),
+            "is_image": ext in ("png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"),
         })
     return items
 

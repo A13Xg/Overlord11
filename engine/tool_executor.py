@@ -6,11 +6,13 @@ Tool call detection and execution for the engine loop.
 
 import importlib.util
 import json
+import os
 import re
 import subprocess
 import sys
 import threading
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, List, Optional
@@ -113,10 +115,42 @@ class ToolExecutor:
         self._tools_dir = Path(tools_dir)
         self._config = config
         self._tool_map: dict = {}
+        self._runtime_context: dict[str, str] = {}
         self._build_tool_map()
         # Initialise the tool result cache using the orchestration.cache config block
         cache_cfg = config.get("orchestration", {}).get("cache", {})
         self._cache = ToolCache(config=cache_cfg, project_root=_BASE_DIR)
+
+    def set_runtime_context(
+        self,
+        *,
+        session_id: Optional[str] = None,
+        task_dir: Optional[Path] = None,
+    ) -> None:
+        self._runtime_context = {}
+        if session_id:
+            self._runtime_context["OVERLORD11_SESSION_ID"] = session_id
+        if task_dir:
+            self._runtime_context["OVERLORD11_TASK_DIR"] = str(Path(task_dir).resolve())
+            self._cache.set_task_root(Path(task_dir).resolve())
+        else:
+            self._cache.set_task_root(None)
+
+    @contextmanager
+    def _runtime_env(self):
+        original: dict[str, Optional[str]] = {}
+        try:
+            for key, value in self._runtime_context.items():
+                original[key] = os.environ.get(key)
+                os.environ[key] = value
+            yield
+        finally:
+            for key in self._runtime_context:
+                prior = original.get(key)
+                if prior is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = prior
 
     def _build_tool_map(self) -> None:
         """Index available tools from config, resolving impl paths relative to project root."""
@@ -238,7 +272,8 @@ class ToolExecutor:
         if not hasattr(mod, "main"):
             raise AttributeError(f"No main() in {impl_path.name}")
         try:
-            return mod.main(**params)
+            with self._runtime_env():
+                return mod.main(**params)
         except SystemExit as exc:
             code = exc.code if isinstance(exc.code, int) else 1
             raise RuntimeError(f"Tool exited via SystemExit(code={code})") from exc
@@ -250,13 +285,18 @@ class ToolExecutor:
             # Always serialize values as JSON strings to prevent injection
             serialized = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
             cmd += [f"--{key}", serialized]
+        env = os.environ.copy()
+        env.update(self._runtime_context)
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             encoding="utf-8",
             timeout=120,
+            env=env,
         )
-        if result.returncode != 0 and result.stderr:
-            raise RuntimeError(result.stderr.strip())
+        if result.returncode != 0:
+            # Prefer stderr for the error message; fall back to stdout if empty.
+            err_msg = result.stderr.strip() or result.stdout.strip() or f"exit code {result.returncode}"
+            raise RuntimeError(err_msg)
         return result.stdout.strip()

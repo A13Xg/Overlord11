@@ -59,7 +59,7 @@
       },
       "output_path": {
         "type": "string",
-        "description": "File path to save the generated HTML. Defaults to workspace/reports/YYYYMMDD_HHMMSS_[slug].html"
+        "description": "File path to save the generated HTML. Defaults to the active task root when available, otherwise workspace/reports/YYYYMMDD_HHMMSS_[slug].html"
       },
       "author": {
         "type": "string",

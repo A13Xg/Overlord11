@@ -22,7 +22,8 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from ..auth.auth import require_auth
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/setup", tags=["setup"])
@@ -30,9 +31,18 @@ log = logging.getLogger("overlord11.setup")
 
 _BASE_DIR = Path(__file__).resolve().parent.parent.parent
 _WORKSPACE_DIR = _BASE_DIR / "workspace"
-_SETUP_FILE = _WORKSPACE_DIR / ".setup_complete"
 _ENV_FILE = _BASE_DIR / ".env"
 _CONFIG_PATH = _BASE_DIR / "config.json"
+
+def _get_user_dir(username: str) -> Path:
+    """Return the dedicated workspace directory for a specific user."""
+    return _WORKSPACE_DIR / "users" / username
+
+def _get_user_setup_file(username: str) -> Path:
+    return _get_user_dir(username) / ".setup_complete"
+
+def _get_user_settings_file(username: str) -> Path:
+    return _get_user_dir(username) / "settings.json"
 
 _KEY_TIMEOUT_S = 8
 
@@ -45,8 +55,8 @@ def _load_config() -> dict:
     return json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
 
 
-def _is_setup_complete() -> bool:
-    return _SETUP_FILE.exists()
+def _is_setup_complete(username: str) -> bool:
+    return _get_user_setup_file(username).exists()
 
 
 def _which_keys_present() -> dict[str, bool]:
@@ -146,9 +156,9 @@ _VALIDATORS = {
 # ---------------------------------------------------------------------------
 
 @router.get("/status")
-async def setup_status():
+async def setup_status(session: dict = Depends(require_auth)):
     """
-    Return current setup state.
+    Return current setup state for the authenticated user.
 
     Response:
         complete:       whether the wizard has been finished
@@ -156,17 +166,19 @@ async def setup_status():
         any_key:        True if at least one provider key is set
         completed_at:   ISO timestamp when setup was completed (or null)
     """
+    username = session["username"]
     keys = _which_keys_present()
     completed_at = None
-    if _SETUP_FILE.exists():
+    setup_file = _get_user_setup_file(username)
+    if setup_file.exists():
         try:
-            meta = json.loads(_SETUP_FILE.read_text(encoding="utf-8"))
+            meta = json.loads(setup_file.read_text(encoding="utf-8"))
             completed_at = meta.get("completed_at")
         except Exception:
             completed_at = None
 
     return {
-        "complete": _is_setup_complete(),
+        "complete": _is_setup_complete(username),
         "keys_present": keys,
         "any_key": any(keys.values()),
         "completed_at": completed_at,
@@ -206,7 +218,7 @@ class SaveKeysRequest(BaseModel):
 
 
 @router.post("/save-keys")
-async def save_keys(req: SaveKeysRequest):
+async def save_keys(req: SaveKeysRequest, session: dict = Depends(require_auth)):
     """
     Persist one or more API keys.
 
@@ -248,41 +260,42 @@ class CompleteSetupRequest(BaseModel):
 
 
 @router.post("/complete")
-async def complete_setup(req: CompleteSetupRequest):
+async def complete_setup(req: CompleteSetupRequest, session: dict = Depends(require_auth)):
     """
-    Mark the setup wizard as complete.
+    Mark the setup wizard as complete for the authenticated user.
 
-    Optionally sets the active provider and model in config.json.
+    Saves the active provider and model preferences to the user's personal settings file.
     """
-    cfg = _load_config()
+    username = session["username"]
+    user_dir = _get_user_dir(username)
+    user_dir.mkdir(parents=True, exist_ok=True)
 
+    # Save user-specific settings instead of modifying global config.json
+    user_settings = {}
     if req.active_provider:
-        providers = cfg.get("providers", {})
-        if req.active_provider in providers and req.active_provider != "active":
-            cfg["providers"]["active"] = req.active_provider
-            if req.active_model:
-                available = providers[req.active_provider].get("available_models", {})
-                if req.active_model in available:
-                    cfg["providers"][req.active_provider]["model"] = req.active_model
-            _CONFIG_PATH.write_text(
-                json.dumps(cfg, indent=2, ensure_ascii=False) + "\n",
-                encoding="utf-8",
-            )
+        user_settings["active_provider"] = req.active_provider
+        if req.active_model:
+            user_settings["active_model"] = req.active_model
 
-    _WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
+    settings_file = _get_user_settings_file(username)
+    settings_file.write_text(json.dumps(user_settings, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    # Mark as complete in user's directory
     meta = {
         "completed_at": datetime.now(timezone.utc).isoformat(),
-        "active_provider": req.active_provider or cfg.get("providers", {}).get("active", ""),
+        "active_provider": req.active_provider or "",
     }
-    _SETUP_FILE.write_text(json.dumps(meta, indent=2), encoding="utf-8")
-    log.info("Setup wizard completed: %s", meta)
+    _get_user_setup_file(username).write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    log.info("Setup wizard completed for user %s: %s", username, meta)
 
     return {"status": "complete", **meta}
 
 
 @router.post("/reset")
-async def reset_setup():
-    """Reset setup state (development use only)."""
-    if _SETUP_FILE.exists():
-        _SETUP_FILE.unlink()
+async def reset_setup(session: dict = Depends(require_auth)):
+    """Reset setup state for the authenticated user (development use only)."""
+    username = session["username"]
+    setup_file = _get_user_setup_file(username)
+    if setup_file.exists():
+        setup_file.unlink()
     return {"status": "reset", "message": "Setup state cleared — wizard will reappear on next load"}

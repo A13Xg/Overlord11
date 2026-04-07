@@ -151,6 +151,50 @@ Change the order or remove providers as needed. The fallback chain is used in se
 
 ---
 
+## Rate Limiting
+
+### How the Engine Handles 429 Responses
+
+When a provider returns HTTP 429 (Too Many Requests), the engine applies exponential backoff with jitter before retrying:
+
+```
+delay = min(base_delay × 2^attempt, max_delay) × (1 ± jitter_factor)
+```
+
+Defaults (configurable in `config.json` under `rate_limiting`):
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `base_delay_seconds` | 60 | Seconds to wait after the first 429 |
+| `max_delay_seconds` | 600 | Maximum wait per retry (10 minutes) |
+| `jitter_factor` | 0.2 | ±20% random variation to spread retries |
+| `max_retries` | 5 | Hard limit before failing the job |
+
+### Per-Job Rate Limit Action
+
+When creating a job via the WebUI or API, set `rate_limit_action` to control what happens when the retry budget is exhausted:
+
+| Value | Behaviour |
+|-------|-----------|
+| `"pause"` | Job enters PAUSED state; resume manually from the WebUI (**default**) |
+| `"stop"` | Job immediately fails with an error message |
+| `"try_different_model"` | Engine switches to the next provider in the fallback chain and continues |
+
+### WebUI Rate-Limit Indicators
+
+- A job in `RATE_LIMITED` state shows an orange badge in the job list
+- The event stream displays the backoff duration live
+- The Stop and Pause buttons remain active during a rate-limit wait — either interrupts the sleep immediately
+
+### Tips for Avoiding Rate Limits
+
+- Use faster/cheaper models for high-volume tasks (Haiku, Flash Lite)
+- Stagger large batches of jobs rather than starting them simultaneously
+- If hitting limits consistently, upgrade your API tier or set `"try_different_model"` as the `rate_limit_action`
+- Check your provider dashboard for quota remaining and reset times
+
+---
+
 ## Adding a New Provider
 
 1. Add a new entry under `providers` in `config.json`:

@@ -30,6 +30,12 @@ try:
 except ImportError:
     HAS_LOG = False
 
+try:
+    from task_workspace import env_task_dir, slugify
+except ImportError:
+    env_task_dir = None  # type: ignore[assignment]
+    slugify = None  # type: ignore[assignment]
+
 # Maximum characters for a filename slug derived from the report title
 MAX_SLUG_LENGTH = 40
 
@@ -848,13 +854,20 @@ def generate_report(
         ts = now.strftime("%Y%m%d_%H%M%S")
 
         # Slug for filename (length capped to keep paths readable)
-        slug = re.sub(r"[^a-z0-9]+", "_", title.lower())[:MAX_SLUG_LENGTH].strip("_")
+        if slugify:
+            slug = slugify(title.lower(), default="report")[:MAX_SLUG_LENGTH]
+        else:
+            slug = re.sub(r"[^a-z0-9]+", "_", title.lower())[:MAX_SLUG_LENGTH].strip("_")
 
         # Output path
         if not output_path:
-            reports_dir = Path("workspace") / "reports"
-            reports_dir.mkdir(parents=True, exist_ok=True)
-            output_path = str(reports_dir / f"{ts}_{slug}.html")
+            task_dir = env_task_dir() if env_task_dir else None
+            if task_dir:
+                output_path = str(task_dir / f"{ts}_{slug}.html")
+            else:
+                reports_dir = Path("workspace") / "reports"
+                reports_dir.mkdir(parents=True, exist_ok=True)
+                output_path = str(reports_dir / f"{ts}_{slug}.html")
         else:
             Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -921,7 +934,7 @@ def _parse_args():
     p.add_argument("--theme", default="auto",
                    choices=["auto"] + list(THEMES.keys()),
                    help="Visual theme (default: auto-detect)")
-    p.add_argument("--output", default="", help="Output file path (default: workspace/reports/...)")
+    p.add_argument("--output", default="", help="Output file path (default: task root or workspace/reports/...)")
     p.add_argument("--author", default="", help="Author name")
     p.add_argument("--sources", nargs="*", default=[], help="Source URLs or references")
     p.add_argument("--metrics", nargs="*", default=[],
