@@ -9,6 +9,7 @@ import json
 import re
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -101,6 +102,12 @@ def extract_tool_calls(text: str) -> List[ToolCall]:
 
 class ToolExecutor:
     """Load and execute tool implementations from tools/python/."""
+
+    # Class-level lock: sys.path is a process-global list.  The brief window
+    # where we insert a path, import the module, then remove the path must be
+    # atomic across threads so that concurrent tool calls don't accidentally
+    # remove each other's path entries.
+    _sys_path_lock: threading.Lock = threading.Lock()
 
     def __init__(self, tools_dir: Path, config: dict):
         self._tools_dir = Path(tools_dir)
@@ -208,27 +215,33 @@ class ToolExecutor:
             }
 
     def _call_python_main(self, impl_path: Path, params: dict) -> Any:
-        """Import the module and call its main() function."""
-        # Temporarily add the tools/python dir to sys.path
+        """
+        Import the module and call its main() function.
+
+        sys.path mutation is protected by the class-level _sys_path_lock so
+        that concurrent parallel tool threads cannot interfere with each
+        other's temporary path entries.  The lock is released as soon as the
+        module object is loaded; actual main() execution is single-threaded
+        per tool call and needs no further synchronization.
+        """
         tools_python = str(impl_path.parent)
-        injected = tools_python not in sys.path
-        if injected:
-            sys.path.insert(0, tools_python)
-        try:
-            mod = self._load_module(impl_path)
-            if not hasattr(mod, "main"):
-                raise AttributeError(f"No main() in {impl_path.name}")
-            try:
-                return mod.main(**params)
-            except SystemExit as exc:
-                code = exc.code if isinstance(exc.code, int) else 1
-                raise RuntimeError(f"Tool exited via SystemExit(code={code})") from exc
-        finally:
+        with ToolExecutor._sys_path_lock:
+            injected = tools_python not in sys.path
             if injected:
-                try:
+                sys.path.insert(0, tools_python)
+            try:
+                mod = self._load_module(impl_path)
+            finally:
+                if injected and tools_python in sys.path:
                     sys.path.remove(tools_python)
-                except ValueError:
-                    pass
+
+        if not hasattr(mod, "main"):
+            raise AttributeError(f"No main() in {impl_path.name}")
+        try:
+            return mod.main(**params)
+        except SystemExit as exc:
+            code = exc.code if isinstance(exc.code, int) else 1
+            raise RuntimeError(f"Tool exited via SystemExit(code={code})") from exc
 
     def _call_subprocess(self, impl_path: Path, params: dict) -> str:
         """Run the tool as a subprocess, passing params as --key value args."""

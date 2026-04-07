@@ -420,6 +420,10 @@
       "max_entries": 500,
       "cache_file": "workspace/tool_cache.json",
       "excluded_tools": []
+    },
+    "parallel": {
+      "max_concurrent_jobs": 2,
+      "max_concurrent_tools": 4
     }
   },
   "notifications": {

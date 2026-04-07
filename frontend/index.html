@@ -474,6 +474,261 @@ body::after {
 .glow-teal   { text-shadow: 0 0 8px var(--teal); }
 .sep { color: var(--txt3); }
 #status-bar { padding: 2px 10px; font-size: 10px; color: var(--txt3); background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0; display: flex; justify-content: space-between; }
+
+/* ─────────────────────────────────────────────
+   SSE CONNECTION DOT
+───────────────────────────────────────────── */
+#sse-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0; transition: background .4s, box-shadow .4s;
+  background: var(--txt3);
+}
+#sse-dot.connected {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: pulse 2.5s ease-in-out infinite;
+}
+#sse-dot.reconnecting {
+  background: var(--amber);
+  box-shadow: 0 0 6px var(--amber);
+  animation: pulse 0.8s ease-in-out infinite;
+}
+#sse-dot.disconnected {
+  background: var(--red);
+  box-shadow: 0 0 6px var(--red);
+}
+
+/* ─────────────────────────────────────────────
+   API SPINNER
+───────────────────────────────────────────── */
+#api-spinner {
+  display: none; width: 14px; height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  flex-shrink: 0;
+}
+#api-spinner.active { display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─────────────────────────────────────────────
+   ENHANCED RUNNING JOB CARD
+───────────────────────────────────────────── */
+.job-item.running-active {
+  box-shadow: inset 0 0 14px rgba(0,229,204,.07);
+  animation: job-running-glow 2s ease-in-out infinite;
+}
+@keyframes job-running-glow {
+  0%,100% { border-left-color: var(--teal); }
+  50%      { border-left-color: #00ffee; box-shadow: inset 0 0 20px rgba(0,229,204,.12); }
+}
+.job-progress-bar {
+  height: 2px; background: rgba(0,229,204,.2);
+  border-radius: 1px; overflow: hidden; margin-top: 3px;
+}
+.job-progress-fill {
+  height: 100%; background: var(--teal);
+  animation: progress-slide 1.8s ease-in-out infinite;
+  width: 40%;
+  border-radius: 1px;
+}
+@keyframes progress-slide {
+  0%   { margin-left: -40%; }
+  100% { margin-left: 120%; }
+}
+
+/* ─────────────────────────────────────────────
+   TAB TRANSITIONS
+───────────────────────────────────────────── */
+.tab-panel { opacity: 0; transition: opacity .18s ease; }
+.tab-panel.active { opacity: 1; }
+
+/* ─────────────────────────────────────────────
+   PROVIDER HEALTH PANEL
+───────────────────────────────────────────── */
+#health-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+  flex-shrink: 0;
+  max-height: 0; overflow: hidden;
+  transition: max-height .3s ease, padding .3s;
+}
+#health-bar.open { max-height: 160px; padding: 8px 14px; }
+#health-bar-inner { display: flex; gap: 24px; flex-wrap: wrap; align-items: center; }
+.health-provider {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; letter-spacing: .1em;
+}
+.health-dot-sm {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  transition: background .4s, box-shadow .4s;
+}
+.hd-healthy     { background: var(--green); box-shadow: 0 0 4px var(--green); }
+.hd-degraded    { background: var(--amber); box-shadow: 0 0 4px var(--amber); }
+.hd-auth_error  { background: var(--red);   box-shadow: 0 0 4px var(--red); }
+.hd-no_key      { background: var(--txt3); }
+.hd-unreachable { background: var(--red); }
+.hd-unknown     { background: var(--txt3); }
+.health-name    { color: var(--teal); }
+.health-status  { color: var(--txt3); }
+.health-latency { color: var(--txt2); }
+#btn-health {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--txt3); font-family: var(--font); font-size: 10px;
+  padding: 2px 8px; cursor: pointer; letter-spacing: .1em;
+  transition: color .15s, border-color .15s;
+}
+#btn-health:hover { color: var(--teal); border-color: var(--teal); }
+#btn-health.active { color: var(--teal); border-color: var(--teal); }
+#health-bar .health-mini-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  display: inline-block; margin-right: 2px;
+}
+
+/* ─────────────────────────────────────────────
+   TEMPLATE PICKER (inside new-job modal)
+───────────────────────────────────────────── */
+#template-picker { margin-bottom: 12px; }
+#btn-template-toggle {
+  background: transparent; border: 1px dashed var(--border);
+  color: var(--txt3); font-family: var(--font); font-size: 11px;
+  padding: 4px 10px; cursor: pointer; letter-spacing: .1em; width: 100%;
+  transition: color .15s, border-color .15s; margin-bottom: 8px;
+}
+#btn-template-toggle:hover { color: var(--teal); border-color: var(--teal); }
+#template-grid-wrap { display: none; }
+#template-grid-wrap.open { display: block; }
+#template-cat-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+.tcat-btn {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--txt3); font-family: var(--font); font-size: 10px;
+  padding: 2px 8px; cursor: pointer; letter-spacing: .08em;
+  transition: all .15s;
+}
+.tcat-btn:hover  { color: var(--teal); border-color: var(--teal); }
+.tcat-btn.active { color: var(--green); border-color: var(--green); background: rgba(0,255,65,.05); }
+#template-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px; max-height: 200px; overflow-y: auto; padding-right: 4px;
+}
+.tpl-card {
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 8px 10px; cursor: pointer; transition: all .15s;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.tpl-card:hover { border-color: var(--teal); background: rgba(0,229,204,.05); }
+.tpl-card:active { transform: scale(.97); }
+.tpl-icon { font-size: 16px; line-height: 1; }
+.tpl-name { font-size: 11px; color: var(--txt); font-weight: bold; line-height: 1.3; }
+.tpl-desc { font-size: 10px; color: var(--txt3); line-height: 1.4; }
+
+/* ─────────────────────────────────────────────
+   SETUP WIZARD
+───────────────────────────────────────────── */
+#wizard-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.92);
+  z-index: 2000; align-items: center; justify-content: center;
+}
+#wizard-overlay.open { display: flex; }
+#wizard-box {
+  background: var(--panel); border: 1px solid var(--teal);
+  box-shadow: 0 0 40px rgba(0,229,204,.15), 0 0 80px rgba(0,229,204,.05);
+  width: min(560px, 95vw); max-height: 90vh;
+  display: flex; flex-direction: column;
+  animation: wizard-in .35s cubic-bezier(.22,.97,.43,1);
+}
+@keyframes wizard-in {
+  from { opacity: 0; transform: translateY(-24px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+#wizard-header {
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+}
+#wizard-title {
+  font-size: 14px; letter-spacing: .2em; color: var(--teal);
+  text-shadow: 0 0 10px rgba(0,229,204,.4);
+}
+#wizard-step-dots { display: flex; gap: 6px; align-items: center; }
+.wiz-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--border); transition: background .3s, box-shadow .3s;
+}
+.wiz-dot.done    { background: var(--green); }
+.wiz-dot.current { background: var(--teal); box-shadow: 0 0 6px var(--teal); animation: pulse 1.5s ease-in-out infinite; }
+#wizard-body { flex: 1; overflow-y: auto; }
+.wizard-step { display: none; padding: 18px; }
+.wizard-step.active { display: block; }
+.wiz-section-title {
+  font-size: 11px; letter-spacing: .2em; color: var(--txt2);
+  margin-bottom: 12px; border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+.wiz-field { margin-bottom: 12px; }
+.wiz-field label { display: block; font-size: 11px; letter-spacing: .1em; color: var(--txt2); margin-bottom: 4px; }
+.wiz-field input {
+  width: 100%; background: var(--surface); color: var(--txt);
+  border: 1px solid var(--border); font-family: var(--font);
+  font-size: 12px; padding: 6px 8px; outline: none;
+}
+.wiz-field input:focus { border-color: var(--teal); }
+.wiz-key-row { display: flex; gap: 6px; align-items: center; }
+.wiz-key-row input { flex: 1; }
+.wiz-test-btn {
+  padding: 6px 10px; background: transparent;
+  border: 1px solid var(--border); color: var(--txt2);
+  font-family: var(--font); font-size: 10px; cursor: pointer;
+  letter-spacing: .08em; transition: all .15s; white-space: nowrap;
+}
+.wiz-test-btn:hover { border-color: var(--teal); color: var(--teal); }
+.wiz-key-status {
+  font-size: 10px; margin-top: 4px; letter-spacing: .08em; height: 14px;
+}
+.wiz-info {
+  font-size: 11px; color: var(--txt3); line-height: 1.7;
+  border-left: 2px solid var(--border); padding-left: 10px;
+  margin-bottom: 14px;
+}
+.wiz-welcome-logo {
+  text-align: center; padding: 20px 0 10px;
+  font-size: 20px; letter-spacing: .25em; color: var(--green);
+  text-shadow: 0 0 20px var(--green);
+}
+.wiz-provider-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;
+}
+.wiz-provider-btn {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--txt2); font-family: var(--font); font-size: 11px;
+  padding: 8px; cursor: pointer; letter-spacing: .08em;
+  transition: all .15s; text-align: center;
+}
+.wiz-provider-btn:hover  { border-color: var(--teal); color: var(--teal); }
+.wiz-provider-btn.active { border-color: var(--green); color: var(--green); background: rgba(0,255,65,.06); }
+.wiz-model-select {
+  width: 100%; background: var(--surface); color: var(--txt);
+  border: 1px solid var(--border); font-family: var(--font);
+  font-size: 12px; padding: 6px 8px; outline: none; cursor: pointer;
+}
+.wiz-model-select:focus { border-color: var(--teal); }
+#wizard-footer {
+  padding: 12px 18px; border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.wiz-btn {
+  padding: 7px 20px; font-family: var(--font); font-size: 12px;
+  letter-spacing: .1em; cursor: pointer; border: 1px solid;
+  transition: all .15s; text-transform: uppercase;
+}
+.wiz-btn.primary { background: rgba(0,229,204,.1); border-color: var(--teal); color: var(--teal); }
+.wiz-btn.primary:hover { background: rgba(0,229,204,.2); box-shadow: 0 0 12px rgba(0,229,204,.2); }
+.wiz-btn.skip { background: transparent; border-color: var(--border); color: var(--txt3); }
+.wiz-btn.skip:hover { border-color: var(--red); color: var(--red); }
+.wiz-step-label { font-size: 10px; color: var(--txt3); letter-spacing: .12em; }
+#wizard-footer .wiz-btn:disabled { opacity: .4; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -495,6 +750,8 @@ body::after {
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <div class="clock" id="clock"></div>
+      <div id="api-spinner"></div>
+      <button id="btn-health" onclick="toggleHealthPanel()" title="Provider health">◈ HEALTH</button>
       <div id="user-badge" style="display:none;align-items:center;gap:6px;font-size:11px;letter-spacing:.1em;">
         <span style="color:var(--txt3)">OPR:</span>
         <span id="user-badge-name" style="color:var(--teal)"></span>
@@ -507,6 +764,8 @@ body::after {
           LOGOUT
         </button>
       </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div id="sse-dot" title="SSE connection status"></div>
       <div class="radar-wrap">
         <svg id="radar-svg" viewBox="0 0 44 44">
           <circle cx="22" cy="22" r="20" fill="none" stroke="#1e3a1e" stroke-width="1"/>
@@ -524,6 +783,16 @@ body::after {
           </circle>
         </svg>
       </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PROVIDER HEALTH BAR ── -->
+  <div id="health-bar">
+    <div id="health-bar-inner">
+      <span style="font-size:10px;letter-spacing:.15em;color:var(--txt3)">PROVIDER STATUS</span>
+      <div id="health-providers" style="display:flex;gap:20px;flex-wrap:wrap"></div>
+      <button onclick="loadProviderHealth(true)" style="background:transparent;border:1px solid var(--border);color:var(--txt3);font-family:var(--font);font-size:10px;padding:2px 8px;cursor:pointer;margin-left:auto" onmouseover="this.style.color='var(--teal)'" onmouseout="this.style.color='var(--txt3)'">↻ REFRESH</button>
     </div>
   </div>
 
@@ -642,6 +911,14 @@ body::after {
       <button id="modal-close" onclick="closeNewJobModal()">✕</button>
     </div>
     <div id="modal-body">
+      <!-- Template Picker -->
+      <div id="template-picker">
+        <button id="btn-template-toggle" onclick="toggleTemplatePicker()">◈ USE A TEMPLATE</button>
+        <div id="template-grid-wrap">
+          <div id="template-cat-tabs"></div>
+          <div id="template-grid"></div>
+        </div>
+      </div>
       <div class="form-group">
         <label>JOB TITLE</label>
         <input type="text" id="new-job-title" placeholder="Enter mission title..." maxlength="120">
@@ -654,6 +931,90 @@ body::after {
     <div id="modal-footer">
       <button class="modal-btn cancel" onclick="closeNewJobModal()">ABORT</button>
       <button class="modal-btn primary" onclick="submitNewJob()">INITIATE</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SETUP WIZARD ── -->
+<div id="wizard-overlay">
+  <div id="wizard-box">
+    <div id="wizard-header">
+      <div id="wizard-title">[ OVERLORD11 — SYSTEM INITIALISATION ]</div>
+      <div id="wizard-step-dots"></div>
+    </div>
+    <div id="wizard-body">
+
+      <!-- Step 0: Welcome -->
+      <div class="wizard-step active" id="wiz-step-0">
+        <div class="wiz-welcome-logo">[ OVERLORD11 ]</div>
+        <div class="wiz-info">
+          Welcome, Operator.<br><br>
+          This wizard will configure your Overlord11 instance in 3 quick steps.<br>
+          You will need at least one provider API key to run agents.
+        </div>
+        <div class="wiz-info" style="border-color:var(--amber);color:var(--amber)">
+          ⚠ API keys are stored in a local <code>.env</code> file in the project root and loaded into the server process. They are never transmitted externally.
+        </div>
+      </div>
+
+      <!-- Step 1: API Keys -->
+      <div class="wizard-step" id="wiz-step-1">
+        <div class="wiz-section-title">◼ API KEYS — configure at least one provider</div>
+        <!-- Anthropic -->
+        <div class="wiz-field">
+          <label>ANTHROPIC API KEY (Claude)</label>
+          <div class="wiz-key-row">
+            <input type="password" id="wiz-key-anthropic" placeholder="sk-ant-..." autocomplete="off">
+            <button class="wiz-test-btn" onclick="wizTestKey('anthropic')">TEST</button>
+          </div>
+          <div class="wiz-key-status" id="wiz-status-anthropic"></div>
+        </div>
+        <!-- Gemini -->
+        <div class="wiz-field">
+          <label>GOOGLE GEMINI API KEY</label>
+          <div class="wiz-key-row">
+            <input type="password" id="wiz-key-gemini" placeholder="AIza..." autocomplete="off">
+            <button class="wiz-test-btn" onclick="wizTestKey('gemini')">TEST</button>
+          </div>
+          <div class="wiz-key-status" id="wiz-status-gemini"></div>
+        </div>
+        <!-- OpenAI -->
+        <div class="wiz-field">
+          <label>OPENAI API KEY</label>
+          <div class="wiz-key-row">
+            <input type="password" id="wiz-key-openai" placeholder="sk-..." autocomplete="off">
+            <button class="wiz-test-btn" onclick="wizTestKey('openai')">TEST</button>
+          </div>
+          <div class="wiz-key-status" id="wiz-status-openai"></div>
+        </div>
+      </div>
+
+      <!-- Step 2: Provider Selection -->
+      <div class="wizard-step" id="wiz-step-2">
+        <div class="wiz-section-title">◼ DEFAULT PROVIDER</div>
+        <div class="wiz-info">Select which provider the Orchestrator uses by default. You can change this at any time from the topbar.</div>
+        <div class="wiz-provider-grid" id="wiz-provider-grid"></div>
+        <div class="wiz-field" id="wiz-model-field" style="display:none">
+          <label>DEFAULT MODEL</label>
+          <select class="wiz-model-select" id="wiz-model-select"></select>
+        </div>
+      </div>
+
+      <!-- Step 3: Complete -->
+      <div class="wizard-step" id="wiz-step-3">
+        <div class="wiz-welcome-logo" style="color:var(--green)">[ ✓ READY ]</div>
+        <div class="wiz-info">
+          Configuration complete. Your Overlord11 instance is ready to deploy agents.<br><br>
+          You can always reconfigure providers and keys through the health panel (◈ HEALTH in the topbar) or by editing <code>config.json</code> directly.
+        </div>
+        <div id="wiz-summary" style="font-size:11px;color:var(--txt3);padding:10px;border:1px solid var(--border)"></div>
+      </div>
+
+    </div>
+    <div id="wizard-footer">
+      <button class="wiz-btn skip" id="wiz-btn-back" onclick="wizBack()">← BACK</button>
+      <span class="wiz-step-label" id="wiz-step-label">STEP 1 OF 3</span>
+      <button class="wiz-btn primary" id="wiz-btn-next" onclick="wizNext()">NEXT →</button>
     </div>
   </div>
 </div>
@@ -887,8 +1248,7 @@ function showUserBadge() {
 ═══════════════════════════════════════════════════════ */
 async function init() {
   // Verify session before rendering the UI.
-  // If AUTH_ENABLED=False on the server, verify returns authenticated=true
-  // with the synthetic dev session so we proceed normally.
+  spinnerOn();
   try {
     const token = localStorage.getItem('overlord11_token');
     const res = await fetch('/api/auth/verify', {
@@ -901,14 +1261,21 @@ async function init() {
     }
     showUserBadge();
   } catch (_) {
-    // If verify endpoint is unreachable we continue — the individual
-    // API calls will 401 and redirect if auth really is enforced.
+    // If verify endpoint is unreachable we continue
+  } finally {
+    spinnerOff();
   }
 
   requestNotificationPermission();
   startClock();
+  spinnerOn();
   await Promise.all([loadProviders(), loadJobs()]);
+  spinnerOff();
   connectSSE();
+  // Load templates for the picker (non-blocking)
+  loadTemplates();
+  // Check if first-run setup is needed
+  await checkSetupStatus();
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1492,8 +1859,10 @@ function switchTab(name, btn) {
 ═══════════════════════════════════════════════════════ */
 function connectSSE() {
   if (sse) sse.close();
+  setSseDot('reconnecting');
   sse = new EventSource('/api/events');
   sse.onopen = () => {
+    setSseDot('connected');
     appendFooterLog('SSE: Connected to event stream');
     setStatusBar('CONNECTED');
   };
@@ -1504,8 +1873,10 @@ function connectSSE() {
     } catch (e) {}
   };
   sse.onerror = () => {
+    setSseDot('reconnecting');
     appendFooterLog('SSE: Connection lost — reconnecting in 5s…');
     setStatusBar('RECONNECTING…');
+    sse.close();
     setTimeout(connectSSE, 5000);
   };
 }
@@ -1866,11 +2237,372 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     closePreview();
     closeNewJobModal();
+    // Don't close wizard on Escape — require explicit action
   }
   if (e.key === 'Enter' && document.getElementById('modal-overlay').classList.contains('open') && (e.ctrlKey || e.metaKey)) {
     submitNewJob();
   }
 });
+
+/* ═══════════════════════════════════════════════════════
+   API SPINNER HELPERS
+═══════════════════════════════════════════════════════ */
+let _spinnerCount = 0;
+function spinnerOn()  { _spinnerCount++; document.getElementById('api-spinner').classList.add('active'); }
+function spinnerOff() { _spinnerCount = Math.max(0, _spinnerCount - 1); if (!_spinnerCount) document.getElementById('api-spinner').classList.remove('active'); }
+
+/* ═══════════════════════════════════════════════════════
+   SSE CONNECTION DOT
+═══════════════════════════════════════════════════════ */
+function setSseDot(state) {
+  const dot = document.getElementById('sse-dot');
+  if (!dot) return;
+  dot.className = state;  // 'connected' | 'reconnecting' | 'disconnected'
+  const titles = { connected: 'SSE: Connected', reconnecting: 'SSE: Reconnecting…', disconnected: 'SSE: Disconnected' };
+  dot.title = titles[state] || 'SSE: Unknown';
+}
+
+/* ═══════════════════════════════════════════════════════
+   PROVIDER HEALTH
+═══════════════════════════════════════════════════════ */
+let _healthPanelOpen = false;
+let _healthData = null;
+
+function toggleHealthPanel() {
+  _healthPanelOpen = !_healthPanelOpen;
+  const bar = document.getElementById('health-bar');
+  const btn = document.getElementById('btn-health');
+  bar.classList.toggle('open', _healthPanelOpen);
+  btn.classList.toggle('active', _healthPanelOpen);
+  if (_healthPanelOpen && !_healthData) loadProviderHealth(false);
+}
+
+async function loadProviderHealth(force = false) {
+  spinnerOn();
+  try {
+    const url = '/api/providers/health' + (force ? '?force=true' : '');
+    const data = await apiFetch(url).then(r => r.json());
+    _healthData = data;
+    renderHealthPanel(data);
+  } catch (e) {
+    appendFooterLog('WARN: Could not load provider health: ' + e.message);
+  } finally {
+    spinnerOff();
+  }
+}
+
+function renderHealthPanel(data) {
+  const el = document.getElementById('health-providers');
+  if (!el) return;
+  el.innerHTML = '';
+  const providers = data.providers || {};
+  Object.entries(providers).forEach(([name, p]) => {
+    const statusClass = 'hd-' + (p.status || 'unknown');
+    const latency = p.latency_ms != null ? ` ${p.latency_ms}ms` : '';
+    const models = p.model_count != null ? ` · ${p.model_count} models` : '';
+    const errText = p.error ? ` ⚠ ${p.error}` : '';
+    const active = p.active ? ' ★' : '';
+    const div = document.createElement('div');
+    div.className = 'health-provider';
+    div.innerHTML = `
+      <div class="health-dot-sm ${statusClass}"></div>
+      <span class="health-name">${name.toUpperCase()}${active}</span>
+      <span class="health-status">${(p.status || 'unknown').replace('_', ' ')}</span>
+      <span class="health-latency">${latency}${models}${errText}</span>
+    `;
+    el.appendChild(div);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════
+   JOB LIST ENHANCED RENDER — running progress bars
+═══════════════════════════════════════════════════════ */
+// Patch renderJobList to add progress bars and glow for running jobs
+const _origRenderJobList = renderJobList;
+renderJobList = function() {
+  _origRenderJobList();
+  // After the original renders, enhance running cards
+  document.querySelectorAll('.job-item').forEach(item => {
+    const jobId = item.dataset.jobId;
+    const job = jobs.find(j => j.job_id === jobId);
+    if (!job) return;
+    if (job.status === 'running') {
+      item.classList.add('running-active');
+      if (!item.querySelector('.job-progress-bar')) {
+        const bar = document.createElement('div');
+        bar.className = 'job-progress-bar';
+        bar.innerHTML = '<div class="job-progress-fill"></div>';
+        item.appendChild(bar);
+      }
+    }
+  });
+};
+
+/* ═══════════════════════════════════════════════════════
+   TEMPLATE PICKER
+═══════════════════════════════════════════════════════ */
+let _templates = [];
+let _activeTemplateCat = '';
+
+async function loadTemplates() {
+  try {
+    const data = await apiFetch('/api/templates').then(r => r.json());
+    _templates = data.templates || [];
+    renderTemplateCatTabs(data.categories || []);
+  } catch (e) {
+    appendFooterLog('WARN: Could not load templates: ' + e.message);
+  }
+}
+
+function toggleTemplatePicker() {
+  const wrap = document.getElementById('template-grid-wrap');
+  const btn  = document.getElementById('btn-template-toggle');
+  const isOpen = wrap.classList.contains('open');
+  wrap.classList.toggle('open', !isOpen);
+  btn.textContent = isOpen ? '◈ USE A TEMPLATE' : '▲ HIDE TEMPLATES';
+  if (!isOpen && _templates.length === 0) loadTemplates();
+  if (!isOpen) renderTemplateGrid(_activeTemplateCat);
+}
+
+function renderTemplateCatTabs(categories) {
+  const tabs = document.getElementById('template-cat-tabs');
+  tabs.innerHTML = '';
+  ['All', ...categories].forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'tcat-btn' + (cat === 'All' ? ' active' : '');
+    btn.textContent = cat.toUpperCase();
+    btn.onclick = () => {
+      document.querySelectorAll('.tcat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _activeTemplateCat = cat === 'All' ? '' : cat;
+      renderTemplateGrid(_activeTemplateCat);
+    };
+    tabs.appendChild(btn);
+  });
+}
+
+function renderTemplateGrid(category) {
+  const grid = document.getElementById('template-grid');
+  grid.innerHTML = '';
+  const filtered = category ? _templates.filter(t => t.category === category) : _templates;
+  filtered.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'tpl-card';
+    card.title = t.description;
+    card.innerHTML = `
+      <div class="tpl-icon">${escHtml(t.icon || '◻')}</div>
+      <div class="tpl-name">${escHtml(t.title)}</div>
+      <div class="tpl-desc">${escHtml(t.description)}</div>
+    `;
+    card.onclick = () => applyTemplate(t);
+    grid.appendChild(card);
+  });
+}
+
+function applyTemplate(tpl) {
+  document.getElementById('new-job-title').value = tpl.title;
+  document.getElementById('new-job-prompt').value = tpl.prompt;
+  // Close picker
+  document.getElementById('template-grid-wrap').classList.remove('open');
+  document.getElementById('btn-template-toggle').textContent = '◈ USE A TEMPLATE';
+  // Focus prompt for editing
+  document.getElementById('new-job-prompt').focus();
+}
+
+/* ═══════════════════════════════════════════════════════
+   SETUP WIZARD
+═══════════════════════════════════════════════════════ */
+let _wizStep = 0;
+const _WIZ_STEPS = 4;  // 0=welcome, 1=keys, 2=provider, 3=complete
+let _wizSelectedProvider = '';
+
+async function checkSetupStatus() {
+  try {
+    spinnerOn();
+    const data = await apiFetch('/api/setup/status').then(r => r.json());
+    spinnerOff();
+    if (!data.complete) {
+      _wizStep = 0;
+      buildWizardDots();
+      buildWizardProviderGrid();
+      showWizardStep(0);
+      document.getElementById('wizard-overlay').classList.add('open');
+    }
+  } catch (e) {
+    spinnerOff();
+    // If setup endpoint is unavailable, proceed normally
+  }
+}
+
+function buildWizardDots() {
+  const container = document.getElementById('wizard-step-dots');
+  container.innerHTML = '';
+  for (let i = 0; i < _WIZ_STEPS; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'wiz-dot' + (i === 0 ? ' current' : '');
+    dot.id = `wiz-dot-${i}`;
+    container.appendChild(dot);
+  }
+}
+
+function buildWizardProviderGrid() {
+  const grid = document.getElementById('wiz-provider-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  ['anthropic', 'gemini', 'openai'].forEach(name => {
+    const btn = document.createElement('button');
+    btn.className = 'wiz-provider-btn';
+    btn.textContent = name.toUpperCase();
+    btn.onclick = () => selectWizardProvider(name);
+    btn.id = `wiz-prov-${name}`;
+    grid.appendChild(btn);
+  });
+}
+
+function selectWizardProvider(name) {
+  _wizSelectedProvider = name;
+  document.querySelectorAll('.wiz-provider-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById(`wiz-prov-${name}`);
+  if (btn) btn.classList.add('active');
+  // Load models for this provider
+  const p = providerData.find(x => x.name === name);
+  const modelField = document.getElementById('wiz-model-field');
+  const modelSelect = document.getElementById('wiz-model-select');
+  if (p && modelField && modelSelect) {
+    modelField.style.display = '';
+    modelSelect.innerHTML = '';
+    Object.keys(p.available_models).forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m; opt.textContent = m;
+      if (m === p.model) opt.selected = true;
+      modelSelect.appendChild(opt);
+    });
+  }
+}
+
+function showWizardStep(step) {
+  document.querySelectorAll('.wizard-step').forEach((el, i) => {
+    el.classList.toggle('active', i === step);
+  });
+  // Update dots
+  for (let i = 0; i < _WIZ_STEPS; i++) {
+    const dot = document.getElementById(`wiz-dot-${i}`);
+    if (!dot) continue;
+    dot.className = 'wiz-dot' + (i < step ? ' done' : i === step ? ' current' : '');
+  }
+  // Update footer
+  const label = document.getElementById('wiz-step-label');
+  const backBtn = document.getElementById('wiz-btn-back');
+  const nextBtn = document.getElementById('wiz-btn-next');
+  if (label) label.textContent = step === 0 ? '' : `STEP ${step} OF ${_WIZ_STEPS - 1}`;
+  if (backBtn) { backBtn.style.display = step === 0 ? 'none' : ''; }
+  if (nextBtn) nextBtn.textContent = step === _WIZ_STEPS - 1 ? '✓ LAUNCH' : 'NEXT →';
+}
+
+async function wizNext() {
+  if (_wizStep === 1) {
+    // Save any entered keys
+    await wizSaveKeys();
+  }
+  if (_wizStep === _WIZ_STEPS - 1) {
+    // Final step — complete setup
+    await wizComplete();
+    return;
+  }
+  _wizStep++;
+  showWizardStep(_wizStep);
+  if (_wizStep === _WIZ_STEPS - 1) buildWizSummary();
+}
+
+function wizBack() {
+  if (_wizStep === 0) return;
+  _wizStep--;
+  showWizardStep(_wizStep);
+}
+
+async function wizSaveKeys() {
+  const keys = {};
+  ['anthropic', 'gemini', 'openai'].forEach(p => {
+    const val = (document.getElementById(`wiz-key-${p}`) || {}).value || '';
+    if (val.trim()) keys[p] = val.trim();
+  });
+  if (Object.keys(keys).length === 0) return;
+  spinnerOn();
+  try {
+    await apiFetch('/api/setup/save-keys', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ keys }),
+    });
+  } catch (e) {
+    appendFooterLog('WARN: Could not save keys: ' + e.message);
+  } finally {
+    spinnerOff();
+  }
+}
+
+async function wizTestKey(provider) {
+  const input = document.getElementById(`wiz-key-${provider}`);
+  const statusEl = document.getElementById(`wiz-status-${provider}`);
+  if (!input || !statusEl) return;
+  const key = input.value.trim();
+  if (!key) { statusEl.textContent = 'Enter a key first.'; statusEl.style.color = 'var(--amber)'; return; }
+  statusEl.textContent = 'TESTING…'; statusEl.style.color = 'var(--txt3)';
+  spinnerOn();
+  try {
+    const data = await apiFetch('/api/setup/validate-key', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ provider, api_key: key }),
+    }).then(r => r.json());
+    if (data.valid) {
+      statusEl.textContent = `✓ VALID  ${data.latency_ms}ms`;
+      statusEl.style.color = 'var(--green)';
+    } else {
+      statusEl.textContent = `✗ INVALID — ${data.error || 'check key'}`;
+      statusEl.style.color = 'var(--red)';
+    }
+  } catch (e) {
+    statusEl.textContent = '✗ Error: ' + e.message;
+    statusEl.style.color = 'var(--red)';
+  } finally {
+    spinnerOff();
+  }
+}
+
+function buildWizSummary() {
+  const el = document.getElementById('wiz-summary');
+  if (!el) return;
+  const provider = _wizSelectedProvider || document.getElementById('sel-provider')?.value || 'not set';
+  const model    = document.getElementById('wiz-model-select')?.value || '';
+  el.innerHTML = `
+    <div style="color:var(--txt2)">ACTIVE PROVIDER: <span style="color:var(--teal)">${provider.toUpperCase()}</span></div>
+    ${model ? `<div style="color:var(--txt2)">DEFAULT MODEL: <span style="color:var(--teal)">${model}</span></div>` : ''}
+  `;
+}
+
+async function wizComplete() {
+  const provider = _wizSelectedProvider;
+  const model    = document.getElementById('wiz-model-select')?.value || '';
+  spinnerOn();
+  try {
+    await apiFetch('/api/setup/complete', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ active_provider: provider, active_model: model }),
+    });
+    document.getElementById('wizard-overlay').classList.remove('open');
+    showToast('SYSTEM READY', 'Overlord11 is configured and ready to deploy agents.', 'success');
+    // Reload providers so the topbar reflects the wizard choice
+    await loadProviders();
+    // Refresh health
+    await loadProviderHealth(true);
+  } catch (e) {
+    appendFooterLog('ERROR completing setup: ' + e.message);
+  } finally {
+    spinnerOff();
+  }
+}
 
 /* ── BOOTSTRAP ── */
 document.addEventListener('DOMContentLoaded', init);

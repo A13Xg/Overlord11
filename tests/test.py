@@ -3286,6 +3286,220 @@ def test_notification_tool():
     run_test("notification_tool", "main: main() entry point returns valid result", nt_g)
 
 
+# ---------------------------------------------------------------------------
+# Parallel Executor + Dependency Analyzer tests
+# ---------------------------------------------------------------------------
+
+def test_parallel_executor():
+    """
+    Tests for DependencyAnalyzer and ParallelToolExecutor.
+
+    These tests import the engine modules directly (no tool file to load via
+    load_tool) so they use importlib manually with the project root on sys.path.
+    """
+    import importlib.util
+    import sys
+    import threading
+    import time
+
+    engine_dir = PROJECT_ROOT / "engine"
+
+    def _load_engine_module(name: str):
+        # Add both the project root and the engine/ dir to sys.path.
+        # engine modules use try/except relative → absolute import fallbacks;
+        # the absolute form (e.g. "from tool_executor import ToolCall") only
+        # resolves when the engine/ directory is itself on sys.path.
+        for p in (str(engine_dir.parent), str(engine_dir)):
+            if p not in sys.path:
+                sys.path.insert(0, p)
+        spec = importlib.util.spec_from_file_location(name, engine_dir / f"{name}.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    analyzer_mod = _load_engine_module("dependency_analyzer")
+    ToolCall = _load_engine_module("tool_executor").ToolCall
+    DependencyAnalyzer = analyzer_mod.DependencyAnalyzer
+    SERIAL_TOOLS = analyzer_mod.SERIAL_TOOLS
+
+    analyzer = DependencyAnalyzer()
+
+    # --- PE-a: empty list returns empty waves ---
+    def pe_a(r: TestResult):
+        waves = analyzer.partition([])
+        if waves == []:
+            r.set_pass("empty input → []", "[]")
+        else:
+            r.set_fail("expected []", str(waves))
+    run_test("parallel_executor", "partition: empty list returns []", pe_a)
+
+    # --- PE-b: single call returns one wave ---
+    def pe_b(r: TestResult):
+        tc = ToolCall(tool_name="read_file", params={"path": "/a/b.txt"})
+        waves = analyzer.partition([tc])
+        if len(waves) == 1 and len(waves[0]) == 1:
+            r.set_pass("single call → 1 wave of 1", str([[w.tool_name for w in wave] for wave in waves]))
+        else:
+            r.set_fail("expected [[read_file]]", str(waves))
+    run_test("parallel_executor", "partition: single call → one wave", pe_b)
+
+    # --- PE-c: two independent tools merge into one wave ---
+    def pe_c(r: TestResult):
+        tc1 = ToolCall(tool_name="read_file",   params={"path": "/a/foo.txt"})
+        tc2 = ToolCall(tool_name="search_file_content", params={"pattern": "hello", "path": "/b/bar.txt"})
+        waves = analyzer.partition([tc1, tc2])
+        total_calls = sum(len(w) for w in waves)
+        if total_calls == 2 and len(waves) == 1:
+            r.set_pass("two independent tools → 1 parallel wave", str([w.tool_name for w in waves[0]]))
+        else:
+            r.set_fail("expected 1 wave with both tools", str([[w.tool_name for w in wv] for wv in waves]))
+    run_test("parallel_executor", "partition: two independent tools → one parallel wave", pe_c)
+
+    # --- PE-d: serial tool always gets its own wave ---
+    def pe_d(r: TestResult):
+        tc_serial = ToolCall(tool_name="write_file", params={"path": "/out.txt", "content": "x"})
+        tc_read   = ToolCall(tool_name="read_file",  params={"path": "/in.txt"})
+        waves = analyzer.partition([tc_serial, tc_read])
+        # write_file is serial → must be alone; both must be in different waves
+        if len(waves) == 2:
+            names = [[w.tool_name for w in wv] for wv in waves]
+            r.set_pass("serial tool serialized into own wave", str(names))
+        else:
+            r.set_fail("expected 2 waves (serial tool alone)", str([[w.tool_name for w in wv] for wv in waves]))
+    run_test("parallel_executor", "partition: serial tool always alone in its own wave", pe_d)
+
+    # --- PE-e: two calls to the same tool are serialized ---
+    def pe_e(r: TestResult):
+        tc1 = ToolCall(tool_name="calculator", params={"expression": "1+1"})
+        tc2 = ToolCall(tool_name="calculator", params={"expression": "2+2"})
+        waves = analyzer.partition([tc1, tc2])
+        if len(waves) == 2:
+            r.set_pass("same tool → 2 serial waves", str([[w.tool_name for w in wv] for wv in waves]))
+        else:
+            r.set_fail("expected 2 waves (same tool conflict)", str([[w.tool_name for w in wv] for wv in waves]))
+    run_test("parallel_executor", "partition: same tool twice → two serial waves", pe_e)
+
+    # --- PE-f: shared file path conflict serializes different tools ---
+    def pe_f(r: TestResult):
+        shared = "/workspace/shared.txt"
+        tc1 = ToolCall(tool_name="read_file",   params={"path": shared})
+        tc2 = ToolCall(tool_name="search_file_content", params={"path": shared, "pattern": "x"})
+        waves = analyzer.partition([tc1, tc2])
+        if len(waves) == 2:
+            r.set_pass("shared path → 2 serial waves", str([[w.tool_name for w in wv] for wv in waves]))
+        else:
+            r.set_fail("expected 2 waves (shared path conflict)", str([[w.tool_name for w in wv] for wv in waves]))
+    run_test("parallel_executor", "partition: shared file path → serial waves", pe_f)
+
+    # --- PE-g: three independent tools collapse into one wave ---
+    def pe_g(r: TestResult):
+        tc1 = ToolCall(tool_name="read_file",          params={"path": "/a.txt"})
+        tc2 = ToolCall(tool_name="search_file_content", params={"path": "/b.txt", "pattern": "x"})
+        tc3 = ToolCall(tool_name="list_directory",     params={"path": "/c/"})
+        waves = analyzer.partition([tc1, tc2, tc3])
+        if len(waves) == 1 and sum(len(w) for w in waves) == 3:
+            r.set_pass("3 independent tools → 1 wave", str([w.tool_name for w in waves[0]]))
+        else:
+            r.set_fail("expected 1 wave with 3 tools", str([[w.tool_name for w in wv] for wv in waves]))
+    run_test("parallel_executor", "partition: three independent tools → one wave", pe_g)
+
+    # --- PE-h: execution order preserved — results come back in LLM order ---
+    def pe_h(r: TestResult):
+        """
+        Build a minimal mock ToolExecutor and run ParallelToolExecutor.execute_all().
+        Verify results are returned in original call order, not completion order.
+        """
+        # Load the real ParallelToolExecutor
+        pe_mod = _load_engine_module("parallel_executor")
+        ParallelToolExecutor = pe_mod.ParallelToolExecutor
+
+        # Build a mock ToolExecutor that sleeps differently per tool
+        class MockExecutor:
+            def execute(self, tc: ToolCall) -> dict:
+                # tool_b sleeps longer so it completes after tool_c
+                delay = 0.05 if tc.tool_name == "tool_b" else 0.01
+                time.sleep(delay)
+                return {"status": "success", "result": tc.tool_name, "tool": tc.tool_name, "duration_ms": delay * 1000}
+
+        mock = MockExecutor()
+        exec_ = ParallelToolExecutor(tool_executor=mock, max_workers=4)
+
+        calls = []
+        results = []
+
+        tcs = [
+            ToolCall(tool_name="tool_a", params={}),
+            ToolCall(tool_name="tool_b", params={}),
+            ToolCall(tool_name="tool_c", params={}),
+        ]
+
+        ordered = exec_.execute_all(
+            tcs,
+            on_call=lambda **kw: calls.append(kw["tool"]),
+            on_result=lambda **kw: results.append(kw["tool"]),
+            on_error=lambda **kw: None,
+            on_cache_hit=lambda **kw: None,
+            on_notification=lambda **kw: None,
+            loop=1,
+            session_log_fn=lambda name, params, result: {"trace_path": None},
+        )
+
+        # Results must be in original order: [tool_a, tool_b, tool_c]
+        returned_names = [tc.tool_name for tc, _ in ordered]
+        if returned_names == ["tool_a", "tool_b", "tool_c"]:
+            r.set_pass("results in original LLM order despite parallel execution", str(returned_names))
+        else:
+            r.set_fail("expected [tool_a, tool_b, tool_c]", str(returned_names))
+    run_test("parallel_executor", "execute_all: results in original LLM order", pe_h)
+
+    # --- PE-i: EventStream thread safety — concurrent emits don't corrupt events ---
+    def pe_i(r: TestResult):
+        engine_mod = _load_engine_module("event_stream")
+        EventStream = engine_mod.EventStream
+        EventType = engine_mod.EventType
+
+        stream = EventStream(verbose=False)
+        errors = []
+
+        def emit_batch(thread_id: int) -> None:
+            for i in range(50):
+                try:
+                    stream.emit(EventType.STATUS, thread=thread_id, seq=i)
+                except Exception as exc:
+                    errors.append(str(exc))
+
+        threads = [threading.Thread(target=emit_batch, args=(t,)) for t in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        events = stream.get_events()
+        expected = 8 * 50
+        if not errors and len(events) == expected:
+            r.set_pass(f"no corruption across 8 threads × 50 emits = {expected} events", f"count={len(events)}")
+        else:
+            r.set_fail(
+                f"expected {expected} events, no errors",
+                f"count={len(events)}, errors={errors[:3]}",
+            )
+    run_test("parallel_executor", "thread_safety: EventStream concurrent emits are race-free", pe_i)
+
+    # --- PE-j: explain() returns correct structure ---
+    def pe_j(r: TestResult):
+        tc1 = ToolCall(tool_name="read_file",   params={"path": "/shared.txt"})
+        tc2 = ToolCall(tool_name="search_file_content", params={"path": "/shared.txt", "pattern": "x"})
+        tc3 = ToolCall(tool_name="calculator",  params={"expression": "1+1"})
+        info = analyzer.explain([tc1, tc2, tc3])
+        has_keys = {"waves", "conflicts", "parallelizable", "serialized"} <= info.keys()
+        has_conflict = any(c["reason"] == "shared_path" for c in info["conflicts"])
+        if has_keys and has_conflict and isinstance(info["parallelizable"], int):
+            r.set_pass("explain() returns correct structure with conflict reasons", str(info)[:120])
+        else:
+            r.set_fail("missing keys or wrong conflict reason", str(info)[:200])
+    run_test("parallel_executor", "explain: returns wave breakdown with conflict reasons", pe_j)
+
+
 def test_data_visualizer():
     mod = load_tool("data_visualizer")
     out_dir = TEST_WORKSPACE / "viz_out"
@@ -3743,6 +3957,7 @@ def main():
         "data_visualizer":      test_data_visualizer,
         "tool_cache":           test_tool_cache,
         "notification_tool":    test_notification_tool,
+        "parallel_executor":    test_parallel_executor,
     }
 
     # --list: enumerate tools and exit

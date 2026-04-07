@@ -13,11 +13,13 @@ from typing import Optional
 try:
     from .event_stream import EventStream, EventType
     from .orchestrator_bridge import OrchestratorBridge
+    from .parallel_executor import ParallelToolExecutor
     from .session_manager import EngineSession
     from .tool_executor import ToolExecutor, extract_tool_calls
 except ImportError:
     from event_stream import EventStream, EventType  # type: ignore[no-redef]
     from orchestrator_bridge import OrchestratorBridge  # type: ignore[no-redef]
+    from parallel_executor import ParallelToolExecutor  # type: ignore[no-redef]
     from session_manager import EngineSession  # type: ignore[no-redef]
     from tool_executor import ToolExecutor, extract_tool_calls  # type: ignore[no-redef]
 
@@ -37,6 +39,15 @@ class EngineRunner:
         self.events = EventStream(verbose=verbose)
         self._tool_executor = ToolExecutor(tools_dir=_TOOLS_DIR, config=self._config)
         self._bridge = OrchestratorBridge(config=self._config)
+        max_workers = (
+            self._config.get("orchestration", {})
+            .get("parallel", {})
+            .get("max_concurrent_tools", 4)
+        )
+        self._parallel_executor = ParallelToolExecutor(
+            tool_executor=self._tool_executor,
+            max_workers=max_workers,
+        )
 
     # ------------------------------------------------------------------
     # Main entry point
@@ -201,59 +212,24 @@ class EngineRunner:
                 status = "complete"
                 break
 
-            # Execute each tool call
-            tool_results = []
-            for index, tc in enumerate(tool_calls, start=1):
-                self.events.emit(EventType.TOOL_CALL, tool=tc.tool_name, params=tc.params, loop=loop, call_index=index)
-                result = self._tool_executor.execute(tc)
-                tool_log = session.log_tool_call(tc.tool_name, tc.params, result)
-
-                if result["status"] == "success":
-                    if result.get("cached"):
-                        # Served from cache — emit a distinct event so the
-                        # frontend can display a cache-hit indicator.
-                        self.events.emit(
-                            EventType.TOOL_CACHE_HIT,
-                            tool=tc.tool_name,
-                            cache_age_s=result.get("cache_age_s"),
-                            loop=loop,
-                            call_index=index,
-                        )
-
-                    # notification_tool signals the engine to broadcast a
-                    # NOTIFICATION event directly over the SSE pipe so the
-                    # frontend can show a browser toast immediately.
-                    inner = result.get("result", {})
-                    if isinstance(inner, dict) and inner.get("_notification"):
-                        self.events.emit(
-                            EventType.NOTIFICATION,
-                            title=inner.get("title", ""),
-                            message=inner.get("message", ""),
-                            severity=inner.get("severity", "info"),
-                            session_id=inner.get("session_id") or sid,
-                        )
-
-                    self.events.emit(
-                        EventType.TOOL_RESULT,
-                        tool=tc.tool_name,
-                        duration_ms=result["duration_ms"],
-                        result=result.get("result"),
-                        loop=loop,
-                        call_index=index,
-                        cached=result.get("cached", False),
-                        trace_path=tool_log.get("trace_path"),
-                    )
-                else:
-                    self.events.emit(
-                        EventType.TOOL_ERROR,
-                        tool=tc.tool_name,
-                        error=result["result"],
-                        result=result.get("result"),
-                        loop=loop,
-                        call_index=index,
-                        trace_path=tool_log.get("trace_path"),
-                    )
-                tool_results.append(result)
+            # Execute tool calls with dependency-aware parallelism.
+            # Independent calls run concurrently; conflicting calls are
+            # serialized into sequential waves by DependencyAnalyzer.
+            ordered_pairs = self._parallel_executor.execute_all(
+                tool_calls,
+                on_call=lambda **kw: self.events.emit(EventType.TOOL_CALL, **kw),
+                on_result=lambda **kw: self.events.emit(EventType.TOOL_RESULT, **kw),
+                on_error=lambda **kw: self.events.emit(EventType.TOOL_ERROR, **kw),
+                on_cache_hit=lambda **kw: self.events.emit(EventType.TOOL_CACHE_HIT, **kw),
+                on_notification=lambda **kw: self.events.emit(
+                    EventType.NOTIFICATION,
+                    session_id=kw.pop("session_id", sid),
+                    **kw,
+                ),
+                loop=loop,
+                session_log_fn=session.log_tool_call,
+            )
+            tool_results = [result for _tc, result in ordered_pairs]
 
             # Inject tool results into context
             messages = self._bridge.build_context(messages, tool_results)

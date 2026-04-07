@@ -5,6 +5,7 @@ Session store — in-memory + file-backed job/session state.
 import json
 import os
 import secrets
+import threading
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -38,6 +39,9 @@ class Job:
     error: Optional[str]
     artifacts: List[str] = field(default_factory=list)
     events: List[dict] = field(default_factory=list)
+    # Optional list of job_ids that must reach COMPLETED before this job starts.
+    # Enforced by EngineBridge._wait_for_dependencies().
+    depends_on: List[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -59,6 +63,7 @@ class Job:
             error=d.get("error"),
             artifacts=d.get("artifacts", []),
             events=d.get("events", []),
+            depends_on=d.get("depends_on", []),
         )
 
 
@@ -67,12 +72,21 @@ class SessionStore:
 
     def __init__(self) -> None:
         self._jobs: dict[str, Job] = {}
+        # Guards all mutations: the event_callback in EngineBridge fires from
+        # thread-pool workers (parallel tool execution), so append_event and
+        # persist must be atomic.
+        self._lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # CRUD
     # ------------------------------------------------------------------
 
-    def create_job(self, title: str, prompt: str) -> Job:
+    def create_job(
+        self,
+        title: str,
+        prompt: str,
+        depends_on: Optional[List[str]] = None,
+    ) -> Job:
         job_id = secrets.token_hex(4)  # 8-char hex
         job = Job(
             job_id=job_id,
@@ -87,39 +101,47 @@ class SessionStore:
             error=None,
             artifacts=[],
             events=[],
+            depends_on=list(depends_on) if depends_on else [],
         )
-        self._jobs[job_id] = job
+        with self._lock:
+            self._jobs[job_id] = job
         self.persist()
         return job
 
     def get_job(self, job_id: str) -> Optional[Job]:
-        return self._jobs.get(job_id)
+        with self._lock:
+            return self._jobs.get(job_id)
 
     def list_jobs(self) -> List[Job]:
-        return sorted(self._jobs.values(), key=lambda j: j.created_at, reverse=True)
+        with self._lock:
+            jobs = list(self._jobs.values())
+        return sorted(jobs, key=lambda j: j.created_at, reverse=True)
 
     def update_job(self, job_id: str, **kwargs) -> Optional[Job]:
-        job = self._jobs.get(job_id)
-        if job is None:
-            return None
-        for key, value in kwargs.items():
-            if hasattr(job, key):
-                setattr(job, key, value)
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None:
+                return None
+            for key, value in kwargs.items():
+                if hasattr(job, key):
+                    setattr(job, key, value)
         self.persist()
         return job
 
     def delete_job(self, job_id: str) -> bool:
-        if job_id in self._jobs:
+        with self._lock:
+            if job_id not in self._jobs:
+                return False
             del self._jobs[job_id]
-            self.persist()
-            return True
-        return False
+        self.persist()
+        return True
 
     def append_event(self, job_id: str, event: dict) -> Optional[Job]:
-        job = self._jobs.get(job_id)
-        if job is None:
-            return None
-        job.events.append(event)
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None:
+                return None
+            job.events.append(event)
         self.persist()
         return job
 
@@ -129,7 +151,8 @@ class SessionStore:
 
     def persist(self) -> None:
         _WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
-        data = [j.to_dict() for j in self._jobs.values()]
+        with self._lock:
+            data = [j.to_dict() for j in self._jobs.values()]
         try:
             _JOBS_FILE.write_text(
                 json.dumps(data, indent=2, ensure_ascii=False, default=str),
@@ -143,13 +166,14 @@ class SessionStore:
             return
         try:
             data = json.loads(_JOBS_FILE.read_text(encoding="utf-8"))
-            for item in data:
-                job = Job.from_dict(item)
-                # Jobs that were running/queued when server last died → failed
-                if job.status in (JobStatus.RUNNING, JobStatus.QUEUED):
-                    job.status = JobStatus.FAILED
-                    job.error = "Server restarted — job interrupted"
-                self._jobs[job.job_id] = job
+            with self._lock:
+                for item in data:
+                    job = Job.from_dict(item)
+                    # Jobs that were running/queued when server last died → failed
+                    if job.status in (JobStatus.RUNNING, JobStatus.QUEUED):
+                        job.status = JobStatus.FAILED
+                        job.error = "Server restarted — job interrupted"
+                    self._jobs[job.job_id] = job
         except (json.JSONDecodeError, KeyError, OSError):
             pass
 

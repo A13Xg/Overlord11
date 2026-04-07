@@ -5,6 +5,7 @@ Structured event emission for the engine execution loop.
 """
 
 import json
+import threading
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Callable, List, Optional
@@ -42,17 +43,31 @@ class EventStream:
         self.verbose = verbose
         self.callbacks: List[Callable] = callbacks or []
         self._events: List[dict] = []
+        # Guards _events mutations and callbacks snapshot so that parallel
+        # tool threads never corrupt the event list or miss a callback.
+        self._lock = threading.Lock()
 
     def emit(self, event_type: EventType, **kwargs) -> dict:
-        """Create and store an event, invoke callbacks, optionally print."""
+        """
+        Create and store an event, invoke callbacks, optionally print.
+
+        Thread-safe: multiple threads (parallel tool workers) may call this
+        simultaneously.  The lock is held only for the append and callbacks
+        snapshot; actual callback invocation happens outside the lock to
+        prevent deadlocks when a callback itself calls emit().
+        """
         event = {
             "type": event_type.value if isinstance(event_type, EventType) else str(event_type),
             "timestamp": datetime.now(timezone.utc).isoformat(),
             **kwargs,
         }
-        self._events.append(event)
+        with self._lock:
+            self._events.append(event)
+            # Snapshot the callback list so we can release the lock before
+            # calling each one (callbacks may re-enter emit()).
+            cbs = list(self.callbacks)
 
-        for cb in self.callbacks:
+        for cb in cbs:
             try:
                 cb(event)
             except Exception:
@@ -65,6 +80,8 @@ class EventStream:
 
     def get_events(self, since: Optional[str] = None) -> List[dict]:
         """Return all events, optionally filtered to those after an ISO timestamp."""
+        with self._lock:
+            snapshot = list(self._events)
         if since is None:
-            return list(self._events)
-        return [e for e in self._events if e.get("timestamp", "") >= since]
+            return snapshot
+        return [e for e in snapshot if e.get("timestamp", "") >= since]

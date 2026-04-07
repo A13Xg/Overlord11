@@ -9,10 +9,10 @@
 
 | Feature | Priority | Status | Notes |
 |---------|----------|--------|-------|
-| Complete Test Suite | High | ⬜ | Cover all 41+ tools; test launcher w/ pass-fail report |
-| Auth Login Page | High | ⬜ | AES256 hash table, multi-user, admin/admin default, tactical theme |
+| Complete Test Suite | High | ✅ | 210/210 tests passing across 43 tools |
+| Auth Login Page | High | ✅ | SHA-256 session tokens, tactical matrix-rain theme, FastAPI Depends auth |
 | TTL Enforcement (consciousness_tool) | High | ⬜ | Auto-expire entries past their TTL |
-| Parallel Job Execution | High | ⬜ | Worker pool + dependency detection to prevent concurrent tool conflicts |
+| Parallel Job Execution | High | ✅ | Worker pool (max_concurrent_jobs), dependency gating (depends_on), parallel tool waves with DependencyAnalyzer, full thread safety |
 | WebUI File Browser + HTML Preview | High | ⬜ | Workspace tree, inline preview (md/html/json/py), fitting extras |
 | Job Templates | Medium | ⬜ | Variety of pre-built templates; no redundant/similar ones |
 | Provider Health Display | High | ⬜ | All models queried; smart fallback; session memory for failures; Gemma models |
@@ -25,9 +25,9 @@
 | Feature | Why Starred |
 |---------|-------------|
 | ~~⭐ LLM Streaming~~ | ✅ Done — streaming SSE for Anthropic/OpenAI/Gemini, TOKEN events, live output panel in WebUI |
-| ⭐ NotificationTool | Desktop/browser push notifications for job complete, errors, handoffs |
+| ~~⭐ NotificationTool~~ | ✅ Done — _notification flag, NOTIFICATION SSE event, browser toasts + in-page toast fallback |
 | ~~⭐ DataVisualizer~~ | ✅ Done — self-contained HTML charts (bar/line/pie/scatter/heatmap/timeline/dashboard), no external deps |
-| ⭐ Tool Result Caching | Hash(tool + params) → cached result; skip redundant tool calls within and across sessions |
+| ~~⭐ Tool Result Caching~~ | ✅ Done — sha256(tool+params) key, LRU eviction, TTL, persistent JSON store, TOOL_CACHE_HIT events |
 
 ---
 

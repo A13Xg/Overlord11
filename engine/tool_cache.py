@@ -61,16 +61,14 @@ class ToolCache:
     """
 
     def __init__(self, config: dict, project_root: Path) -> None:
-        cache_cfg = config.get("cache", {})
+        self.enabled: bool = config.get("enabled", True)
+        self.ttl_seconds: int = int(config.get("ttl_seconds", 3600))
+        self.max_entries: int = int(config.get("max_entries", 500))
 
-        self.enabled: bool = cache_cfg.get("enabled", True)
-        self.ttl_seconds: int = int(cache_cfg.get("ttl_seconds", 3600))
-        self.max_entries: int = int(cache_cfg.get("max_entries", 500))
-
-        extra_excluded = set(cache_cfg.get("excluded_tools", []))
+        extra_excluded = set(config.get("excluded_tools", []))
         self._excluded: frozenset[str] = _DEFAULT_EXCLUDED | extra_excluded
 
-        cache_file_rel = cache_cfg.get("cache_file", "workspace/tool_cache.json")
+        cache_file_rel = config.get("cache_file", "workspace/tool_cache.json")
         self._cache_file: Path = project_root / cache_file_rel
         self._cache_file.parent.mkdir(parents=True, exist_ok=True)
 

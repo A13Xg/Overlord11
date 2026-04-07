@@ -18,13 +18,20 @@ _BASE_DIR = Path(__file__).resolve().parent.parent
 if str(_BASE_DIR) not in sys.path:
     sys.path.insert(0, str(_BASE_DIR))
 
+import json
+
 from .api.artifacts import router as artifacts_router
 from .api.auth import router as auth_router
 from .api.events import router as events_router
+from .api.health import router as health_router
 from .api.jobs import router as jobs_router
 from .api.providers import router as providers_router
+from .api.setup import router as setup_router
+from .api.templates import router as templates_router
 from .core.engine_bridge import bridge
 from .core.session_store import store
+
+_CONFIG_FILE = _BASE_DIR / "config.json"
 
 # ------------------------------------------------------------------
 # Lifespan (startup / shutdown)
@@ -33,7 +40,11 @@ from .core.session_store import store
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     store.load()
-    bridge.start_worker()
+    try:
+        config = json.loads(_CONFIG_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        config = {}
+    bridge.start_worker(config=config)
     try:
         yield
     finally:
@@ -67,6 +78,9 @@ app.include_router(jobs_router)
 app.include_router(providers_router)
 app.include_router(artifacts_router)
 app.include_router(events_router)
+app.include_router(health_router)
+app.include_router(setup_router)
+app.include_router(templates_router)
 
 # ------------------------------------------------------------------
 # Frontend — serve index.html for all non-API routes
