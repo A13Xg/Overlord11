@@ -209,7 +209,7 @@ Generate project scaffolding from templates.
 
 ```bash
 python tools/python/scaffold_generator.py --template python_cli --name my_tool --project_dir ./workspace/20260322_143000/app
-python tools/python/scaffold_generator.py --list-templates
+python tools/python/scaffold_generator.py --list_templates true
 ```
 
 ---
@@ -315,12 +315,12 @@ Codebase structure analysis, language detection, and entry point discovery.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `path` | string | ✓ | Project root to scan |
-| `depth` | integer | | Max directory depth (default: 4) |
-| `include_stats` | boolean | | Include line count statistics (default: `true`) |
+| `max_depth` | integer | | Max directory depth (default: 5) |
+| `output` | string | | Write result to JSON file path |
 
 ```bash
 python tools/python/project_scanner.py --path .
-python tools/python/project_scanner.py --path . --depth 2
+python tools/python/project_scanner.py --path . --max_depth 3
 ```
 
 ---
@@ -358,11 +358,11 @@ Generate themed, fully self-contained HTML reports from Markdown or plain text c
 | `--title` | string | ✓ | Report title |
 | `--content` | string | ✓ | Input file path (Markdown or plain text) |
 | `--theme` | string | | Visual theme (default: `auto`) — see [Output Tiers](Output-Tiers.md) |
-| `--output` | string | | Output file path (default: task root when active, otherwise auto-generated in `workspace/reports/`) |
+| `output_path` | string | | Output file path (default: task root when active, otherwise auto-generated in `workspace/reports/`) |
 
 ```bash
 python tools/python/publisher_tool.py --title "Q1 Analysis" --content report.md --theme modern
-python tools/python/publisher_tool.py --title "Security Audit" --content audit.txt --theme tactical --output reports/audit.html
+python tools/python/publisher_tool.py --title "Security Audit" --content audit.txt --theme tactical --output_path reports/audit.html
 python tools/python/publisher_tool.py --title "Auto Theme Test" --content data.md
 ```
 
@@ -979,12 +979,13 @@ Manage work sessions with unique IDs and track agent activity, file changes, and
 | `log_tool` | Record tool invocation |
 | `add_note` | Add a free-text note |
 | `close` | Close a session with a summary |
-| `list` | List all sessions |
+| `list` | List all sessions (optional: `status_filter` = `active` or `closed`) |
 | `active` | Get the current active session |
 
 ```bash
 python tools/python/session_manager.py --action create --description "Implement user auth"
 python tools/python/session_manager.py --action list
+python tools/python/session_manager.py --action list --status_filter active
 python tools/python/session_manager.py --action close --session_id 20260215_120000
 ```
 

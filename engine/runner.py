@@ -18,6 +18,7 @@ try:
     from .orchestrator_bridge import OrchestratorBridge
     from .parallel_executor import ParallelToolExecutor
     from .rate_limit import AllProvidersRateLimitedError
+    from .self_healing import SelfHealingEngine
     from .session_manager import EngineSession
     from .tool_executor import ToolExecutor, extract_tool_calls
 except ImportError:
@@ -25,6 +26,7 @@ except ImportError:
     from orchestrator_bridge import OrchestratorBridge  # type: ignore[no-redef]
     from parallel_executor import ParallelToolExecutor  # type: ignore[no-redef]
     from rate_limit import AllProvidersRateLimitedError  # type: ignore[no-redef]
+    from self_healing import SelfHealingEngine  # type: ignore[no-redef]
     from session_manager import EngineSession  # type: ignore[no-redef]
     from tool_executor import ToolExecutor, extract_tool_calls  # type: ignore[no-redef]
 
@@ -65,6 +67,7 @@ class EngineRunner:
         # Signalled externally (e.g. by the engine bridge on job cancel/shutdown)
         # to interrupt an in-progress rate-limit wait.
         self._stop_event: threading.Event = stop_event or threading.Event()
+        self._healer = SelfHealingEngine()
 
         # Rate-limit behaviour when all providers return 429.
         # "pause"              — exponential backoff (5m, 10m, 20m … up to 8h), keeps retrying
@@ -322,6 +325,33 @@ class EngineRunner:
 
             # Inject tool results into context
             messages = self._bridge.build_context(messages, tool_results)
+
+            # ── Self-Healing Type B: inject structured recovery hints for tool errors ──
+            _heal_hints = []
+            for _tc, _result in ordered_pairs:
+                if isinstance(_result, dict) and _result.get("status") == "error":
+                    _err = _result.get("error") or _result.get("result") or str(_result)
+                    _hint = (
+                        f"⚠ TOOL ERROR — {_tc.tool_name}\n"
+                        f"Error    : {_err}\n"
+                        f"Recovery : Check tools/defs/{_tc.tool_name}.json for exact parameter names and types.\n"
+                        f"Common causes: wrong parameter name (e.g. --add_task not --add-task), "
+                        f"missing required parameter, incorrect value type.\n"
+                        f"Action   : Retry this tool call with corrected parameters."
+                    )
+                    _heal_hints.append(_hint)
+                    try:
+                        self._healer.log_failure(
+                            self._healer.classify_error(RuntimeError(_err), tool_name=_tc.tool_name),
+                            session_id=sid,
+                        )
+                    except Exception:
+                        pass
+            if _heal_hints:
+                messages.append({
+                    "role": "user",
+                    "content": "SYSTEM — RECOVERY GUIDANCE:\n\n" + "\n\n".join(_heal_hints),
+                })
 
         self.events.emit(EventType.SESSION_END, session_id=sid, status=status, loops=loop)
         output_path = session.log_product_output(final_output or (messages[-1].get("content", "") if messages else ""))

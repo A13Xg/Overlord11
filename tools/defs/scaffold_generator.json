@@ -1,6 +1,6 @@
 {
   "name": "scaffold_generator",
-  "description": "Generate project scaffolding from templates. Creates directory structures, boilerplate files, configuration, and starter code for various project types. In task-aware runs, the scaffold should target the task's app/ directory. Use --list-templates to see available templates.",
+  "description": "Generate project scaffolding from templates. Creates directory structures, boilerplate files, configuration, and starter code for various project types. In task-aware runs, the scaffold should target the task's app/ directory. Pass list_templates=true to see available templates.",
   "parameters": {
     "type": "object",
     "properties": {
@@ -30,6 +30,10 @@
         "type": "boolean",
         "description": "If true, list available templates and exit.",
         "default": false
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session ID for log_manager integration. Auto-injected by the engine."
       }
     },
     "required": ["template", "name"]

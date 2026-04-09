@@ -7,7 +7,7 @@ JSON profile of the project.
 
 Usage:
     python project_scanner.py --path /path/to/project
-    python project_scanner.py --path . --depth 3
+    python project_scanner.py --path . --max_depth 3
     python project_scanner.py --path . --output scan_result.json
 """
 

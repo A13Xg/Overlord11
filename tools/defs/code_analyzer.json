@@ -15,14 +15,36 @@
       "language": {
         "type": "string",
         "description": "Filter analysis to files of a specific language. Auto-detected from file extensions if not specified.",
-        "enum": ["python", "javascript", "typescript", "go", "rust", "java", "csharp"],
+        "enum": [
+          "python",
+          "javascript",
+          "typescript",
+          "go",
+          "rust",
+          "java",
+          "csharp"
+        ],
         "default": null
       },
       "check": {
         "type": "string",
         "description": "Which category of analysis to run. Defaults to 'all'.",
-        "enum": ["all", "complexity", "smells", "imports", "functions"],
+        "enum": [
+          "all",
+          "complexity",
+          "smells",
+          "imports",
+          "functions"
+        ],
         "default": "all"
+      },
+      "output": {
+        "type": "string",
+        "description": "Optional path to write the analysis result to a JSON file."
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session ID for log_manager integration. Auto-injected by the engine."
       }
     },
     "required": []

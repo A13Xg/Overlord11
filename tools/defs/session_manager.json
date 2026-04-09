@@ -19,7 +19,11 @@
       },
       "data": {
         "type": "object",
-        "description": "Payload for the action. log_change expects {file, action, summary, diff_preview}; log_agent expects {agent_id}; log_tool expects {tool_name}; add_note expects {note}; close expects {summary}; create optionally accepts {description, tags}; list optionally accepts {status_filter}."
+        "description": "Payload for the action. log_change expects {file, action, summary, diff_preview}; log_agent expects {agent_id}; log_tool expects {tool_name}; add_note expects {note}; close expects {summary}; create optionally accepts {description, tags}."
+      },
+      "status_filter": {
+        "type": "string",
+        "description": "For 'list' action: filter sessions by status (e.g., 'active', 'closed'). Returns all sessions if omitted."
       }
     },
     "required": ["action"]

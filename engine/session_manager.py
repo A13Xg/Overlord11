@@ -197,6 +197,25 @@ class EngineSession:
     def record_system_profile(self, agent_id: str = "SYSTEM") -> dict:
         """Capture OS and shell profile, persist it as artifacts, and update memory."""
         shell_path = os.environ.get("SHELL") or os.environ.get("COMSPEC") or ""
+        is_windows = platform.system() == "Windows"
+
+        # Detect shell type more precisely
+        shell_name = Path(shell_path).name.lower() if shell_path else ""
+        if "powershell" in shell_name or "pwsh" in shell_name:
+            shell_type = "powershell"
+        elif "bash" in shell_name or os.environ.get("BASH_VERSION"):
+            shell_type = "bash"
+        elif "zsh" in shell_name:
+            shell_type = "zsh"
+        elif "cmd.exe" in shell_name or shell_name == "cmd":
+            shell_type = "cmd"
+        else:
+            shell_type = "bash" if not is_windows else "cmd"
+
+        # Check availability of common tools
+        _tools_check = ["git", "python", "python3", "pip", "pip3", "node", "npm", "rg", "curl", "wget"]
+        available_tools = [t for t in _tools_check if shutil.which(t)]
+
         profile = {
             "captured_at": datetime.now(timezone.utc).isoformat(),
             "agent_id": agent_id,
@@ -208,10 +227,13 @@ class EngineSession:
             "cwd": str(_BASE_DIR),
             "shell": {
                 "env": shell_path,
+                "type": shell_type,
                 "resolved": shutil.which(Path(shell_path).name) if shell_path else None,
+                "use_unix_syntax": shell_type in ("bash", "zsh") or not is_windows,
             },
+            "available_tools": available_tools,
             "env": {
-                "USER": os.environ.get("USER", ""),
+                "USER": os.environ.get("USER") or os.environ.get("USERNAME", ""),
                 "TERM": os.environ.get("TERM", ""),
                 "PATH_HEAD": os.environ.get("PATH", "").split(os.pathsep)[:8],
             },
@@ -372,8 +394,8 @@ class EngineSession:
             f"- **Created**: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n"
             f"- **TTL**: persistent\n"
             f"- **Status**: ACTIVE\n"
-            f"- **Context**: Runtime host is {profile['system']} {profile['release']} on {profile['machine']}. Preferred shell is {profile['shell'].get('env') or 'auto-detected'}; Python {profile['python_version']}.\n"
-            f"- **Action**: Use Unix-style shell commands on non-Windows hosts, Windows shell commands only when the runtime profile explicitly shows a Windows shell.\n"
+            f"- **Context**: Runtime host is {profile['system']} {profile['release']} on {profile['machine']}. Shell type: {profile['shell'].get('type', 'auto')}; Python {profile['python_version']}. Available tools: {', '.join(profile.get('available_tools', [])) or 'unknown'}.\n"
+            f"- **Action**: {'Use Unix/bash shell syntax (forward slashes, $VAR, etc.).' if profile['shell'].get('use_unix_syntax') else 'Use Windows shell syntax (backslashes, %VAR%, etc.).'} Check available_tools list before calling run_shell_command with tools that may not be installed.\n"
         )
         if not _CONSCIOUSNESS_PATH.exists():
             return

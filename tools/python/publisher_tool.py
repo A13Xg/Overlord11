@@ -11,7 +11,7 @@ Themes: auto, techno, classic, informative, contemporary, abstract,
 
 Usage:
     python publisher_tool.py --title "Q1 Analysis" --content report.md --theme modern
-    python publisher_tool.py --title "Security Audit" --content data.txt --theme tactical --output report.html
+    python publisher_tool.py --title "Security Audit" --content data.txt --theme tactical --output_path report.html
     python publisher_tool.py --help
 """
 
@@ -934,7 +934,9 @@ def _parse_args():
     p.add_argument("--theme", default="auto",
                    choices=["auto"] + list(THEMES.keys()),
                    help="Visual theme (default: auto-detect)")
-    p.add_argument("--output", default="", help="Output file path (default: task root or workspace/reports/...)")
+    p.add_argument("--output_path", default="", help="Output file path (default: task root or workspace/reports/...)")
+    p.add_argument("--sections", default="[]",
+                   help='JSON array of section objects with heading/body/type fields')
     p.add_argument("--author", default="", help="Author name")
     p.add_argument("--sources", nargs="*", default=[], help="Source URLs or references")
     p.add_argument("--metrics", nargs="*", default=[],
@@ -967,7 +969,7 @@ def main():
         theme=args.theme,
         metrics=metrics,
         sources=args.sources or [],
-        output_path=args.output,
+        output_path=args.output_path,
         author=args.author,
         session_id=args.session_id,
     )

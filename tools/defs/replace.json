@@ -20,8 +20,16 @@
         "type": "boolean",
         "description": "Whether to replace all occurrences of old_str. Defaults to false (replaces first occurrence only).",
         "default": false
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session ID for log_manager integration. Auto-injected by the engine."
       }
     },
-    "required": ["path", "old_str", "new_str"]
+    "required": [
+      "path",
+      "old_str",
+      "new_str"
+    ]
   }
 }

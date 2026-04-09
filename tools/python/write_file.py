@@ -103,14 +103,31 @@ def write_file(
     }
 
 
-if __name__ == "__main__":
+def main(**kwargs):
+    """Strategy 1 entry point called by ToolExecutor with schema params as kwargs."""
+    if kwargs:
+        result = write_file(
+            path=kwargs["path"],
+            content=kwargs["content"],
+            mode=kwargs.get("mode", "overwrite"),
+            encoding=kwargs.get("encoding", "utf-8"),
+        )
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        sys.exit(0 if result["status"] == "success" else 1)
+
+    # Strategy 2 / CLI fallback
     p = argparse.ArgumentParser(description="Write content to a file")
     p.add_argument("--path", required=True, help="Path to the file to write")
     p.add_argument("--content", required=True, help="Content to write")
     p.add_argument("--mode", default="overwrite", choices=["overwrite", "append"],
                    help="Write mode: overwrite (default) or append")
     p.add_argument("--encoding", default="utf-8", help="File encoding (default: utf-8)")
+    p.add_argument("--session_id", default=None, help="Session ID for logging")
     args = p.parse_args()
     result = write_file(args.path, args.content, args.mode, args.encoding)
     print(json.dumps(result, indent=2, ensure_ascii=False))
     sys.exit(0 if result["status"] == "success" else 1)
+
+
+if __name__ == "__main__":
+    main()

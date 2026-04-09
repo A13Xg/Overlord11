@@ -28,6 +28,11 @@
       "dir_path": {
         "type": "string",
         "description": "Alias for working_dir. If both are provided, dir_path takes precedence."
+      },
+      "describe_environment": {
+        "type": "boolean",
+        "description": "If true, prefix output with a summary of the current shell environment (OS, shell, env vars).",
+        "default": false
       }
     },
     "required": ["command"]

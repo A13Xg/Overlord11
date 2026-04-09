@@ -8,7 +8,7 @@ Usage:
     python scaffold_generator.py --template python_cli --name my_tool --project_dir ./task/app
     python scaffold_generator.py --template python_api --name my_api --project_dir ./task/app
     python scaffold_generator.py --template node_api --name my_server --project_dir ./task/app
-    python scaffold_generator.py --list-templates
+    python scaffold_generator.py --list_templates
 """
 
 import json

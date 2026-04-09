@@ -26,8 +26,14 @@
         "type": "string",
         "description": "Short description of the project.",
         "default": ""
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session ID for log_manager integration. Auto-injected by the engine."
       }
     },
-    "required": ["project_dir"]
+    "required": [
+      "project_dir"
+    ]
   }
 }

@@ -1899,9 +1899,9 @@ def main():
     p.add_argument("--extract_mode", default="auto",
                    choices=["auto","full","article","images_only","structured","raw"])
     p.add_argument("--wait_for_js", default="true")
-    p.add_argument("--wait_timeout", type=int, default=10)
+    p.add_argument("--wait_timeout", type=int, default=15)
     p.add_argument("--download_images", default="true")
-    p.add_argument("--max_images", type=int, default=50)
+    p.add_argument("--max_images", type=int, default=20)
     p.add_argument("--max_results", type=int, default=10)
     p.add_argument("--max_entries", type=int, default=20)
     p.add_argument("--clean_text", default="true")

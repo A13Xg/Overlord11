@@ -17,6 +17,15 @@
       "output": {
         "type": "string",
         "description": "Optional path to write the JSON result to a file."
+      },
+      "compact": {
+        "type": "boolean",
+        "description": "If true, output compact single-line JSON instead of pretty-printed.",
+        "default": false
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session ID for log_manager integration. Auto-injected by the engine."
       }
     },
     "required": []
