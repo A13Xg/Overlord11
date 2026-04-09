@@ -761,7 +761,7 @@ def main():
     parser.add_argument("--output", default=None, help="Output directory")
     parser.add_argument("--project_dir", default=None, help="Project directory (preferred; alias for --output)")
     parser.add_argument("--description", default="", help="Project description")
-    parser.add_argument("--list-templates", action="store_true", help="List available templates")
+    parser.add_argument("--list_templates", action="store_true", help="List available templates")
     parser.add_argument("--session_id", default=None, help="Session ID for logging")
 
     args = parser.parse_args()

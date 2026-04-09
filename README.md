@@ -165,6 +165,18 @@ The interactive menu lets you start new sessions, resume existing ones, and swit
 
 ```
 Overlord11/
+│
+│  # Root — minimal: AI entry point + shared memory only
+├── ONBOARDING.md            # Universal LLM agent onboarding guide
+├── README.md                # This file (human-facing)
+├── Consciousness.md         # Shared cross-agent ephemeral memory
+├── Memory.md                # Permanent behavioral rules (survives session resets)
+├── config.json              # Unified config (providers, agents, tools)
+├── run_engine.py            # CLI entry point (interactive menu)
+├── requirements-webui.txt   # FastAPI + uvicorn + python-multipart + playwright
+├── requirements-engine.txt  # Stdlib-only; optional extras documented
+└── .env.example             # Environment variable template
+│
 ├── agents/                  # 8 agent definitions (system prompts)
 │   ├── orchestrator.md      # OVR_DIR_01 — master coordinator
 │   ├── researcher.md        # OVR_RES_02 — web & local research
@@ -219,9 +231,9 @@ Overlord11/
 │       ├── styles.json      # 10 curated UI styles
 │       └── palettes.json    # 10 color palettes with semantic tokens
 │
-├── docs/                    # Full wiki documentation
+├── docs/                    # Full documentation wiki + changelog
 │
-├── directives/              # Behavioral instruction files for AI sessions
+├── directives/              # Behavioral instruction files for external LLM sessions
 │
 ├── tests/
 │   ├── test.py              # Test suite covering all tool modules
@@ -230,13 +242,19 @@ Overlord11/
 ├── scripts/
 │   └── run_webui.py         # WebUI launcher (port 7900)
 │
-├── run_engine.py            # CLI entry point (interactive menu)
-├── config.json              # Unified config (providers, agents, tools)
-├── Consciousness.md         # Shared cross-agent memory
-├── ONBOARDING.md            # Universal LLM onboarding guide
-├── requirements-webui.txt   # FastAPI + uvicorn + python-multipart + playwright
-├── requirements-engine.txt  # Stdlib-only; optional extras documented
-└── .env.example             # Environment variable template
+└── workspace/               # One isolated directory per session (auto-created)
+    └── <YYYYMMDD_HHMMSS>/
+        ├── ProjectOverview.md   # Task context (auto-scaffolded)
+        ├── Settings.md          # AI behavior config (auto-scaffolded)
+        ├── TaskingLog.md        # Task tracking (auto-scaffolded)
+        ├── AInotes.md           # Critical agent notes (auto-scaffolded)
+        ├── ErrorLog.md          # Error tracking (auto-scaffolded)
+        ├── final_output.md      # Session deliverable
+        └── artifacts/           # All system artifacts (logs, caches, code)
+            ├── agent/           # System profile, agent traces
+            ├── tools/           # Web scrapes, vision outputs, tool cache
+            ├── logs/            # Session manifest, events, trace index
+            └── app/             # Code scaffold output
 ```
 
 ---

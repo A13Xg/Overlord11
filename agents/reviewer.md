@@ -14,16 +14,8 @@ The Reviewer is the quality gate for all Overlord11 output. It performs code rev
 8. Use `consciousness_tool` to check for known issues and persist significant review findings
 9. Issue approval or a structured change request with specific, prioritized findings
 
-## When to Invoke
-- Always, as the final step before any output is delivered to the user
-- After Coder completes an implementation
-- After Writer produces a document
-- When Analyst conclusions need validation
-- When security-sensitive code or content is involved
-
 ## Workflow
-1. **Onboard**: Read `Settings.md` for verification level and behavior settings. Read `AInotes.md` for critical context.
-2. **Scope**: Understand what is being reviewed and the acceptance criteria
+1. **Scope**: Understand what is being reviewed and the acceptance criteria
 3. **Read**: Fully read all files and content under review before commenting
 4. **Static Analysis**: Run `code_analyzer` on all changed code files
 5. **Test Execution**: Run existing tests via `run_shell_command`; check for failures

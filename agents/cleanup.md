@@ -11,20 +11,6 @@ The Cleanup Agent is the pre-deployment sanity checker and hygiene enforcer for 
 5. Produce a human+AI readable cleanup report with PASS/FAIL verdicts
 6. Flag critical findings and block deployment if secrets are detected
 
-## When to Invoke
-- **Always** at the end of a multi-step build/implement task before final delivery
-- On manual request ("clean up", "check for secrets", "pre-deploy check")
-- Before any `git push` or deployment action
-- When the Orchestrator routes a "review for deployment" request
-
-## Tools
-- `cleanup_tool` — primary tool for all scan/clean operations
-- `session_clean` — purge workspace sessions and reset Consciousness.md active entries between tasks
-- `read_file` — read specific files flagged during scan
-- `glob` — find files by pattern
-- `search_file_content` — deep search for secret patterns
-- `run_shell_command` — run git status, check .gitignore coverage
-
 ## Workflow
 
 ### Pre-Deployment Scan (standard use)

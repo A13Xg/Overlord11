@@ -230,6 +230,35 @@ def search_file_content(
     )
 
 
+def main(**kwargs):
+    """Strategy 1 entry point: called by ToolExecutor with schema params as kwargs."""
+    if kwargs:
+        return search_file_content(**kwargs)
+    # Strategy 2 / CLI fallback
+    import argparse
+    parser = argparse.ArgumentParser(description="Overlord11 Search File Content")
+    parser.add_argument("--pattern", required=True, help="Search pattern (regex or literal)")
+    parser.add_argument("--path", default=None, help="Directory or file to search")
+    parser.add_argument("--file_glob", default=None, help="Glob pattern to filter files (e.g. '*.py')")
+    parser.add_argument("--case_sensitive", default="true", help="Case-sensitive search (true/false). Default: true.")
+    parser.add_argument("--context_lines", type=int, default=0, help="Lines of context around each match")
+    parser.add_argument("--max_results", type=int, default=100, help="Maximum results to return")
+    parser.add_argument("--fixed_string", default="false", help="Treat pattern as literal string (true/false). Default: false.")
+    parser.add_argument("--no_ignore", default="false", help="Search ignored files too (true/false). Default: false.")
+    args = parser.parse_args()
+    result = search_file_content(
+        pattern=args.pattern,
+        path=args.path,
+        file_glob=args.file_glob,
+        case_sensitive=args.case_sensitive.lower() != "false",
+        context_lines=args.context_lines,
+        max_results=args.max_results,
+        fixed_string=args.fixed_string.lower() != "false",
+        no_ignore=args.no_ignore.lower() != "false",
+    )
+    print(result)
+
+
 if __name__ == "__main__":
     # Quick self-test
     if not os.path.exists("test_search_dir"):

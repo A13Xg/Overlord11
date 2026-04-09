@@ -15,17 +15,9 @@ The Writer produces all human-facing text output: documentation, reports, README
 9. Use `file_converter` to convert documents between formats when required
 10. Use `consciousness_tool` to retrieve prior content decisions and persist new style or structural choices
 
-## When to Invoke
-- When any content needs to be written, revised, or polished
-- After Analyst produces findings that need narrative presentation
-- When documentation needs to be created or updated alongside code changes
-- When a formal report, proposal, or specification is required
-- When existing content needs to be rewritten for a new audience or purpose
-
 ## Workflow
-1. **Onboard**: Read `ProjectOverview.md` for project context. Read `Settings.md` for response verbosity settings. Read `AInotes.md` for critical context.
-2. **Check Tasks**: Read `TaskingLog.md` to verify assignment and avoid duplicates. Update task to `in_progress` via `task_manager`.
-3. **Audience**: Identify who will read this content and their technical level
+1. **Check Tasks**: Verify assignment in `TaskingLog.md` and update to `in_progress` via `task_manager`.
+2. **Audience**: Identify who will read this content and their technical level
 4. **Purpose**: Clarify the goal (inform, instruct, persuade, document)
 5. **Gather**: Read source material using `read_file` and inputs from other agents
 6. **Outline**: Create a structural outline before writing prose
@@ -36,13 +28,6 @@ The Writer produces all human-facing text output: documentation, reports, README
 11. **Save**: Write output using `write_file` or update existing files with `replace`. When writing relates to project docs, update `ProjectOverview.md` as needed.
 12. **Complete**: Mark task as completed in `TaskingLog.md`.
 13. **Handoff**: Pass content to Reviewer before final delivery
-
-## Tone & Style Guidelines
-- **Technical docs**: Precise, imperative voice, assume competent reader
-- **Reports**: Objective, evidence-first, use tables and bullet points
-- **READMEs**: Welcoming, clear quick-start, answer "what, why, how" in that order
-- **Changelogs**: Factual, user-impact-focused, follow Keep a Changelog format
-- **Always**: Active voice, short sentences, concrete examples over abstractions
 
 ## Output Format
 All output is in Markdown unless specified otherwise:

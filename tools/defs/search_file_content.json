@@ -36,6 +36,11 @@
         "type": "boolean",
         "description": "Treat the pattern as a literal string rather than a regex. Defaults to false.",
         "default": false
+      },
+      "no_ignore": {
+        "type": "boolean",
+        "description": "If true, searches all files including those normally ignored by .gitignore. Defaults to false.",
+        "default": false
       }
     },
     "required": ["pattern"]

@@ -374,7 +374,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="Overlord11 Project Scanner")
     parser.add_argument("--path", default=".", help="Project root path to scan")
-    parser.add_argument("--depth", type=int, default=5, help="Max directory depth")
+    parser.add_argument("--max_depth", type=int, default=5, help="Max directory depth")
     parser.add_argument("--output", default=None, help="Write result to JSON file")
     parser.add_argument("--session_id", default=None, help="Session ID for logging")
     parser.add_argument("--compact", action="store_true", help="Compact JSON output")
@@ -383,14 +383,14 @@ def main():
     session_id = args.session_id or "unset"
 
     start = time.time()
-    result = scan_project(args.path, max_depth=args.depth)
+    result = scan_project(args.path, max_depth=args.max_depth)
     duration_ms = (time.time() - start) * 1000
 
     # Log the invocation
     log_tool_invocation(
         session_id=session_id,
         tool_name="project_scanner",
-        params={"path": args.path, "depth": args.depth},
+        params={"path": args.path, "max_depth": args.max_depth},
         result={"status": "error" if "error" in result else "success",
                 "files_scanned": result.get("file_stats", {}).get("total_files", 0)},
         duration_ms=duration_ms

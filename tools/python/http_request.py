@@ -293,7 +293,7 @@ def main():
     parser.add_argument("--form_data", default=None, help="JSON dict for form-encoded body")
     parser.add_argument("--body", default=None, help="Raw string request body")
     parser.add_argument("--timeout_seconds", type=int, default=30)
-    parser.add_argument("--no_redirects", action="store_true", help="Disable redirect following")
+    parser.add_argument("--follow_redirects", default="true", help="Follow HTTP redirects (true/false). Default: true.")
     parser.add_argument("--auth_bearer", default=None, help="Bearer token")
     parser.add_argument("--auth_basic", default=None, help="Basic auth as user:password")
     parser.add_argument("--return_format", default="auto", choices=["auto", "json", "text"])
@@ -316,7 +316,7 @@ def main():
         form_data=_parse_json_arg(args.form_data, "--form_data"),
         body=args.body,
         timeout_seconds=args.timeout_seconds,
-        follow_redirects=not args.no_redirects,
+        follow_redirects=args.follow_redirects.lower() != "false",
         auth_bearer=args.auth_bearer,
         auth_basic=args.auth_basic,
         return_format=args.return_format,

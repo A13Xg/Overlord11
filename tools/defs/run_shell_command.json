@@ -24,6 +24,10 @@
         "additionalProperties": {
           "type": "string"
         }
+      },
+      "dir_path": {
+        "type": "string",
+        "description": "Alias for working_dir. If both are provided, dir_path takes precedence."
       }
     },
     "required": ["command"]

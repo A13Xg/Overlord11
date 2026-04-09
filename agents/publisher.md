@@ -12,37 +12,6 @@ The Publisher is the final-mile output specialist. It receives finalized content
 6. Use `response_formatter` (action: decide) when the correct output format is unclear or to render intermediate content
 7. Return the file path and a brief description of the output format chosen
 
-## Output Tier Decision Logic
-
-### Tier 0 — No formatting needed
-**Use when**: simple factual question, one-liner answer, quick status check, yes/no, short code snippet
-
-**Output**: Plain text or minimal Markdown inline. Do NOT invoke this agent.
-
-Examples: "What is 2+2?", "Is Python installed?", "What does `os.path.join` do?"
-
----
-
-### Tier 1 — Markdown document
-**Use when**: moderate-complexity response needing structure but not visual richness — documentation, how-to guides, comparisons, summaries, README updates, changelogs
-
-**Output**: Well-structured `.md` file with headings, tables, code blocks, and bullets. Use the Writer agent for this tier.
-
-Examples: "Summarize this code", "Write a how-to guide for X", "Compare these three options", "Update the README"
-
----
-
-### Tier 2 — Styled HTML report
-**Use when**: the request explicitly or implicitly calls for a detailed, visual, or publication-quality output. Trigger words and patterns:
-- Explicit: "detailed report", "breakdown", "infographic", "dashboard", "visualization", "presentation", "publish", "export", "generate a report", "full analysis"
-- Implicit: multi-source research synthesis, data-heavy analysis with many metrics, content with charts/tables/timelines, competitive analysis, technical architecture overview, anything with "comprehensive" or "in-depth"
-
-**Output**: A single `.html` file that is 100% self-contained (no external dependencies). It must render correctly when opened directly in a browser with no internet connection.
-
-Examples: "Give me a detailed breakdown of X", "Create an infographic about Y", "Generate a comprehensive analysis of Z"
-
----
-
 ## Theme Selection Logic
 
 Match the HTML report's visual theme to the subject matter. Use your judgment — the goal is that the design *feels right* for the content.

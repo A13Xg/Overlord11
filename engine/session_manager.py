@@ -61,11 +61,12 @@ class EngineSession:
     # ------------------------------------------------------------------
 
     def create(self) -> str:
-        """Create a new session and return the session_id."""
+        """Create a new session, scaffold the workspace, and return the session_id."""
         result = create_session(description=self._description)
         self._session_id = result["session_id"]
         self._session_dir = Path(result["workspace"])
         self._ensure_runtime_dirs()
+        self._init_project_docs()
         self._persist_logs()
         return self._session_id
 
@@ -81,8 +82,10 @@ class EngineSession:
             if workspace:
                 self._session_dir = Path(workspace)
                 self._ensure_runtime_dirs()
-                # Load existing logs if present
-                logs_path = self._session_dir / "logs" / "events.json"
+                # Load existing logs if present — check new artifacts/logs/ path first, then legacy
+                logs_path = self._session_dir / "artifacts" / "logs" / "events.json"
+                if not logs_path.exists():
+                    logs_path = self._session_dir / "logs" / "events.json"
                 if not logs_path.exists():
                     logs_path = self._session_dir / "logs.json"
                 if logs_path.exists():
@@ -214,7 +217,7 @@ class EngineSession:
             },
         }
         self.write_trace(category="system", payload=profile, stem="system_profile")
-        self.write_artifact("agent/system_profile.json", json.dumps(profile, indent=2, ensure_ascii=False))
+        self.write_artifact("artifacts/agent/system_profile.json", json.dumps(profile, indent=2, ensure_ascii=False))
         self._update_consciousness_environment(profile)
         self.log_event("system_profile", profile)
         return profile
@@ -293,10 +296,10 @@ class EngineSession:
     # ------------------------------------------------------------------
 
     def _persist_logs(self) -> None:
-        """Write logs.json into the session directory."""
+        """Write events.json into artifacts/logs/."""
         if not self._session_dir:
             return
-        logs_path = self._session_dir / "logs" / "events.json"
+        logs_path = self._session_dir / "artifacts" / "logs" / "events.json"
         try:
             logs_path.write_text(
                 json.dumps(self._logs, indent=2, ensure_ascii=False, default=str),
@@ -310,11 +313,11 @@ class EngineSession:
         self._ensure_runtime_dirs()
         self._trace_counter += 1
         if category == "agents":
-            relative_path = f"logs/agents/{self._trace_counter:03d}_{stem}.json"
+            relative_path = f"artifacts/logs/agents/{self._trace_counter:03d}_{stem}.json"
         elif category == "tools":
-            relative_path = f"logs/tools/{self._trace_counter:03d}_{stem}.json"
+            relative_path = f"artifacts/logs/tools/{self._trace_counter:03d}_{stem}.json"
         else:
-            relative_path = f"logs/system/{self._trace_counter:03d}_{stem}.json"
+            relative_path = f"artifacts/logs/system/{self._trace_counter:03d}_{stem}.json"
         self.write_artifact(relative_path, json.dumps(payload, indent=2, ensure_ascii=False, default=str))
         timeline_entry = {
             "index": self._trace_counter,
@@ -323,7 +326,7 @@ class EngineSession:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "summary": stem,
         }
-        timeline_path = self._session_dir / "logs" / "timeline.jsonl" if self._session_dir else None
+        timeline_path = self._session_dir / "artifacts" / "logs" / "timeline.jsonl" if self._session_dir else None
         if timeline_path:
             with timeline_path.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(timeline_entry, ensure_ascii=False) + "\n")
@@ -342,6 +345,23 @@ class EngineSession:
         if not self._session_dir:
             return
         ensure_task_layout(self._session_dir)
+
+    def _init_project_docs(self) -> None:
+        """Auto-create the 5 agent context files at the workspace root."""
+        if not self._session_dir:
+            return
+        try:
+            _pdi_path = _TOOLS_DIR / "project_docs_init.py"
+            _pdi_spec = _ilu.spec_from_file_location("_project_docs_init", _pdi_path)
+            _pdi_mod = _ilu.module_from_spec(_pdi_spec)  # type: ignore[arg-type]
+            _pdi_spec.loader.exec_module(_pdi_mod)  # type: ignore[union-attr]
+            _pdi_mod.init_all(
+                project_dir=str(self._session_dir),
+                project_name=self._description[:60] or "Session",
+                description=self._description,
+            )
+        except Exception:
+            pass  # Non-fatal: agent can still call project_docs_init manually if needed
 
     def _update_consciousness_environment(self, profile: dict) -> None:
         """Persist the latest execution environment into shared memory."""

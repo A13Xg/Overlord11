@@ -384,7 +384,7 @@ def main():
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--sql", default=None, help="Raw SQL for execute action")
     parser.add_argument("--params", default=None, help="JSON array of params for execute")
-    parser.add_argument("--no_if_not_exists", action="store_true")
+    parser.add_argument("--if_not_exists", default="true", help="Add IF NOT EXISTS clause (true/false). Default: true.")
 
     args = parser.parse_args()
 
@@ -410,7 +410,7 @@ def main():
         limit=args.limit,
         sql=args.sql,
         params=_json_or_none(args.params, "--params"),
-        if_not_exists=not args.no_if_not_exists,
+        if_not_exists=args.if_not_exists.lower() != "false",
     )
     print(json.dumps(result, indent=2, ensure_ascii=False, default=str))
     sys.exit(0 if result.get("status") == "success" else 1)

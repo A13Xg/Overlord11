@@ -3,17 +3,26 @@ Shared helpers for the canonical Overlord11 task workspace layout.
 
 Task layout:
     workspace/<task_id>/
-      agent/
-      tools/
-        cache/
-        web/
-        vision/
-      logs/
-        agents/
+      ProjectOverview.md    (auto-created at session start)
+      Settings.md           (auto-created at session start)
+      TaskingLog.md         (auto-created at session start)
+      AInotes.md            (auto-created at session start)
+      ErrorLog.md           (auto-created at session start)
+      final_output.md       (written by agent on completion)
+      artifacts/
+        agent/              (system profile, agent traces)
         tools/
-        system/
-      app/                  (created only for software-project scaffolds)
-      <final deliverables>  (HTML reports, markdown reports, etc.)
+          cache/            (tool result cache)
+          web/              (web scraper downloads)
+          vision/           (vision tool outputs)
+        logs/
+          agents/           (per-loop agent traces)
+          tools/            (per-tool execution traces)
+          system/           (system profile JSON)
+          session.json      (session manifest)
+          events.json       (all events array)
+          timeline.jsonl    (trace index)
+        app/                (code scaffold output)
 """
 
 from __future__ import annotations
@@ -46,22 +55,22 @@ def task_dir_for(session_id: str) -> Path:
 
 def ensure_task_layout(task_dir: str | Path, include_app: bool = False) -> dict[str, Path]:
     root = Path(task_dir).resolve()
+    artifacts = root / "artifacts"
     paths = {
         "root": root,
-        "agent": root / "agent",
-        "tools": root / "tools",
-        "tools_cache": root / "tools" / "cache",
-        "tools_web": root / "tools" / "web",
-        "tools_vision": root / "tools" / "vision",
-        "logs": root / "logs",
-        "logs_agents": root / "logs" / "agents",
-        "logs_tools": root / "logs" / "tools",
-        "logs_system": root / "logs" / "system",
-        "app": root / "app",
+        "artifacts": artifacts,
+        "agent": artifacts / "agent",
+        "tools": artifacts / "tools",
+        "tools_cache": artifacts / "tools" / "cache",
+        "tools_web": artifacts / "tools" / "web",
+        "tools_vision": artifacts / "tools" / "vision",
+        "logs": artifacts / "logs",
+        "logs_agents": artifacts / "logs" / "agents",
+        "logs_tools": artifacts / "logs" / "tools",
+        "logs_system": artifacts / "logs" / "system",
+        "app": artifacts / "app",
     }
-    for key, path in paths.items():
-        if key == "app" and not include_app:
-            continue
+    for path in paths.values():
         path.mkdir(parents=True, exist_ok=True)
     return paths
 

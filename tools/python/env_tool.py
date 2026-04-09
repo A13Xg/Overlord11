@@ -382,7 +382,7 @@ def main():
     parser.add_argument("--pairs", default=None, help="JSON object of key-value pairs for write")
     parser.add_argument("--required", nargs="+", default=None, help="Required keys for validate")
     parser.add_argument("--allow_empty", action="store_true")
-    parser.add_argument("--no_create", action="store_true", help="Don't create file if missing")
+    parser.add_argument("--create", default="true", help="Create .env file if missing (true/false). Default: true.")
 
     args = parser.parse_args()
     pairs = None
@@ -401,7 +401,7 @@ def main():
         pairs=pairs,
         required=args.required,
         allow_empty=args.allow_empty,
-        create=not args.no_create,
+        create=args.create.lower() != "false",
     )
     print(json.dumps(result, indent=2, ensure_ascii=False))
     sys.exit(0 if result.get("status") == "success" else 1)

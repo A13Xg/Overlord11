@@ -1286,7 +1286,7 @@ def main():
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
     parser = argparse.ArgumentParser(description="Generate data visualizations as self-contained HTML.")
-    parser.add_argument("action",       help="Chart type: bar|line|pie|scatter|heatmap|timeline|dashboard")
+    parser.add_argument("--action",     required=True, help="Chart type: bar|line|pie|scatter|heatmap|timeline|dashboard")
     parser.add_argument("--data",       help="JSON string of chart data")
     parser.add_argument("--data_file",  help="Path to .json or .csv file")
     parser.add_argument("--title",      default="Visualization", help="Chart title")

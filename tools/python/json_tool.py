@@ -432,7 +432,7 @@ def main():
     parser.add_argument("--path", default=None, help="Dot-notation path (e.g., users.0.name)")
     parser.add_argument("--value", default=None, help="JSON value string (for set action)")
     parser.add_argument("--indent", type=int, default=2, help="Indentation for format (0=minify)")
-    parser.add_argument("--no_recursive", action="store_true", help="Shallow keys only")
+    parser.add_argument("--recursive", default="true", help="Recursive key listing (true/false). Default: true.")
     parser.add_argument("--file", default=None, help="Path to JSON file (alternative to --input)")
     parser.add_argument("--file_b", default=None, help="Path to second JSON file")
 
@@ -444,7 +444,7 @@ def main():
         path=args.path,
         value=args.value,
         indent=args.indent,
-        recursive=not args.no_recursive,
+        recursive=args.recursive.lower() != "false",
         file=args.file,
         file_b=args.file_b,
     )

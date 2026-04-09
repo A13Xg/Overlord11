@@ -66,12 +66,17 @@ _(To be filled: describe the project's core purpose, target users, and key value
 ### Directory Structure
 ```
 task-root/
-  app/                  # software project source, if applicable
-  agent/                # agent notes/data
-  tools/                # tool caches, web scrape results, screenshots
-  logs/                 # json manifests and logs
-  ProjectOverview.md    # root-level documentation
-  (finished deliverables live at task root)
+  ProjectOverview.md    # agent context (this file)
+  Settings.md           # AI behavior config
+  TaskingLog.md         # task tracking
+  AInotes.md            # critical agent notes
+  ErrorLog.md           # error tracking
+  final_output.md       # session deliverable
+  artifacts/
+    app/                # software project source, if applicable
+    agent/              # system profile, agent traces
+    tools/              # web scrapes, vision outputs, tool cache
+    logs/               # session manifest, events, trace index
 ```
 
 ### Key Components

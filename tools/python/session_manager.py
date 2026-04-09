@@ -30,9 +30,13 @@ SESSION_INDEX = WORKSPACE_DIR / "session_index.json"
 
 
 def _session_manifest_path(session_dir: Path) -> Path:
-    modern = session_dir / "logs" / "session.json"
-    if modern.exists():
-        return modern
+    # Check new artifacts/logs/ path first, then legacy paths
+    artifacts_modern = session_dir / "artifacts" / "logs" / "session.json"
+    if artifacts_modern.exists():
+        return artifacts_modern
+    legacy_modern = session_dir / "logs" / "session.json"
+    if legacy_modern.exists():
+        return legacy_modern
     return session_dir / "session.json"
 
 
@@ -82,7 +86,7 @@ def create_session(description: str = "", tags: list = None) -> dict:
         "notes": [],
     }
 
-    # Save session manifest
+    # Save session manifest in artifacts/logs/
     manifest_path = layout["logs"] / "session.json"
     manifest_path.write_text(json.dumps(session, indent=2, default=str), encoding="utf-8")
 
@@ -117,8 +121,8 @@ def get_session(session_id: str) -> dict:
 def _save_session(session_id: str, session: dict):
     """Save session manifest."""
     session_dir = WORKSPACE_DIR / session_id
-    ensure_task_layout(session_dir)
-    manifest = session_dir / "logs" / "session.json"
+    layout = ensure_task_layout(session_dir)
+    manifest = layout["logs"] / "session.json"
     manifest.write_text(json.dumps(session, indent=2, default=str), encoding="utf-8")
 
 
