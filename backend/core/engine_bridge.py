@@ -33,7 +33,7 @@ import sys
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Dict, List, Optional, Set
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
@@ -41,6 +41,14 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from engine.runner import EngineRunner
 
+from .conflict_detector import (
+    ConflictResult,
+    DomainSet,
+    detect_conflicts,
+    domains_from_dict,
+    domains_to_dict,
+    extract_domains,
+)
 from .event_stream import EventBroadcaster, broadcaster as default_broadcaster
 from .session_store import Job, JobStatus, SessionStore, store as default_store
 
@@ -75,11 +83,104 @@ class EngineBridge:
         # in-progress rate-limit wait without waiting for it to expire.
         self._job_stop_events: dict[str, threading.Event] = {}
 
+        # Maps job_id → DomainSet for jobs that are currently RUNNING or QUEUED.
+        # Used by smart_enqueue() to detect resource conflicts.
+        self._active_domains: Dict[str, DomainSet] = {}
+        self._active_domains_lock = threading.Lock()
+
     def signal_stop(self, job_id: str) -> None:
         """Signal the runner for job_id to abort any current wait immediately."""
         event = self._job_stop_events.get(job_id)
         if event is not None:
             event.set()
+
+    # ------------------------------------------------------------------
+    # Smart enqueue with conflict detection
+    # ------------------------------------------------------------------
+
+    def smart_enqueue(
+        self,
+        job: Job,
+        store: SessionStore,
+        broadcaster: EventBroadcaster,
+    ) -> ConflictResult:
+        """
+        Analyse job for resource conflicts against all active/queued jobs,
+        automatically chain `depends_on` for hard conflicts, then enqueue.
+
+        Returns a ConflictResult so the API can inform the caller.
+        """
+        # Extract or reuse stored domains
+        if job.resource_domains:
+            new_domains = domains_from_dict(job.resource_domains)
+        else:
+            new_domains = extract_domains(job.prompt, job.title)
+            domains_dict = domains_to_dict(new_domains)
+            store.update_job(job.job_id, resource_domains=domains_dict)
+
+        # Snapshot active domains under lock
+        with self._active_domains_lock:
+            active_snapshot = dict(self._active_domains)
+
+        # Detect conflicts
+        conflict = detect_conflicts(new_domains, active_snapshot)
+
+        if conflict.conflicting_job_ids:
+            # Hard conflicts: sequence this job after all conflicting jobs
+            existing_deps = set(job.depends_on)
+            new_deps = existing_deps | set(conflict.conflicting_job_ids)
+            conflict_info = {
+                "sequenced_after": conflict.conflicting_job_ids,
+                "overlap": conflict.overlap_details,
+                "reason": "resource_conflict",
+            }
+            store.update_job(
+                job.job_id,
+                depends_on=sorted(new_deps),
+                conflict_info=conflict_info,
+            )
+            broadcaster.publish(job.job_id, {
+                "type": "STATUS",
+                "job_id": job.job_id,
+                "status": "queued",
+                "conflict": conflict_info,
+                "message": (
+                    f"Sequenced after {len(conflict.conflicting_job_ids)} conflicting "
+                    f"job(s): {conflict.conflicting_job_ids}"
+                ),
+            })
+            log.info(
+                "Job %s: sequenced after %s due to resource conflicts: %s",
+                job.job_id, conflict.conflicting_job_ids, conflict.overlap_details,
+            )
+        elif conflict.soft_conflict_job_ids:
+            log.info(
+                "Job %s: soft conflict with %s — allowing parallel execution",
+                job.job_id, conflict.soft_conflict_job_ids,
+            )
+
+        # Register this job's domains as active
+        with self._active_domains_lock:
+            self._active_domains[job.job_id] = new_domains
+
+        self.enqueue(job.job_id)
+        return conflict
+
+    def _release_job_domains(self, job_id: str) -> None:
+        """Remove a job from the active domains registry when it finishes."""
+        with self._active_domains_lock:
+            self._active_domains.pop(job_id, None)
+
+    def get_queue_status(self) -> dict:
+        """Return current queue depth and active job count."""
+        with self._active_domains_lock:
+            active_count = len(self._active_domains)
+        return {
+            "queue_depth": self.job_queue.qsize(),
+            "active_jobs": active_count,
+            "max_concurrent": self._max_concurrent_jobs,
+            "workers": len([t for t in self._worker_tasks if not t.done()]),
+        }
 
     # ------------------------------------------------------------------
     # Worker lifecycle
@@ -183,10 +284,11 @@ class EngineBridge:
         return self._completion_events[job_id]
 
     def _signal_completion(self, job_id: str) -> None:
-        """Mark a job's completion event so dependents can proceed."""
+        """Mark a job's completion event so dependents can proceed, and release domains."""
         event = self._completion_events.get(job_id)
         if event is not None:
             event.set()
+        self._release_job_domains(job_id)
 
     async def _wait_for_dependencies(
         self,
@@ -203,6 +305,16 @@ class EngineBridge:
         """
         if not job.depends_on:
             return True
+
+        # Pre-populate completion events for dependencies that are already in a
+        # terminal state (e.g. completed in a previous server run).  Without
+        # this, a freshly-created asyncio.Event would never be set and the
+        # dependent job would block until the 1-hour timeout fires.
+        for dep_id in job.depends_on:
+            dep_job = store.get_job(dep_id)
+            if dep_job is not None and dep_job.status in (JobStatus.COMPLETED, JobStatus.FAILED):
+                ev = self._ensure_completion_event(dep_id)
+                ev.set()  # already finished — unblock immediately
 
         log.info(
             "Job %s: waiting for %d prerequisite(s): %s",
@@ -307,6 +419,14 @@ class EngineBridge:
         """Execute a single job synchronously in the thread pool."""
         job = store.get_job(job_id)
         if job is None:
+            return
+
+        # Skip jobs that were stopped/cancelled while still waiting in queue.
+        if job.status in (JobStatus.FAILED, JobStatus.COMPLETED):
+            log.info(
+                "Job %s: skipping execution — already in terminal state %s",
+                job_id, job.status,
+            )
             return
 
         store.update_job(

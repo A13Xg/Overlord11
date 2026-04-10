@@ -48,6 +48,14 @@ class Job:
     # "stop": fail the job immediately
     # "try_different_model": wait only as long as the shortest provider Retry-After, then retry
     rate_limit_action: str = "pause"
+    # Resource domains extracted by conflict_detector; used for smart sequencing.
+    resource_domains: dict = field(default_factory=dict)
+    # Execution priority: lower = higher priority (0 = normal, -1 = high, 1 = low)
+    priority: int = 0
+    # Whether this job was auto-started (vs manually started)
+    auto_started: bool = True
+    # Conflict info: which jobs this was sequenced behind and why
+    conflict_info: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -71,6 +79,10 @@ class Job:
             events=d.get("events", []),
             depends_on=d.get("depends_on", []),
             rate_limit_action=d.get("rate_limit_action", "pause"),
+            resource_domains=d.get("resource_domains", {}),
+            priority=d.get("priority", 0),
+            auto_started=d.get("auto_started", True),
+            conflict_info=d.get("conflict_info", {}),
         )
 
 
@@ -94,6 +106,10 @@ class SessionStore:
         prompt: str,
         depends_on: Optional[List[str]] = None,
         rate_limit_action: str = "pause",
+        resource_domains: Optional[dict] = None,
+        priority: int = 0,
+        auto_started: bool = True,
+        conflict_info: Optional[dict] = None,
     ) -> Job:
         job_id = secrets.token_hex(4)  # 8-char hex
         job = Job(
@@ -111,6 +127,10 @@ class SessionStore:
             events=[],
             depends_on=list(depends_on) if depends_on else [],
             rate_limit_action=rate_limit_action,
+            resource_domains=resource_domains or {},
+            priority=priority,
+            auto_started=auto_started,
+            conflict_info=conflict_info or {},
         )
         with self._lock:
             self._jobs[job_id] = job

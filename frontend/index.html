@@ -90,7 +90,37 @@ body::after {
   border-bottom: 1px solid var(--border);
   font-size: 11px; letter-spacing: .15em; color: var(--txt2);
   display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 3px;
 }
+#queue-pill {
+  font-size: 10px; letter-spacing: .06em; color: var(--txt3);
+  background: rgba(0,229,204,.08); border: 1px solid rgba(0,229,204,.2);
+  padding: 1px 6px; border-radius: 8px; white-space: nowrap;
+}
+#queue-pill.has-running { color: var(--teal); border-color: rgba(0,229,204,.5); background: rgba(0,229,204,.12); }
+.job-dep-row {
+  font-size: 10px; color: var(--txt3); padding-left: 2px;
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+}
+.dep-badge {
+  background: rgba(255,176,0,.12); border: 1px solid rgba(255,176,0,.3);
+  color: var(--amber); font-size: 9px; letter-spacing: .04em;
+  padding: 1px 5px; border-radius: 3px; white-space: nowrap;
+}
+.dep-badge.seq { background: rgba(255,176,0,.08); }
+.conflict-info-row {
+  font-size: 10px; color: #f59e0b; padding-left: 2px; letter-spacing: .04em;
+}
+/* Toast notification */
+#conflict-toast {
+  position: fixed; bottom: 220px; left: 50%; transform: translateX(-50%);
+  background: rgba(20,26,20,.96); border: 1px solid var(--amber);
+  color: var(--amber); font-family: var(--font); font-size: 11px;
+  padding: 8px 18px; letter-spacing: .08em; z-index: 8888;
+  pointer-events: none; opacity: 0; transition: opacity .3s;
+  max-width: 400px; text-align: center; white-space: pre-wrap;
+}
+#conflict-toast.visible { opacity: 1; }
 #job-list { flex: 1; overflow-y: auto; }
 .job-item {
   padding: 8px 10px; border-bottom: 1px solid rgba(30,58,30,.4);
@@ -853,7 +883,10 @@ body::after {
     <div id="sidebar">
       <div id="sidebar-header">
         <span>◼ JOB QUEUE</span>
-        <span id="job-count" style="color:var(--txt3);font-size:10px">0 JOBS</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span id="queue-pill" title="Active/max parallel slots">0/2 ▶</span>
+          <span id="job-count" style="color:var(--txt3);font-size:10px">0 JOBS</span>
+        </div>
       </div>
       <div id="job-list"></div>
       <div id="sidebar-footer">
@@ -959,6 +992,9 @@ body::after {
     <span id="sb-right">━━━━ OVERLORD11 ━━━━</span>
   </div>
 </div>
+
+<!-- ── CONFLICT TOAST ── -->
+<div id="conflict-toast"></div>
 
 <!-- ── NEW JOB MODAL ── -->
 <div id="modal-overlay" onclick="closeNewJobModal(event)">
@@ -1338,6 +1374,8 @@ async function init() {
   connectSSE();
   // Load templates for the picker (non-blocking)
   loadTemplates();
+  // Initialize queue status pill
+  pollQueueStatus();
   // Check if first-run setup is needed
   await checkSetupStatus();
 }
@@ -1466,6 +1504,16 @@ function renderJobList() {
       ? `<div class="rl-banner visible" data-resume="${rlResumeAt}">RATE LIMITED${rlRetry} — <span class="rl-countdown">…</span></div>`
       : `<div class="rl-banner"></div>`;
     const displayStatus = j.status === 'rate_limited' ? 'RATE LIMITED' : j.status.toUpperCase();
+
+    // Dependency chain indicator
+    let depRowHtml = '';
+    if (j.depends_on && j.depends_on.length > 0 && ['queued', 'paused'].includes(j.status)) {
+      const depIds = j.depends_on.map(id => `<span class="dep-badge seq" title="${escHtml(id)}">⤿ ${escHtml(id.slice(-6))}</span>`).join(' ');
+      depRowHtml = `<div class="job-dep-row">WAITING FOR ${depIds}</div>`;
+    } else if (j.conflict_info && j.conflict_info.sequenced_after && j.conflict_info.sequenced_after.length > 0 && j.status === 'queued') {
+      depRowHtml = `<div class="conflict-info-row">⚠ SEQUENCED — CONFLICT</div>`;
+    }
+
     div.innerHTML = `
       <div class="job-title">${escHtml(j.title)}</div>
       <div class="job-status-row">
@@ -1474,6 +1522,7 @@ function renderJobList() {
         ${waveform}
       </div>
       <div style="font-size:10px;color:var(--txt3)">${ts}</div>
+      ${depRowHtml}
       ${rlBannerHtml}`;
     el.appendChild(div);
   });
@@ -1494,9 +1543,12 @@ function selectJob(jobId) {
 
 function updateJobControls(job) {
   const s = job.status;
-  document.getElementById('ctrl-start').disabled   = !['queued','failed','completed'].includes(s);
+  // START is only meaningful for failed jobs (retry). Queued jobs are already
+  // in the worker queue (auto-started); re-enqueuing would double-submit them.
+  // Completed jobs should use RESTART instead.
+  document.getElementById('ctrl-start').disabled   = s !== 'failed';
   document.getElementById('ctrl-pause').disabled   = s !== 'running';
-  document.getElementById('ctrl-resume').disabled  = s !== 'paused';
+  document.getElementById('ctrl-resume').disabled  = !['paused', 'rate_limited'].includes(s);
   document.getElementById('ctrl-stop').disabled    = !['running','queued','paused','rate_limited'].includes(s);
   document.getElementById('ctrl-restart').disabled = false;
   document.getElementById('ctrl-delete').disabled  = false;
@@ -1604,7 +1656,7 @@ async function submitNewJob() {
     const res = await apiFetch('/api/jobs', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({title, prompt, rate_limit_action})
+      body: JSON.stringify({title, prompt, rate_limit_action, auto_start: true})
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({detail: res.statusText}));
@@ -1619,10 +1671,38 @@ async function submitNewJob() {
     document.getElementById('new-job-title').value = '';
     document.getElementById('new-job-prompt').value = '';
     document.getElementById('new-job-rl-action').value = 'pause';
-    appendFooterLog('JOB CREATED: ' + job.job_id + ' — ' + title);
+
+    // Handle conflict info from auto-start
+    const conflict = job._conflict;
+    if (conflict) {
+      if (conflict.sequenced && conflict.hard && conflict.hard.length > 0) {
+        const ids = conflict.hard.map(id => id.slice(-6)).join(', ');
+        appendFooterLog(`SEQUENCED: [${job.job_id.slice(-6)}] will start after jobs [${ids}] — resource conflict detected`);
+        showConflictToast(`⚠ JOB SEQUENCED\nWaiting for ${conflict.hard.length} conflicting job(s) to complete.\nIDs: ${ids}`);
+      } else if (conflict.soft && conflict.soft.length > 0) {
+        const ids = conflict.soft.map(id => id.slice(-6)).join(', ');
+        appendFooterLog(`SOFT CONFLICT: [${job.job_id.slice(-6)}] overlaps with [${ids}] — running in parallel`);
+      } else {
+        appendFooterLog(`JOB QUEUED: [${job.job_id.slice(-6)}] — ${title} — no conflicts, running immediately`);
+      }
+    } else {
+      appendFooterLog('JOB CREATED: ' + job.job_id + ' — ' + title);
+    }
+
+    // Refresh queue status pill
+    pollQueueStatus();
   } catch (e) {
     appendFooterLog('ERROR creating job: ' + e.message);
   }
+}
+
+function showConflictToast(msg) {
+  const toast = document.getElementById('conflict-toast');
+  if (!toast) return;
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('visible'), 4500);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1664,6 +1744,10 @@ function renderExecutionPanel(job) {
     ${loops > 0 ? `<div><span style="color:var(--txt3)">LOOPS:     </span>${loops}</div>` : ''}
     ${toolCalls > 0 ? `<div><span style="color:var(--txt3)">TOOL CALLS:</span> ${toolCalls}${toolErrors > 0 ? ` <span style="color:var(--red)">(${toolErrors} error${toolErrors > 1 ? 's' : ''})</span>` : ''}</div>` : ''}
     ${job.error ? `<div><span style="color:var(--red)">ERROR:     </span>${escHtml(job.error)}</div>` : ''}
+    ${job.depends_on && job.depends_on.length > 0 ? `<div><span style="color:var(--txt3)">DEPENDS ON:</span> <span style="color:var(--amber)">${escHtml(job.depends_on.join(', '))}</span></div>` : ''}
+    ${job.conflict_info && job.conflict_info.sequenced_after ? `<div><span style="color:var(--txt3)">SEQUENCED: </span><span style="color:#f59e0b">After [${escHtml(job.conflict_info.sequenced_after.join(', '))}]</span></div>` : ''}
+    ${job.conflict_info && job.conflict_info.overlap ? `<div><span style="color:var(--txt3)">CONFLICT:  </span><span style="color:var(--txt3);font-size:10px">${escHtml(Object.values(job.conflict_info.overlap).flat().join(', '))}</span></div>` : ''}
+    ${job.priority !== undefined && job.priority !== 0 ? `<div><span style="color:var(--txt3)">PRIORITY:  </span>${job.priority < 0 ? '<span style="color:var(--teal)">HIGH</span>' : '<span style="color:var(--txt2)">LOW</span>'}</div>` : ''}
     ${job.status === 'running' ? `<div class="progress-bar"><span>■■■□□□</span><span class="progress-label">EXECUTING…</span></div>` : ''}
   `;
 
@@ -2265,9 +2349,18 @@ function handleEvent(ev) {
         // Clear rate-limit countdown when status returns to running
         if (ev.status === 'running') job._rl_resume_at = null;
       }
+      // Merge conflict/dependency info from STATUS events if present
+      if (ev.conflict && ev.conflict.sequenced_after) {
+        job.conflict_info = ev.conflict;
+      }
       if (ev.resume_at) job._rl_resume_at = ev.resume_at;
       if (ev.session_id) job.session_id = ev.session_id;
       renderJobList();
+      // Refresh queue pill on any status transition
+      const transitional = ['running', 'completed', 'failed', 'queued'];
+      if (ev.status && transitional.includes(ev.status)) {
+        pollQueueStatus();
+      }
       if (selectedJobId === jobId) {
         updateJobControls(job);
         renderExecutionPanel(job);
@@ -2725,6 +2818,32 @@ function _tickRlCountdowns() {
 
 // Update countdowns every second
 setInterval(_tickRlCountdowns, 1000);
+
+/* ═══════════════════════════════════════════════════════
+   QUEUE STATUS POLL
+═══════════════════════════════════════════════════════ */
+async function pollQueueStatus() {
+  try {
+    const res = await apiFetch('/api/jobs/queue-status');
+    if (!res.ok) return;
+    const qs = await res.json();
+    const pill = document.getElementById('queue-pill');
+    if (!pill) return;
+    const active = qs.active_jobs || 0;
+    const max    = qs.max_concurrent || 2;
+    const queued = qs.queue_depth || 0;
+    pill.textContent = `${active}/${max} ▶` + (queued > 0 ? ` +${queued}q` : '');
+    pill.title = `${active} running / ${max} max parallel slots${queued > 0 ? ` / ${queued} waiting in queue` : ''}`;
+    if (active > 0) {
+      pill.classList.add('has-running');
+    } else {
+      pill.classList.remove('has-running');
+    }
+  } catch (_) { /* silently ignore — non-critical */ }
+}
+
+// Poll queue status every 8 seconds
+setInterval(pollQueueStatus, 8000);
 
 /* ═══════════════════════════════════════════════════════
    TEMPLATE PICKER
