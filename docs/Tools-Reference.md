@@ -148,6 +148,62 @@ python tools/python/run_shell_command.py --command "pip install requests" --time
 
 ---
 
+### `sandbox_runner`
+
+**Schema:** `tools/defs/sandbox_runner.json`  
+**Implementation:** `tools/python/sandbox_runner.py`
+
+Execute Python code in a fully isolated temporary virtual environment. Creates a fresh venv in a temp directory, optionally installs pip packages, runs the script, captures all output, then **destroys the entire environment** — nothing persists after the call.
+
+> Use `sandbox_runner` when: pip packages needed, file I/O, full stdlib, or anything `execute_python` blocks.  
+> Use `execute_python` when: pure computation only (math, json, re, datetime) — faster, no venv overhead.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `code` | string | ✓ | Python source code to execute |
+| `packages` | array | | pip packages to install first (e.g. `["numpy", "pandas==2.0"]`) |
+| `timeout` | integer | | Script execution timeout in seconds (default: `60`) |
+| `input_data` | string | | String passed as stdin to the script |
+| `session_id` | string | | Auto-injected by engine for logging |
+
+**Returns:**
+
+```json
+{
+  "status": "success",
+  "stdout": "3.0\n",
+  "stderr": "",
+  "returncode": 0,
+  "duration_ms": 4821.3,
+  "packages_installed": ["numpy"]
+}
+```
+
+On pip install failure, `pip_stderr` is included in the response.  
+On timeout, `returncode` is `124`.
+
+```bash
+# Basic execution
+python tools/python/sandbox_runner.py --code "print(sum([1,2,3,4,5]))"
+
+# With pip packages
+python tools/python/sandbox_runner.py \
+  --code "import numpy as np; print(np.array([1,2,3,4,5]).mean())" \
+  --packages '["numpy"]'
+
+# With stdin input
+python tools/python/sandbox_runner.py \
+  --code "data = input(); print(data.upper())" \
+  --input_data "hello world"
+
+# Custom timeout
+python tools/python/sandbox_runner.py \
+  --code "import time; time.sleep(5); print('done')" \
+  --timeout 10
+```
+
+---
+
 ### `git_tool`
 
 **Schema:** `tools/defs/git_tool.json`  

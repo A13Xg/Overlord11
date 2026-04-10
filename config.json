@@ -127,6 +127,7 @@
         "launcher_generator",
         "ui_design_system",
         "execute_python",
+        "sandbox_runner",
         "notification_tool"
       ]
     },
@@ -247,6 +248,10 @@
     "run_shell_command": {
       "def": "tools/defs/run_shell_command.json",
       "impl": "tools/python/run_shell_command.py"
+    },
+    "sandbox_runner": {
+      "def": "tools/defs/sandbox_runner.json",
+      "impl": "tools/python/sandbox_runner.py"
     },
     "web_fetch": {
       "def": "tools/defs/web_fetch.json",

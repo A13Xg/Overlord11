@@ -133,15 +133,17 @@ body::after {
 .job-status-row { display: flex; align-items: center; gap: 5px; }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .status-label { font-size: 10px; letter-spacing: .08em; }
-.s-queued       { color: var(--amber); }
-.s-running      { color: var(--teal); }
-.s-paused       { color: var(--txt3); }
-.s-completed    { color: var(--green); }
-.s-failed       { color: var(--red); }
-.s-rate_limited { color: #f59e0b; }
-.dot-queued      { background: var(--amber); }
-.dot-running     { background: var(--teal); animation: pulse 1.8s ease-in-out infinite; }
-.dot-paused      { background: var(--txt3); }
+.s-queued                    { color: var(--amber); }
+.s-running                   { color: var(--teal); }
+.s-paused                    { color: var(--txt3); }
+.s-completed                 { color: var(--green); }
+.s-failed                    { color: var(--red); }
+.s-rate_limited              { color: #f59e0b; }
+.s-waiting_for_dependencies  { color: var(--amber); }
+.dot-queued                   { background: var(--amber); }
+.dot-running                  { background: var(--teal); animation: pulse 1.8s ease-in-out infinite; }
+.dot-paused                   { background: var(--txt3); }
+.dot-waiting_for_dependencies { background: var(--amber); animation: rl-blink 1.6s step-start infinite; }
 .dot-completed   { background: var(--green); }
 .dot-failed      { background: var(--red); }
 .dot-rate_limited { background: #f59e0b; animation: rl-blink 1.2s step-start infinite; }
@@ -1503,7 +1505,8 @@ function renderJobList() {
     const rlBannerHtml = rlResumeAt
       ? `<div class="rl-banner visible" data-resume="${rlResumeAt}">RATE LIMITED${rlRetry} — <span class="rl-countdown">…</span></div>`
       : `<div class="rl-banner"></div>`;
-    const displayStatus = j.status === 'rate_limited' ? 'RATE LIMITED' : j.status.toUpperCase();
+    const _statusLabels = {rate_limited:'RATE LIMITED', waiting_for_dependencies:'WAITING'};
+    const displayStatus = _statusLabels[j.status] || j.status.toUpperCase();
 
     // Dependency chain indicator
     let depRowHtml = '';
@@ -1549,7 +1552,7 @@ function updateJobControls(job) {
   document.getElementById('ctrl-start').disabled   = s !== 'failed';
   document.getElementById('ctrl-pause').disabled   = s !== 'running';
   document.getElementById('ctrl-resume').disabled  = !['paused', 'rate_limited'].includes(s);
-  document.getElementById('ctrl-stop').disabled    = !['running','queued','paused','rate_limited'].includes(s);
+  document.getElementById('ctrl-stop').disabled    = !['running','queued','paused','rate_limited','waiting_for_dependencies'].includes(s);
   document.getElementById('ctrl-restart').disabled = false;
   document.getElementById('ctrl-delete').disabled  = false;
 }
@@ -1713,7 +1716,7 @@ function renderExecutionPanel(job) {
   document.getElementById('exec-info').style.display = '';
 
   const meta = document.getElementById('exec-job-meta');
-  const statusColor = {queued:'var(--amber)',running:'var(--teal)',paused:'var(--txt3)',rate_limited:'var(--amber)',completed:'var(--green)',failed:'var(--red)'}[job.status] || 'var(--txt)';
+  const statusColor = {queued:'var(--amber)',running:'var(--teal)',paused:'var(--txt3)',rate_limited:'var(--amber)',waiting_for_dependencies:'var(--amber)',completed:'var(--green)',failed:'var(--red)'}[job.status] || 'var(--txt)';
 
   // Compute derived stats from events
   const evts = job.events || [];
