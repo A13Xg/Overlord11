@@ -489,7 +489,7 @@ class EngineBridge:
             import time
             while _check_paused():
                 time.sleep(0.5)
-            return runner.run(job.prompt)
+            return runner.run(job.prompt, job_id=job_id)
 
         try:
             result = await loop.run_in_executor(None, _run_sync)

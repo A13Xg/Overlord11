@@ -863,7 +863,10 @@ def generate_report(
         if not output_path:
             task_dir = env_task_dir() if env_task_dir else None
             if task_dir:
-                output_path = str(task_dir / f"{ts}_{slug}.html")
+                # Save to task_dir/output/ by default
+                output_dir = task_dir / "output"
+                output_dir.mkdir(parents=True, exist_ok=True)
+                output_path = str(output_dir / f"{ts}_{slug}.html")
             else:
                 reports_dir = Path("workspace") / "reports"
                 reports_dir.mkdir(parents=True, exist_ok=True)

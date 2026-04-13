@@ -56,14 +56,36 @@ def _save_index(index: dict):
     SESSION_INDEX.write_text(json.dumps(index, indent=2, default=str), encoding="utf-8")
 
 
-def create_session(description: str = "", tags: list = None) -> dict:
-    """Create a new work session with a single canonical task directory."""
-    session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+def create_session(description: str = "", tags: list = None, job_id: str = "") -> dict:
+    """Create a new work session with a single canonical task directory.
+
+    Workspace naming: {ISO_DATE}_{JOB_ID} if job_id provided, else {ISO_DATE}_{HH}{MM}{SS}
+
+    Args:
+        description: Human-readable description of the session
+        tags: Optional list of tags for categorization
+        job_id: Optional job_id from webui (8-16 char hex) for workspace naming
+
+    Returns:
+        Session dict with workspace paths and metadata
+    """
+    # Create base session ID with timestamp
+    base_session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    if job_id:
+        # Use job_id in workspace naming
+        session_id = f"{base_session_id}_{job_id}"
+    else:
+        session_id = base_session_id
+
     session_dir = WORKSPACE_DIR / session_id
+
+    # Handle collision: if workspace already exists for this job_id, add suffix
     suffix = 1
+    original_session_id = session_id
     while session_dir.exists():
         suffix += 1
-        session_id = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{suffix:02d}"
+        session_id = f"{original_session_id}_v{suffix:02d}"
         session_dir = WORKSPACE_DIR / session_id
 
     layout = ensure_task_layout(session_dir)
@@ -252,6 +274,7 @@ def main():
                                  "log_tool", "add_note", "close", "list", "active"],
                         help="Action to perform")
     parser.add_argument("--session_id", default=None, help="Session ID")
+    parser.add_argument("--job_id", default="", help="Job ID (for workspace naming)")
     parser.add_argument("--description", default="", help="Session description")
     parser.add_argument("--data", default="{}", help="JSON data for the action")
     parser.add_argument("--status_filter", default=None, help="Filter sessions by status")
@@ -264,7 +287,8 @@ def main():
     if args.action == "create":
         result = create_session(
             description=args.description or data.get("description", ""),
-            tags=data.get("tags", [])
+            tags=data.get("tags", []),
+            job_id=args.job_id or data.get("job_id", "")
         )
     elif args.action == "status":
         result = get_session(args.session_id)

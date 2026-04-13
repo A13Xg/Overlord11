@@ -48,8 +48,9 @@ from task_workspace import ensure_task_layout
 class EngineSession:
     """Wraps the existing session functions with an engine-friendly interface."""
 
-    def __init__(self, session_id: Optional[str] = None, description: str = ""):
+    def __init__(self, session_id: Optional[str] = None, job_id: Optional[str] = None, description: str = ""):
         self._session_id: Optional[str] = session_id
+        self._job_id: Optional[str] = job_id
         self._description = description
         self._session_dir: Optional[Path] = None
         self._logs: list = []
@@ -61,8 +62,12 @@ class EngineSession:
     # ------------------------------------------------------------------
 
     def create(self) -> str:
-        """Create a new session, scaffold the workspace, and return the session_id."""
-        result = create_session(description=self._description)
+        """Create a new session, scaffold the workspace, and return the session_id.
+
+        The workspace is named with the format {ISO_DATE}_{JOB_ID} if job_id is provided,
+        otherwise uses just the ISO timestamp.
+        """
+        result = create_session(description=self._description, job_id=self._job_id)
         self._session_id = result["session_id"]
         self._session_dir = Path(result["workspace"])
         self._ensure_runtime_dirs()

@@ -77,11 +77,11 @@ _No active signals._
 
 ### [PERSISTENT] Execution Environment Profile
 - **Source**: SYSTEM
-- **Created**: 2026-04-09 01:18
+- **Created**: 2026-04-13 00:05
 - **TTL**: persistent
 - **Status**: ACTIVE
-- **Context**: Runtime host is Linux 6.8.0-1044-azure on x86_64. Preferred shell is /bin/bash; Python 3.12.1.
-- **Action**: Use Unix-style shell commands on non-Windows hosts, Windows shell commands only when the runtime profile explicitly shows a Windows shell.
+- **Context**: Runtime host is Windows 11 on AMD64. Shell type: cmd; Python 3.14.4. Available tools: git, python, python3, pip, pip3, node, npm, curl.
+- **Action**: Use Windows shell syntax (backslashes, %VAR%, etc.). Check available_tools list before calling run_shell_command with tools that may not be installed.
 
 ### [PERSISTENT] Active Model Configuration
 - **Source**: SYSTEM

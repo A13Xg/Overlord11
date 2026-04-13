@@ -37,17 +37,25 @@ def _validate_artifact_name(name: str) -> None:
 
 
 def _session_root(job: object) -> Path:
-    """Locate the session workspace root for a job."""
+    """Locate the session workspace root for a job.
+
+    IMPORTANT: Only uses session_id. Job must have completed with a session_id
+    assigned. If session_id is not set, raises an error instead of creating
+    spurious workspace/job_id folder.
+    """
     session_id = getattr(job, "session_id", None)
     if session_id:
         sid_str = str(session_id)
-        if _JOB_ID_RE.match(sid_str) or _SESSION_ID_RE.match(sid_str):
+        # Validate session_id is in expected format (YYYYMMDD_HHMMSS or YYYYMMDD_HHMMSS_jobid)
+        if _JOB_ID_RE.match(sid_str) or _SESSION_ID_RE.match(sid_str) or "_" in sid_str:
             candidate = _WORKSPACE_DIR / sid_str
             if candidate.is_dir():
                 return candidate
-    fallback = _WORKSPACE_DIR / job.job_id  # job_id already validated upstream
-    fallback.mkdir(parents=True, exist_ok=True)
-    return fallback
+    # No valid session_id: raise error instead of creating spurious folder
+    raise HTTPException(
+        status_code=409,
+        detail="Job has not completed yet or session_id is missing. Wait for job to complete."
+    )
 
 
 def _iter_artifact_files(root: Path):

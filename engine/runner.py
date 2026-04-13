@@ -86,6 +86,7 @@ class EngineRunner:
         self,
         user_input: str,
         session_id: Optional[str] = None,
+        job_id: Optional[str] = None,
         agent_id: str = "OVR_DIR_01",
         streaming: bool = True,
     ) -> dict:
@@ -96,12 +97,20 @@ class EngineRunner:
         through the EventStream as TOKEN events.  The frontend can subscribe to
         these events to render the LLM response in real time.  Falls back to
         non-streaming automatically if the provider does not support it.
+
+        Args:
+            user_input: The user's request or job prompt
+            session_id: Optional existing session ID to restore (for resume)
+            job_id: Optional job ID from the webui job system (used in workspace naming)
+            agent_id: The agent to run (default: Orchestrator)
+            streaming: Whether to stream tokens (default: True)
         """
         max_loops: int = self._config.get("orchestration", {}).get("max_loops", 10)
 
         # Session setup
         session = EngineSession(
             session_id=session_id,
+            job_id=job_id,
             description=user_input[:120],
         )
         if not session_id:

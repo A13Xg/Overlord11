@@ -243,18 +243,22 @@ Overlord11/
 │   └── run_webui.py         # WebUI launcher (port 7900)
 │
 └── workspace/               # One isolated directory per session (auto-created)
-    └── <YYYYMMDD_HHMMSS>/
+    └── <YYYYMMDD_HHMMSS>_<JOB_ID>/     # Format: ISO date + optional webui job_id
         ├── ProjectOverview.md   # Task context (auto-scaffolded)
         ├── Settings.md          # AI behavior config (auto-scaffolded)
         ├── TaskingLog.md        # Task tracking (auto-scaffolded)
         ├── AInotes.md           # Critical agent notes (auto-scaffolded)
         ├── ErrorLog.md          # Error tracking (auto-scaffolded)
-        ├── final_output.md      # Session deliverable
-        └── artifacts/           # All system artifacts (logs, caches, code)
-            ├── agent/           # System profile, agent traces
+        ├── final_output.md      # Session report
+        ├── output/              # Main deliverables (apps, code, reports)
+        │   ├── my_application.py
+        │   ├── report.html
+        │   └── ...
+        └── artifacts/           # All supporting files (logs, caches, metadata)
+            ├── agent/           # System profile, agent execution traces
             ├── tools/           # Web scrapes, vision outputs, tool cache
             ├── logs/            # Session manifest, events, trace index
-            └── app/             # Code scaffold output
+            └── app/             # Code scaffold templates
 ```
 
 ---
