@@ -1,0 +1,12 @@
+# Overlord11 Engine — Python dependencies
+# All engine modules are built on the Python standard library.
+# The packages below are optional enhancements; the engine will work without them.
+
+# Optional: richer HTTP client (falls back to stdlib urllib)
+# requests>=2.31.0
+
+# Optional: faster JSON (falls back to stdlib json)
+# orjson>=3.9.0
+
+# Optional: coloured terminal output (run_engine.py uses ANSI codes directly)
+# colorama>=0.4.6  # Windows ANSI support

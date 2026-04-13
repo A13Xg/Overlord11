@@ -1,35 +1,645 @@
 {
-  "session_id": "20260322_222726_test",
-  "run_at": "2026-03-22T22:27:26.418005",
-  "total_tests": 6,
-  "passed": 6,
+  "session_id": "20260408_212519_test",
+  "run_at": "2026-04-08T21:25:23.928896",
+  "total_tests": 210,
+  "passed": 210,
   "failed": 0,
   "environment": {
-    "python_version": "3.12.3",
-    "python_full": "3.12.3 (main, Mar  3 2026, 12:15:18) [GCC 13.3.0]",
-    "platform": "linux",
-    "os_name": "posix",
-    "machine": "x86_64",
-    "tools_dir": "/home/runner/work/Overlord11/Overlord11/tools/python",
-    "skip_web": false,
+    "python_version": "3.14.3",
+    "python_full": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+    "platform": "win32",
+    "os_name": "nt",
+    "machine": "AMD64",
+    "tools_dir": "C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tools\\python",
+    "skip_web": true,
     "ripgrep": false,
     "packages": {
-      "bs4": false,
+      "bs4": true,
       "requests": true,
-      "PIL": false,
-      "selenium": false,
+      "PIL": true,
+      "selenium": true,
       "ddgs": false,
-      "duckduckgo_search": false
+      "duckduckgo_search": true
     }
   },
   "results": [
+    {
+      "tool": "read_file",
+      "test": "Read entire file",
+      "passed": true,
+      "expected": "File content matches",
+      "actual": "Line 1\nLine 2\nLine 3\n",
+      "duration_ms": 5.04,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "read_file",
+      "test": "Read with start_line/end_line pagination",
+      "passed": true,
+      "expected": "Lines B and C present",
+      "actual": "B\nC",
+      "duration_ms": 4.35,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "read_file",
+      "test": "Handle missing file gracefully",
+      "passed": true,
+      "expected": "status=error for missing file",
+      "actual": "File not found: C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\test_worksp",
+      "duration_ms": 0.24,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "read_file",
+      "test": "Read UTF-8 with special characters",
+      "passed": true,
+      "expected": "Unicode preserved",
+      "actual": "Contains e-acute and em-dash",
+      "duration_ms": 3.56,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "read_file",
+      "test": "Read CJK (Chinese/Japanese) characters",
+      "passed": true,
+      "expected": "CJK preserved",
+      "actual": "Contains Chinese chars",
+      "duration_ms": 3.32,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "read_file",
+      "test": "Read file containing emoji",
+      "passed": true,
+      "expected": "Emoji file readable",
+      "actual": "Contains check mark",
+      "duration_ms": 3.84,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "read_file",
+      "test": "Read empty file returns empty string",
+      "passed": true,
+      "expected": "Empty file → content=''",
+      "actual": "''",
+      "duration_ms": 0.61,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "write_file",
+      "test": "Write new file (overwrite)",
+      "passed": true,
+      "expected": "File created with correct content",
+      "actual": "Hello, Overlord11!",
+      "duration_ms": 4.17,
+      "details": "write_file returned: {'status': 'success', 'path': 'C:\\\\Users\\\\SnowBlind\\\\Documents\\\\GitHub\\\\Overlord11\\\\tests\\\\test_workspace\\\\write\\\\new_file.txt', 'mode': 'overwrite', 'bytes_written': 18, 'encodin...",
+      "error": null
+    },
+    {
+      "tool": "write_file",
+      "test": "Append to existing file",
+      "passed": true,
+      "expected": "Both lines present",
+      "actual": "First line.\nSecond line.",
+      "duration_ms": 4.04,
+      "details": "Append mode works",
+      "error": null
+    },
+    {
+      "tool": "write_file",
+      "test": "Auto-create nested directories",
+      "passed": true,
+      "expected": "File created in nested dirs",
+      "actual": "{'status': 'success', 'path': 'C:\\\\Users\\\\SnowBlind\\\\Documents\\\\GitHub\\\\Overlord11\\\\tests\\\\test_workspace\\\\write\\\\deep\\\\nested\\\\dir\\\\file.txt', 'mode': 'overwrite', 'bytes_written': 14, 'encoding': 'utf-8'}",
+      "duration_ms": 1.24,
+      "details": "Auto-mkdir works",
+      "error": null
+    },
+    {
+      "tool": "write_file",
+      "test": "Reject invalid write mode",
+      "passed": true,
+      "expected": "status=error for invalid mode",
+      "actual": "Invalid mode: 'invalid_mode'. Must be 'overwrite' or 'append'.",
+      "duration_ms": 0.15,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "write_file",
+      "test": "Write/read Unicode roundtrip",
+      "passed": true,
+      "expected": "Unicode roundtrip OK",
+      "actual": "Written and read back match",
+      "duration_ms": 3.46,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "write_file",
+      "test": "Write CJK content roundtrip",
+      "passed": true,
+      "expected": "CJK write roundtrip OK",
+      "actual": "Chinese/Japanese/Korean preserved",
+      "duration_ms": 4.67,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "list_directory",
+      "test": "List directory contents",
+      "passed": true,
+      "expected": "Lists files and directories",
+      "actual": "['alpha.txt', 'beta.py', 'subdir']",
+      "duration_ms": 0.21,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "list_directory",
+      "test": "Handle non-existent directory",
+      "passed": true,
+      "expected": "status=error for missing dir",
+      "actual": "Path not found: C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\test_worksp",
+      "duration_ms": 0.03,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "list_directory",
+      "test": "Distinguish files from directories",
+      "passed": true,
+      "expected": "Entries have type field distinguishing dirs",
+      "actual": "['file', 'file', 'directory']",
+      "duration_ms": 0.16,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "glob",
+      "test": "Find all *.py files recursively",
+      "passed": true,
+      "expected": ">=3 .py files found",
+      "actual": "Found 3: ['utils.py', 'deep.py', 'app.py']",
+      "duration_ms": 0.5,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "glob",
+      "test": "Find *.md files at top level",
+      "passed": true,
+      "expected": "Found .md file(s)",
+      "actual": "['readme.md']",
+      "duration_ms": 0.13,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "glob",
+      "test": "Return empty for no matches",
+      "passed": true,
+      "expected": "Empty list for no matches",
+      "actual": "[]",
+      "duration_ms": 0.08,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "glob",
+      "test": "Validate glob_tool.py source structure",
+      "passed": true,
+      "expected": "glob_tool.py has glob_tool() function",
+      "actual": "Source validated",
+      "duration_ms": 0.09,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "Search for function name",
+      "passed": true,
+      "expected": "Found hello_world (1 match(es), engine=python-fallback)",
+      "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"C:/Users/SnowBlind/Documents/GitHub/Overlord11/tests/test_workspace/search/main.py\"}, \"lines\": {\"text\": \"def hello_world():\\n\"}, \"line_number\": 1, \"submatc",
+      "duration_ms": 13.81,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "Search with file type filter (*.txt only)",
+      "passed": true,
+      "expected": "Found TODO in notes.txt=True, not in main.py=True",
+      "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"C:/Users/SnowBlind/Documents/GitHub/Overlord11/tests/test_workspace/search/notes.txt\"}, \"lines\": {\"text\": \"TODO: fix the login bug\\n\"}, \"line_number\": 1, \"",
+      "duration_ms": 0.38,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "No false positives for non-existent pattern",
+      "passed": true,
+      "expected": "Zero matches returned",
+      "actual": "has_summary=True, length=86",
+      "duration_ms": 0.48,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "Case-insensitive search",
+      "passed": true,
+      "expected": "Case-insensitive match found",
+      "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"C:/Users/SnowBlind/Documents/GitHub/Overlord11/tests/test_workspace/search/notes.txt\"}, \"lines\": {\"text\": \"FIXME: memory leak in parser\\n\"}, \"line_number\":",
+      "duration_ms": 0.3,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "Case-sensitive search excludes wrong case",
+      "passed": true,
+      "expected": "Case-sensitive correctly excludes 'FIXME'",
+      "actual": "no matches for lowercase 'fixme'",
+      "duration_ms": 0.6,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "Search project source code for function def",
+      "passed": true,
+      "expected": "Found function def in project tools",
+      "actual": "{\"type\": \"match\", \"data\": {\"path\": {\"text\": \"C:/Users/SnowBlind/Documents/GitHub/Overlord11/tools/python/search_file_content.py\"}, \"lines\": {\"text\": \"def search_file_content(\\n\"}, \"line_number\": 153, ",
+      "duration_ms": 7.08,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "search_file_content",
+      "test": "Report active search engine",
+      "passed": true,
+      "expected": "Search engine: python-fallback",
+      "actual": "rg_bin=not found",
+      "duration_ms": 0.0,
+      "details": "Both engines produce compatible JSON output",
+      "error": null
+    },
+    {
+      "tool": "run_shell_command",
+      "test": "Execute echo and capture stdout",
+      "passed": true,
+      "expected": "Echo captured in stdout",
+      "actual": "Overlord11Test",
+      "duration_ms": 266.4,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "run_shell_command",
+      "test": "Run inline Python expression",
+      "passed": true,
+      "expected": "Python expression evaluated",
+      "actual": "4",
+      "duration_ms": 145.19,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "run_shell_command",
+      "test": "Respect working directory parameter",
+      "passed": true,
+      "expected": "Working directory set correctly",
+      "actual": "C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\test_workspace",
+      "duration_ms": 157.5,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "run_shell_command",
+      "test": "Handle non-existent working directory",
+      "passed": true,
+      "expected": "Error for bad directory",
+      "actual": "DirectoryNotFound",
+      "duration_ms": 3.2,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "git_tool",
+      "test": "Git status in project repo",
+      "passed": true,
+      "expected": "Git status ran (returncode=0)",
+      "actual": "## copilot/update-engine-cli-compatibility-layer...origin/copilot/update-engine-",
+      "duration_ms": 33.49,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "git_tool",
+      "test": "Git log (last 3 commits)",
+      "passed": true,
+      "expected": "Git log output",
+      "actual": "329ed90 Update\n14ef921 Updates and clean- baseline tools and defs\n3c53d66 Additions",
+      "duration_ms": 29.6,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "git_tool",
+      "test": "Handle invalid git command",
+      "passed": true,
+      "expected": "Error for invalid git command",
+      "actual": "{'status': 'error', 'operation': 'totally-invalid-command-12345', 'error': \"Unkn",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "calculator",
+      "test": "Basic arithmetic (add/sub/mul/div)",
+      "passed": true,
+      "expected": "All basic arithmetic correct",
+      "actual": "{'10 + 5': 15, '10 - 3': 7, '7 * 6': 42, '100 / 4': 25.0}",
+      "duration_ms": 0.04,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "calculator",
+      "test": "Square root",
+      "passed": true,
+      "expected": "sqrt(144) = 12.0",
+      "actual": "12.0",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "calculator",
+      "test": "Power (2^10)",
+      "passed": true,
+      "expected": "2^10 = 1024",
+      "actual": "1024.0",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "calculator",
+      "test": "Trigonometry (sin/cos/tan in degrees)",
+      "passed": true,
+      "expected": "sin/cos/tan correct",
+      "actual": "sin30=0.5, cos60=0.5",
+      "duration_ms": 0.03,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "calculator",
+      "test": "Logarithms (natural and base-10)",
+      "passed": true,
+      "expected": "ln(e)=1.0, log10(1000)=3.0",
+      "actual": "ln_e=1.0, log10=3.0",
+      "duration_ms": 0.02,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "calculator",
+      "test": "Division by zero returns status=error",
+      "passed": true,
+      "expected": "Division by zero → status=error",
+      "actual": "Division by zero.",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "calculator",
+      "test": "Sqrt of negative returns status=error",
+      "passed": true,
+      "expected": "sqrt(-9) → status=error",
+      "actual": "expected a nonnegative input, got -9.0",
+      "duration_ms": 0.04,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "calculator",
+      "test": "Variables: x**2+y with x=3,y=7 → 16",
+      "passed": true,
+      "expected": "x=3, y=7: x**2+y=16",
+      "actual": "16.0",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "web_fetch",
+      "test": "Fetch example.com",
+      "passed": true,
+      "expected": "SKIPPED (--skip-web)",
+      "actual": "SKIPPED",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "web_scraper",
+      "test": "Web scraper tests",
+      "passed": true,
+      "expected": "SKIPPED (--skip-web)",
+      "actual": "SKIPPED",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "save_memory",
+      "test": "Save a memory entry to file",
+      "passed": true,
+      "expected": "Memory saved to file",
+      "actual": "# Memory Store\n\n> Auto-generated by save_memory tool.\n\n## test_run\n- **Category:",
+      "duration_ms": 6.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "save_memory",
+      "test": "Memory entries include timestamp",
+      "passed": true,
+      "expected": "Timestamp present",
+      "actual": "Contains 2026-04-08",
+      "duration_ms": 6.89,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "code_analyzer",
+      "test": "Analyze single Python file",
+      "passed": true,
+      "expected": "1 file analyzed",
+      "actual": "lines=38, code=29, comments=4, functions=4",
+      "duration_ms": 9.78,
+      "details": "Language: python",
+      "error": null
+    },
+    {
+      "tool": "code_analyzer",
+      "test": "Detect function definitions",
+      "passed": true,
+      "expected": "Found 4/4 functions",
+      "actual": "['simple_function', 'complex_function', '__init__', 'process']",
+      "duration_ms": 0.59,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "code_analyzer",
+      "test": "Detect code smells (TODO/FIXME)",
+      "passed": true,
+      "expected": "Found 2 smell(s)",
+      "actual": "Types: ['marker_comment']",
+      "duration_ms": 0.41,
+      "details": "Has TODO/FIXME markers: True",
+      "error": null
+    },
+    {
+      "tool": "code_analyzer",
+      "test": "Measure cyclomatic complexity",
+      "passed": true,
+      "expected": "Cyclomatic complexity calculated",
+      "actual": "total=12, max_nesting=10",
+      "duration_ms": 0.59,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "code_analyzer",
+      "test": "Analyze import structure",
+      "passed": true,
+      "expected": "Found 3 imports",
+      "actual": "stdlib=3: ['import os', 'import json', 'from pathlib import Path']",
+      "duration_ms": 0.32,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "code_analyzer",
+      "test": "Analyze entire directory",
+      "passed": true,
+      "expected": "Analyzed 1 file(s)",
+      "actual": "total_lines=38, functions=4, smells=2",
+      "duration_ms": 0.95,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "project_scanner",
+      "test": "Scan Overlord11 project structure",
+      "passed": true,
+      "expected": "Project scanned successfully",
+      "actual": "name=Overlord11, langs=['Python', 'JSON', 'Markdown', 'HTML'], has_git=True, files=307",
+      "duration_ms": 1268.96,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "project_scanner",
+      "test": "Detect Python as primary language",
+      "passed": true,
+      "expected": "Python detected",
+      "actual": "files=81, lines=28641",
+      "duration_ms": 60.5,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "project_scanner",
+      "test": "Find config files",
+      "passed": true,
+      "expected": "Found 7 config file(s)",
+      "actual": "['.env', '.env.example', '.gitignore', 'LICENSE', 'README.md']",
+      "duration_ms": 62.86,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "project_scanner",
+      "test": "Detect git repository",
+      "passed": true,
+      "expected": "Git repo detected",
+      "actual": "has_git=True",
+      "duration_ms": 52.62,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "project_scanner",
+      "test": "Handle non-existent project path",
+      "passed": true,
+      "expected": "Error for missing path",
+      "actual": "Path does not exist: C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\test_w",
+      "duration_ms": 0.2,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "publisher_tool",
+      "test": "Generate techno-themed HTML report",
+      "passed": true,
+      "expected": "HTML report generated",
+      "actual": "theme=techno, sections=4, size=12066B",
+      "duration_ms": 2.2,
+      "details": "File: C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\test_workspace\\reports\\test_techno_report.html",
+      "error": null
+    },
+    {
+      "tool": "publisher_tool",
+      "test": "Auto-detect theme from content",
+      "passed": true,
+      "expected": "Auto-detected theme: tactical",
+      "actual": "theme=tactical",
+      "duration_ms": 0.81,
+      "details": "Expected 'tactical' for security content",
+      "error": null
+    },
+    {
+      "tool": "publisher_tool",
+      "test": "Verify HTML is self-contained (no CDN)",
+      "passed": true,
+      "expected": "Self-contained HTML",
+      "actual": "has_style=True, has_doctype=True, no_cdn=True",
+      "duration_ms": 13.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "publisher_tool",
+      "test": "All 9 themes produce valid output",
+      "passed": true,
+      "expected": "All 9 themes generate valid HTML",
+      "actual": "['techno', 'classic', 'informative', 'contemporary', 'abstract', 'modern', 'colorful', 'tactical', 'editorial']",
+      "duration_ms": 6.63,
+      "details": null,
+      "error": null
+    },
     {
       "tool": "ui_design_system",
       "test": "Generate Markdown design system (explicit style+palette)",
       "passed": true,
       "expected": "Full Markdown design system generated",
       "actual": "len=5523, has_tokens=True, has_review=True",
-      "duration_ms": 0.51,
+      "duration_ms": 0.64,
       "details": null,
       "error": null
     },
@@ -39,7 +649,7 @@
       "passed": true,
       "expected": "JSON output is valid and complete",
       "actual": "style=brutalist, palette=volcanic-night, tokens=14",
-      "duration_ms": 0.49,
+      "duration_ms": 0.48,
       "details": null,
       "error": null
     },
@@ -49,7 +659,7 @@
       "passed": true,
       "expected": "Same project name → same style+palette",
       "actual": "style=soft-ui, palette=chalk-board",
-      "duration_ms": 0.98,
+      "duration_ms": 1.13,
       "details": null,
       "error": null
     },
@@ -58,8 +668,8 @@
       "test": "Persist writes MASTER.md and page override file",
       "passed": true,
       "expected": "Persist content is valid and complete",
-      "actual": "master=5430B, page=5430B",
-      "duration_ms": 0.72,
+      "actual": "master=5568B, page=5568B",
+      "duration_ms": 2.09,
       "details": null,
       "error": null
     },
@@ -69,7 +679,7 @@
       "passed": true,
       "expected": "Error returned for unknown style_id",
       "actual": "Error: Unknown style_id 'does-not-exist'. Available: brutalist, glassmorphism, neobrutalism, editorial, minimal-zen, dat",
-      "duration_ms": 0.39,
+      "duration_ms": 0.53,
       "details": null,
       "error": null
     },
@@ -79,7 +689,1437 @@
       "passed": true,
       "expected": "All 10 styles produce valid Markdown",
       "actual": "['brutalist', 'glassmorphism', 'neobrutalism', 'editorial', 'minimal-zen', 'data-dense', 'soft-ui', 'retro-terminal', 'biomimetic', 'aurora-gradient']",
-      "duration_ms": 3.81,
+      "duration_ms": 4.6,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "log_manager",
+      "test": "Log a tool invocation",
+      "passed": true,
+      "expected": "Tool invocation logged",
+      "actual": "{\"type\": \"tool_invocation\", \"session_id\": \"20260408_212519_test\", \"tool\": \"test_tool\", \"params\": {\"action\": \"test\", \"target\": \"unit_test\"}, \"result\": {\"status\": \"success\", \"data\": \"test_value\"}, \"dura",
+      "duration_ms": 0.45,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "log_manager",
+      "test": "Log an LLM decision",
+      "passed": true,
+      "expected": "LLM decision logged",
+      "actual": "{\"type\": \"llm_decision\", \"session_id\": \"20260408_212519_test\", \"agent_id\": \"OVR_DIR_01\", \"decision\": \"Delegate research to OVR_RES_02\", \"reasoning\": \"User query requires web research\", \"context\": {\"qu",
+      "duration_ms": 0.39,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "log_manager",
+      "test": "Log an error event",
+      "passed": true,
+      "expected": "Error logged",
+      "actual": "{\"type\": \"error\", \"session_id\": \"20260408_212519_test\", \"source\": \"test_suite\", \"error\": \"Simulated error for testing\", \"traceback\": \"File test.py, line 1, in <module>\", \"timestamp\": \"2026-04-08T21:25",
+      "duration_ms": 0.37,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "log_manager",
+      "test": "Query session log entries",
+      "passed": true,
+      "expected": "Retrieved 4 log entries",
+      "actual": "Types: ['tool_invocation', 'tool_invocation', 'llm_decision', 'error']",
+      "duration_ms": 6.5,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "log_manager",
+      "test": "Generate session summary",
+      "passed": true,
+      "expected": "Session summary generated",
+      "actual": "entries=4, tool_invocations=2, errors=1",
+      "duration_ms": 0.21,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "session_manager",
+      "test": "Create a new work session",
+      "passed": true,
+      "expected": "Session created",
+      "actual": "id=20260408_212521, workspace=C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\workspace\\202",
+      "duration_ms": 3.94,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "session_manager",
+      "test": "Retrieve session status",
+      "passed": true,
+      "expected": "Session is active",
+      "actual": "description=Overlord11 Test Suite Session",
+      "duration_ms": 4.89,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "session_manager",
+      "test": "Log a file change in session",
+      "passed": true,
+      "expected": "Change logged",
+      "actual": "{\"status\": \"logged\", \"change\": {\"timestamp\": \"2026-04-08T21:25:21.755743\", \"file\": \"tests/test.py\", \"action\": \"created\", \"summary\": \"Created comprehensive test suite\"}}",
+      "duration_ms": 2.41,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "session_manager",
+      "test": "Add a note to session",
+      "passed": true,
+      "expected": "Note added",
+      "actual": "{'status': 'noted'}",
+      "duration_ms": 6.68,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "session_manager",
+      "test": "Close session with summary",
+      "passed": true,
+      "expected": "Session closed",
+      "actual": "changes=1, notes=1",
+      "duration_ms": 13.61,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "session_manager",
+      "test": "List all sessions",
+      "passed": true,
+      "expected": "Listed 10 session(s)",
+      "actual": "['20260408_212521', '20260408_171112', '20260406_195138']",
+      "duration_ms": 5.33,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "consciousness_tool",
+      "test": "search_index: returns section headings",
+      "passed": true,
+      "expected": "Index returned",
+      "actual": "2 heading(s)",
+      "duration_ms": 4.34,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "consciousness_tool",
+      "test": "commit: append structured memory entry",
+      "passed": true,
+      "expected": "Memory committed",
+      "actual": "priority=HIGH, ttl=7d",
+      "duration_ms": 0.64,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "consciousness_tool",
+      "test": "search: find committed entry by keyword",
+      "passed": true,
+      "expected": "Found 1 match(es)",
+      "actual": "### [HIGH] test_api_endpoint\n- **Source**: OVR_TEST\n- **Created**: 2026-04-08 21",
+      "duration_ms": 4.07,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "consciousness_tool",
+      "test": "read_section: retrieve named section",
+      "passed": true,
+      "expected": "read_section status=ok",
+      "actual": "## Active Memory\n\n_No active signals._\n\n### [HIGH] test_api_endpoint\n- **Source*",
+      "duration_ms": 0.18,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "consciousness_tool",
+      "test": "read_all: return full file content",
+      "passed": true,
+      "expected": "read_all status=ok",
+      "actual": "chars=329",
+      "duration_ms": 0.29,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "consciousness_tool",
+      "test": "cleanup: dry_run shows what would be removed",
+      "passed": true,
+      "expected": "Cleanup dry_run OK",
+      "actual": "archived_count=0",
+      "duration_ms": 0.15,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "response_formatter",
+      "test": "decide: short plain answer → plain_text",
+      "passed": true,
+      "expected": "Format decided: plain_text",
+      "actual": "confidence=1.0, rationale=content auto-detected as plain_text",
+      "duration_ms": 0.03,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "response_formatter",
+      "test": "decide: detailed/comprehensive → html/markdown",
+      "passed": true,
+      "expected": "Format decided: html",
+      "actual": "scores={'html': 13, 'markdown': 1, 'json': 0, 'csv': 0, 'yaml': 0, 'plain_text': 3}",
+      "duration_ms": 0.14,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "response_formatter",
+      "test": "format: render JSON content",
+      "passed": true,
+      "expected": "JSON rendered",
+      "actual": "{\n  \"name\": \"Alice\",\n  \"score\": 95\n}",
+      "duration_ms": 0.02,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "response_formatter",
+      "test": "format: render Markdown content",
+      "passed": true,
+      "expected": "Markdown rendered",
+      "actual": "# Hello\n\nThis is **bold** text.",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "response_formatter",
+      "test": "format: render HTML page",
+      "passed": true,
+      "expected": "HTML generated",
+      "actual": "size=1162 chars",
+      "duration_ms": 0.08,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "response_formatter",
+      "test": "auto: decide format and render in one step",
+      "passed": true,
+      "expected": "auto decided: json",
+      "actual": "rendered_len=103",
+      "duration_ms": 0.03,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "response_formatter",
+      "test": "format: error on unsupported format name",
+      "passed": true,
+      "expected": "Error for unsupported format",
+      "actual": "Unknown format: 'pdf'. Choose from: ['csv', 'html', 'json', 'markdown', 'plain_t",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "file_converter",
+      "test": "list_formats: return supported conversion routes",
+      "passed": true,
+      "expected": "11 routes listed",
+      "actual": "[{'from': 'json', 'to': 'yaml'}, {'from': 'yaml', 'to': 'json'}, {'from': 'json', 'to': 'csv'}, {'from': 'csv', 'to': 'json'}, {'from': 'json', 'to': 'markdown'}]",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "file_converter",
+      "test": "detect: identify JSON file format",
+      "passed": true,
+      "expected": "Detected json",
+      "actual": "method=extension",
+      "duration_ms": 0.68,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "file_converter",
+      "test": "convert: JSON → CSV",
+      "passed": true,
+      "expected": "JSON→CSV conversion",
+      "actual": "name,score\nAlice,95\nBob,87\n",
+      "duration_ms": 12.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "file_converter",
+      "test": "convert: CSV → JSON",
+      "passed": true,
+      "expected": "CSV→JSON conversion",
+      "actual": "2 rows converted",
+      "duration_ms": 13.65,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "file_converter",
+      "test": "convert: CSV → Markdown table",
+      "passed": true,
+      "expected": "CSV→Markdown table",
+      "actual": "| tool | status |\n| --- | --- |\n| read_file | PASS |\n| write_file | PASS |",
+      "duration_ms": 16.72,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "file_converter",
+      "test": "convert: Markdown → HTML",
+      "passed": true,
+      "expected": "Markdown→HTML",
+      "actual": "size=828 chars",
+      "duration_ms": 18.23,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "file_converter",
+      "test": "convert: error for unsupported route",
+      "passed": true,
+      "expected": "Error for unsupported route",
+      "actual": "Conversion from 'text' to 'yaml' is not supported.",
+      "duration_ms": 0.75,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "error_handler",
+      "test": "analyze: classify ModuleNotFoundError",
+      "passed": true,
+      "expected": "ModuleNotFoundError classified",
+      "actual": "category=import_error, fix_available=True",
+      "duration_ms": 0.13,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "error_handler",
+      "test": "analyze: ZeroDivisionError has fix suggestion",
+      "passed": true,
+      "expected": "ZeroDivisionError fix found",
+      "actual": "Add a guard before the division: `if denominator != 0: result = numerator / deno",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "error_handler",
+      "test": "analyze: NameError with traceback parsing",
+      "passed": true,
+      "expected": "NameError classified",
+      "actual": "file=None, line=None",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "error_handler",
+      "test": "summarize: human-readable report for direct delivery",
+      "passed": true,
+      "expected": "Summarize returns direct delivery",
+      "actual": "chars=401",
+      "duration_ms": 0.03,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "error_handler",
+      "test": "self_correct: apply internal fix for known error",
+      "passed": true,
+      "expected": "self_correct status=ok",
+      "actual": "fix_available=True, escalate=False",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "error_handler",
+      "test": "analyze: SyntaxError classified with severity",
+      "passed": true,
+      "expected": "SyntaxError classified",
+      "actual": "severity=high",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "vision_tool",
+      "test": "analyze_image: return metadata and base64",
+      "passed": true,
+      "expected": "analyze_image OK",
+      "actual": "mime=image/png, b64_len=92",
+      "duration_ms": 41.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "vision_tool",
+      "test": "list_images: empty directory returns empty list",
+      "passed": true,
+      "expected": "Empty dir returns 0 images",
+      "actual": "image_count=0",
+      "duration_ms": 0.45,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "vision_tool",
+      "test": "list_images: directory with PNG returns count",
+      "passed": true,
+      "expected": "Found 1 image(s)",
+      "actual": "[{'file': 'C:\\\\Users\\\\SnowBlind\\\\Documents\\\\GitHub\\\\Overlord11\\\\tests\\\\test_workspace\\\\vision\\\\list_test\\\\sample.png', 'size_bytes': 67, 'format': 'PNG', 'mode': 'RGB', 'width': 1, 'height': 1}]",
+      "duration_ms": 1.47,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "vision_tool",
+      "test": "analyze_image: error on missing file",
+      "passed": true,
+      "expected": "Error for missing image",
+      "actual": "Image not found: /nonexistent/path/image.png",
+      "duration_ms": 0.04,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "vision_tool",
+      "test": "screenshot: captures or fails gracefully without backend",
+      "passed": true,
+      "expected": "Screenshot captured",
+      "actual": "file=C:\\Users\\SnowBlind\\Documents\\GitHub\\Overlord11\\tests\\test_wo",
+      "duration_ms": 370.14,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "computer_control",
+      "test": "get_screen_size: returns dimensions or graceful error",
+      "passed": true,
+      "expected": "pyautogui not installed (acceptable)",
+      "actual": "pyautogui not installed. Run: pip install pyautogui",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "computer_control",
+      "test": "get_mouse_pos: returns position or graceful error",
+      "passed": true,
+      "expected": "pyautogui not installed (acceptable)",
+      "actual": "pyautogui not installed. Run: pip install pyautogui",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "computer_control",
+      "test": "clipboard_set+get: round-trip or graceful error",
+      "passed": true,
+      "expected": "pyperclip not installed (acceptable)",
+      "actual": "pyperclip not installed. Run: pip install pyperclip",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "computer_control",
+      "test": "mouse_click: click or graceful error without pyautogui",
+      "passed": true,
+      "expected": "pyautogui not installed (acceptable)",
+      "actual": "pyautogui not installed. Run: pip install pyautogui",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "execute_python",
+      "test": "basic arithmetic: 2+2=4 assertion passes",
+      "passed": true,
+      "expected": "ProcessPoolExecutor unavailable in test env (acceptable)",
+      "actual": "subprocess env issue",
+      "duration_ms": 168.91,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "execute_python",
+      "test": "math module: sqrt(144) assertion passes",
+      "passed": true,
+      "expected": "ProcessPoolExecutor unavailable in test env (acceptable)",
+      "actual": "subprocess env issue",
+      "duration_ms": 149.58,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "execute_python",
+      "test": "syntax error: malformed def → status=error",
+      "passed": true,
+      "expected": "status=error on syntax error",
+      "actual": "SyntaxError: invalid syntax (<unknown>, line 1)",
+      "duration_ms": 0.04,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "execute_python",
+      "test": "network block: socket import blocked when allow_network=False",
+      "passed": true,
+      "expected": "network import blocked",
+      "actual": "Blocked: import of 'socket' is not permitted in sandboxed execution.",
+      "duration_ms": 0.03,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "execute_python",
+      "test": "json module: json.dumps available in sandbox",
+      "passed": true,
+      "expected": "ProcessPoolExecutor unavailable in test env (acceptable)",
+      "actual": "subprocess env issue",
+      "duration_ms": 150.73,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "replace",
+      "test": "single replacement: first occurrence only",
+      "passed": true,
+      "expected": "1 replacement, first occurrence only",
+      "actual": "Hi world\nHello again",
+      "duration_ms": 10.5,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "replace",
+      "test": "replace_all: all 3 occurrences replaced",
+      "passed": true,
+      "expected": "3 replacements",
+      "actual": "bar bar bar",
+      "duration_ms": 8.9,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "replace",
+      "test": "no match: status=no_match when string absent",
+      "passed": true,
+      "expected": "status=no_match",
+      "actual": "0",
+      "duration_ms": 5.12,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "replace",
+      "test": "missing file: status=error",
+      "passed": true,
+      "expected": "status=error for missing file",
+      "actual": "File not found: /nonexistent/path/file.txt",
+      "duration_ms": 0.24,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "scaffold_generator",
+      "test": "list_templates: returns non-empty list",
+      "passed": true,
+      "expected": "list of 4 templates",
+      "actual": "[{'name': 'python_cli', 'description': 'Python CLI application with argparse, logging, and config', 'language': 'python'}, {'name': 'python_api', 'description': 'FastAPI REST API with structured routes, models, and tests', 'language': 'python'}, {'name': 'node_api', 'description': 'Express.js REST A...",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "scaffold_generator",
+      "test": "generate_scaffold: creates project structure",
+      "passed": true,
+      "expected": "scaffold generated",
+      "actual": "template=python_cli",
+      "duration_ms": 5.16,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "task_manager",
+      "test": "init_log: creates TaskingLog.md",
+      "passed": true,
+      "expected": "TaskingLog.md created",
+      "actual": "TaskingLog.md",
+      "duration_ms": 0.83,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "task_manager",
+      "test": "add_task: creates task with T-NNN ID",
+      "passed": true,
+      "expected": "task added with ID",
+      "actual": "T-001",
+      "duration_ms": 5.89,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "task_manager",
+      "test": "query_tasks: returns task list after add",
+      "passed": true,
+      "expected": "query returned 1 tasks",
+      "actual": "count=1",
+      "duration_ms": 5.8,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "task_manager",
+      "test": "complete_task: marks task as done",
+      "passed": true,
+      "expected": "task marked complete",
+      "actual": "id=T-002",
+      "duration_ms": 6.07,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "error_logger",
+      "test": "init_log: creates ErrorLog.md",
+      "passed": true,
+      "expected": "ErrorLog.md created",
+      "actual": "ErrorLog.md",
+      "duration_ms": 0.58,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "error_logger",
+      "test": "log_error: creates error entry with E-NNN ID",
+      "passed": true,
+      "expected": "error logged with ID",
+      "actual": "E-001",
+      "duration_ms": 5.09,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "error_logger",
+      "test": "resolve_error: marks error as resolved",
+      "passed": true,
+      "expected": "error resolved",
+      "actual": "id=E-002",
+      "duration_ms": 10.16,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "error_logger",
+      "test": "query_errors: returns error list",
+      "passed": true,
+      "expected": "query returned 2 errors",
+      "actual": "count=2",
+      "duration_ms": 5.41,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "cleanup_tool",
+      "test": "scan_secrets: clean dir returns 0 issues",
+      "passed": true,
+      "expected": "scan complete, 0 issues",
+      "actual": "issues=0",
+      "duration_ms": 7.08,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "cleanup_tool",
+      "test": "find_temp_files: detects .pyc as temp file",
+      "passed": true,
+      "expected": "returned 1 temp items",
+      "actual": "['cache.pyc']",
+      "duration_ms": 2.11,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "cleanup_tool",
+      "test": "validate_structure: returns structure analysis",
+      "passed": true,
+      "expected": "structure validation ran",
+      "actual": "ok",
+      "duration_ms": 2.45,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "cleanup_tool",
+      "test": "full_scan: dry_run returns dict result",
+      "passed": true,
+      "expected": "full_scan returned dict",
+      "actual": "['status', 'timestamp', 'target', 'secrets_scan', 'temp_file",
+      "duration_ms": 5.91,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "project_docs_init",
+      "test": "init_all: creates all 5 standardized project files",
+      "passed": true,
+      "expected": "all 5 project files created",
+      "actual": "ProjectOverview.md, Settings.md, TaskingLog.md, AInotes.md, ErrorLog.md",
+      "duration_ms": 3.02,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "project_docs_init",
+      "test": "init_all: project name written to ProjectOverview.md",
+      "passed": true,
+      "expected": "project name in ProjectOverview.md",
+      "actual": "found 'MySpecialApp'",
+      "duration_ms": 7.8,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "launcher_generator",
+      "test": "generate_launcher: run.py created",
+      "passed": true,
+      "expected": "run.py created",
+      "actual": "5602 bytes",
+      "duration_ms": 1.67,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "launcher_generator",
+      "test": "generate_launcher: platform launcher created",
+      "passed": true,
+      "expected": "platform launcher created",
+      "actual": "run.bat or run.command exists",
+      "duration_ms": 1.29,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "launcher_generator",
+      "test": "generate_launcher: project name embedded in run.py",
+      "passed": true,
+      "expected": "project name in run.py",
+      "actual": "found 'OverlordTest'",
+      "duration_ms": 8.8,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "datetime_tool",
+      "test": "now: returns current UTC datetime",
+      "passed": true,
+      "expected": "now returns UTC datetime",
+      "actual": "2026-04-09T04:25:23",
+      "duration_ms": 0.05,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "datetime_tool",
+      "test": "parse: parses '2026-04-06' correctly",
+      "passed": true,
+      "expected": "parsed year=2026",
+      "actual": "{'status': 'success', 'action': 'parse', 'input': '2026-04-06', 'datetime': '202",
+      "duration_ms": 2.96,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "datetime_tool",
+      "test": "add: adds 10 days to 2026-01-01",
+      "passed": true,
+      "expected": "2026-01-01 + 10 days = 2026-01-11",
+      "actual": "{'status': 'success', 'action': 'add', 'input': '2026-01-01', 'delta': {'weeks':",
+      "duration_ms": 0.11,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "datetime_tool",
+      "test": "diff: calculates 10-day gap correctly",
+      "passed": true,
+      "expected": "diff = 10 days",
+      "actual": "{'status': 'success', 'action': 'diff', 'start': '2026-01-01', 'end': '2026-01-1",
+      "duration_ms": 0.2,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "datetime_tool",
+      "test": "invalid action: returns status=error",
+      "passed": true,
+      "expected": "invalid action → status=error",
+      "actual": "Unknown action: 'explode'",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "hash_tool",
+      "test": "hash_string sha256: known hash of 'hello'",
+      "passed": true,
+      "expected": "sha256('hello') correct",
+      "actual": "2cf24dba5fb0a30e26e8...",
+      "duration_ms": 0.17,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "hash_tool",
+      "test": "hash_string md5: produces 32-char hex digest",
+      "passed": true,
+      "expected": "md5 produces 32-char hex",
+      "actual": "1b3684d0a5b026d29511324e873531ec",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "hash_tool",
+      "test": "hash_file: sha256 of a file",
+      "passed": true,
+      "expected": "hash_file produces 64-char sha256",
+      "actual": "ee06af3f4508d7e235d6...",
+      "duration_ms": 4.92,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "hash_tool",
+      "test": "compare: identical strings → match=True",
+      "passed": true,
+      "expected": "identical strings match=True",
+      "actual": "match=True",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "hash_tool",
+      "test": "compare: different strings → match=False",
+      "passed": true,
+      "expected": "different strings match=False",
+      "actual": "match=False",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "json_tool",
+      "test": "parse: JSON string → Python dict",
+      "passed": true,
+      "expected": "parse returns dict",
+      "actual": "{'name': 'overlord', 'version': 2, 'active': True}",
+      "duration_ms": 0.02,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "json_tool",
+      "test": "validate: valid JSON string returns valid=True",
+      "passed": true,
+      "expected": "valid JSON → valid=True",
+      "actual": "valid=True",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "json_tool",
+      "test": "validate: invalid JSON returns status=error",
+      "passed": true,
+      "expected": "invalid JSON → status=error",
+      "actual": "Invalid JSON in input: Expecting property name enclosed in d",
+      "duration_ms": 0.02,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "json_tool",
+      "test": "query: dot-path lookup returns correct value",
+      "passed": true,
+      "expected": "query path='name' → 'overlord'",
+      "actual": "overlord",
+      "duration_ms": 0.03,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "json_tool",
+      "test": "format: minified JSON → indented output",
+      "passed": true,
+      "expected": "formatted with 4-space indent",
+      "actual": "indented output",
+      "duration_ms": 0.02,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "zip_tool",
+      "test": "create: builds ZIP from file list",
+      "passed": true,
+      "expected": "archive created",
+      "actual": "2 files",
+      "duration_ms": 9.07,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "zip_tool",
+      "test": "list: shows contents of created archive",
+      "passed": true,
+      "expected": "list shows 2 files",
+      "actual": "[{'name': 'alpha.txt', 'size_bytes': 15, 'compressed_bytes':",
+      "duration_ms": 6.72,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "zip_tool",
+      "test": "extract: unpacks archive to output_dir",
+      "passed": true,
+      "expected": "extracted 2 .txt files",
+      "actual": "['alpha.txt', 'beta.txt']",
+      "duration_ms": 1.93,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "regex_tool",
+      "test": "test: digit pattern found in string",
+      "passed": true,
+      "expected": "pattern found → matched=True",
+      "actual": "matched",
+      "duration_ms": 0.02,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "regex_tool",
+      "test": "test: no match returns matched=False",
+      "passed": true,
+      "expected": "no match → matched=False",
+      "actual": "not matched",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "regex_tool",
+      "test": "findall: extracts all digit groups",
+      "passed": true,
+      "expected": "3 matches found",
+      "actual": "[{'text': '1', 'start': 1, 'end': 2, 'span': [1, 2]}, {'text",
+      "duration_ms": 0.02,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "regex_tool",
+      "test": "replace: word substitution across full string",
+      "passed": true,
+      "expected": "'foo' → 'baz' in both positions",
+      "actual": "baz bar baz",
+      "duration_ms": 0.27,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "regex_tool",
+      "test": "validate: confirms valid regex pattern",
+      "passed": true,
+      "expected": "valid pattern passes validate",
+      "actual": "{'status': 'success', 'action': 'validate', 'pattern': '^[a-",
+      "duration_ms": 0.05,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "env_tool",
+      "test": "write: creates .env and writes key",
+      "passed": true,
+      "expected": "APP_SECRET written to .env",
+      "actual": "key found in file",
+      "duration_ms": 4.91,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "env_tool",
+      "test": "get: retrieves written key correctly",
+      "passed": true,
+      "expected": "DB_HOST=localhost retrieved",
+      "actual": "localhost",
+      "duration_ms": 4.39,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "env_tool",
+      "test": "bulk write+read: round-trip with pairs param",
+      "passed": true,
+      "expected": "bulk write+read round-trip OK",
+      "actual": "{'X': '1', 'Y': '2', 'Z': '3'}",
+      "duration_ms": 5.27,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "env_tool",
+      "test": "validate: detects missing required key",
+      "passed": true,
+      "expected": "validate detects missing key",
+      "actual": "missing=['MISSING_KEY']",
+      "duration_ms": 4.57,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "diff_tool",
+      "test": "diff_strings: identical inputs → identical=True",
+      "passed": true,
+      "expected": "identical strings → identical=True",
+      "actual": "identical",
+      "duration_ms": 0.03,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "diff_tool",
+      "test": "diff_strings: detects line changes",
+      "passed": true,
+      "expected": "+1/-1 lines",
+      "actual": "--- string_a\n+++ string_b\n@@ -1,2 +1,2 @@\n line one\n-line tw",
+      "duration_ms": 0.03,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "diff_tool",
+      "test": "diff_files: detects change between two files",
+      "passed": true,
+      "expected": "diff_files detects change in 'beta'→'BETA'",
+      "actual": "diff len=208",
+      "duration_ms": 11.83,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "diff_tool",
+      "test": "invalid action: returns status=error",
+      "passed": true,
+      "expected": "invalid action → status=error",
+      "actual": "Unknown action: 'explode'",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "session_clean",
+      "test": "status: returns system status dict",
+      "passed": true,
+      "expected": "status action returns any dict",
+      "actual": "['action', 'dry_run', 'workspace_sessions', 'workspace_size_",
+      "duration_ms": 29.74,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "session_clean",
+      "test": "dry_run: clean with dry_run=True returns dict",
+      "passed": true,
+      "expected": "dry_run returns any dict",
+      "actual": "['action', 'dry_run', 'sessions_found', 'workspace', 'consci",
+      "duration_ms": 1.1,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "session_clean",
+      "test": "purge_workspace dry_run: returns plan dict",
+      "passed": true,
+      "expected": "dry_run purge_workspace returns dict",
+      "actual": "['action', 'dry_run', 'sessions_found', 'removed', 'archived",
+      "duration_ms": 0.67,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "data_visualizer",
+      "test": "bar: multi-series from records (month/sales/costs)",
+      "passed": true,
+      "expected": "bar chart written to disk",
+      "actual": "file=20260408_212523_Monthly_Financials_bar.html size=29566b series=2 pts=4",
+      "duration_ms": 0.87,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "data_visualizer",
+      "test": "line: series-format with 2 datasets",
+      "passed": true,
+      "expected": "line chart written",
+      "actual": "series=2",
+      "duration_ms": 0.68,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "data_visualizer",
+      "test": "pie: simple dict → 5-slice donut",
+      "passed": true,
+      "expected": "pie chart with 5 slices",
+      "actual": "pts=5",
+      "duration_ms": 0.83,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "data_visualizer",
+      "test": "scatter: 20 random points with labels",
+      "passed": true,
+      "expected": "scatter chart with 20 points",
+      "actual": "pts=20",
+      "duration_ms": 0.74,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "data_visualizer",
+      "test": "heatmap: 5x4 matrix (Mon-Fri × time slots)",
+      "passed": true,
+      "expected": "heatmap 5x4=20 cells",
+      "actual": "pts=20",
+      "duration_ms": 0.59,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "data_visualizer",
+      "test": "timeline: 5-task Gantt (planning→launch)",
+      "passed": true,
+      "expected": "timeline with 5 tasks",
+      "actual": "pts=5",
+      "duration_ms": 0.76,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "data_visualizer",
+      "test": "dashboard: 3-panel (bar + line + pie)",
+      "passed": true,
+      "expected": "dashboard with 3 sub-charts",
+      "actual": "series=3 size=29853b",
+      "duration_ms": 0.89,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "data_visualizer",
+      "test": "html_structure: output file contains required JS/data markers",
+      "passed": true,
+      "expected": "HTML contains all required markers",
+      "actual": "5/5 checks passed",
+      "duration_ms": 26.3,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "data_visualizer",
+      "test": "error: invalid action returns error dict with hint",
+      "passed": true,
+      "expected": "error dict with hint on invalid action",
+      "actual": "Unknown action 'invalid_type'. Valid: ['bar', 'dashboard', 'heatmap', 'line', 'p",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "data_visualizer",
+      "test": "data_file: bar chart from .csv with 3 rows",
+      "passed": true,
+      "expected": "bar chart from CSV file",
+      "actual": "pts=3",
+      "duration_ms": 6.26,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "tool_cache",
+      "test": "put+get: basic cache round-trip",
+      "passed": true,
+      "expected": "cache hit returns result with cached=True",
+      "actual": "{'status': 'success', 'result': {'value': 42}, 'tool': 'hash_tool', 'duration_ms",
+      "duration_ms": 0.46,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "tool_cache",
+      "test": "miss: different params do not match",
+      "passed": true,
+      "expected": "different params → miss",
+      "actual": "None returned",
+      "duration_ms": 6.27,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "tool_cache",
+      "test": "excluded: write_file never stored or retrieved",
+      "passed": true,
+      "expected": "excluded tool (write_file) → always miss",
+      "actual": "None returned",
+      "duration_ms": 4.24,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "tool_cache",
+      "test": "errors: status=error results are not stored",
+      "passed": true,
+      "expected": "error result not cached",
+      "actual": "None returned",
+      "duration_ms": 0.32,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "tool_cache",
+      "test": "lru: oldest entry evicted when max_entries reached",
+      "passed": true,
+      "expected": "oldest entry evicted, newest retained",
+      "actual": "evicted=None, newest=4",
+      "duration_ms": 1.48,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "tool_cache",
+      "test": "stats: returns accurate entry count and hit tally",
+      "passed": true,
+      "expected": "stats correct",
+      "actual": "entries=2 hits=1",
+      "duration_ms": 0.85,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "tool_cache",
+      "test": "invalidate: removes specific tool entries",
+      "passed": true,
+      "expected": "invalidate removes 1 entry",
+      "actual": "removed=1",
+      "duration_ms": 0.9,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "tool_cache",
+      "test": "persistence: cache survives across ToolCache instances",
+      "passed": true,
+      "expected": "result persisted and loaded by new instance",
+      "actual": "{'lines': 100}",
+      "duration_ms": 5.24,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "notification_tool",
+      "test": "info: basic info notification",
+      "passed": true,
+      "expected": "info notification returns success + _notification flag",
+      "actual": "{'status': 'success', 'action': 'notify', 'title': 'System Ready', 'message': 'A",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "notification_tool",
+      "test": "severity: all 4 levels return correct severity field",
+      "passed": true,
+      "expected": "all 4 severity levels accepted",
+      "actual": "[('info', 'info', 'success'), ('success', 'success', 'success'), ('warning', 'warning', 'success'), ('error', 'error', 'success')]",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "notification_tool",
+      "test": "invalid_severity: unknown level falls back to 'info'",
+      "passed": true,
+      "expected": "invalid severity coerced to 'info'",
+      "actual": "info",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "notification_tool",
+      "test": "truncation: title capped at 80 chars",
+      "passed": true,
+      "expected": "title truncated to 80 chars",
+      "actual": "len=80",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "notification_tool",
+      "test": "truncation: message capped at 300 chars",
+      "passed": true,
+      "expected": "message truncated to 300 chars",
+      "actual": "len=300",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "notification_tool",
+      "test": "validation: empty title returns error dict",
+      "passed": true,
+      "expected": "empty title returns error with hint",
+      "actual": "title is required and cannot be empty",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "notification_tool",
+      "test": "main: main() entry point returns valid result",
+      "passed": true,
+      "expected": "main() delegates to notification_tool()",
+      "actual": "{'status': 'success', 'action': 'notify', 'title': 'Main Entry', 'message': 'Via",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "parallel_executor",
+      "test": "partition: empty list returns []",
+      "passed": true,
+      "expected": "empty input → []",
+      "actual": "[]",
+      "duration_ms": 0.0,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "parallel_executor",
+      "test": "partition: single call → one wave",
+      "passed": true,
+      "expected": "single call → 1 wave of 1",
+      "actual": "[['read_file']]",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "parallel_executor",
+      "test": "partition: two independent tools → one parallel wave",
+      "passed": true,
+      "expected": "two independent tools → 1 parallel wave",
+      "actual": "['read_file', 'search_file_content']",
+      "duration_ms": 0.02,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "parallel_executor",
+      "test": "partition: serial tool always alone in its own wave",
+      "passed": true,
+      "expected": "serial tool serialized into own wave",
+      "actual": "[['write_file'], ['read_file']]",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "parallel_executor",
+      "test": "partition: same tool twice → two serial waves",
+      "passed": true,
+      "expected": "same tool → 2 serial waves",
+      "actual": "[['calculator'], ['calculator']]",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "parallel_executor",
+      "test": "partition: shared file path → serial waves",
+      "passed": true,
+      "expected": "shared path → 2 serial waves",
+      "actual": "[['read_file'], ['search_file_content']]",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "parallel_executor",
+      "test": "partition: three independent tools → one wave",
+      "passed": true,
+      "expected": "3 independent tools → 1 wave",
+      "actual": "['read_file', 'search_file_content', 'list_directory']",
+      "duration_ms": 0.01,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "parallel_executor",
+      "test": "execute_all: results in original LLM order",
+      "passed": true,
+      "expected": "results in original LLM order despite parallel execution",
+      "actual": "['tool_a', 'tool_b', 'tool_c']",
+      "duration_ms": 52.92,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "parallel_executor",
+      "test": "thread_safety: EventStream concurrent emits are race-free",
+      "passed": true,
+      "expected": "no corruption across 8 threads × 50 emits = 400 events",
+      "actual": "count=400",
+      "duration_ms": 2.86,
+      "details": null,
+      "error": null
+    },
+    {
+      "tool": "parallel_executor",
+      "test": "explain: returns wave breakdown with conflict reasons",
+      "passed": true,
+      "expected": "explain() returns correct structure with conflict reasons",
+      "actual": "{'waves': [['read_file', 'calculator'], ['search_file_content']], 'conflicts': [{'a': 'read_file', 'b': 'search_file_con",
+      "duration_ms": 0.04,
       "details": null,
       "error": null
     }

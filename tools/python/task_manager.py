@@ -11,13 +11,13 @@ The TaskingLog.md uses a human+AI readable format with:
   - Priority tags, assigned agents, timestamps
 
 Usage:
-    python task_manager.py --action init --project_dir /path/to/project
-    python task_manager.py --action add_task --project_dir /path/to/project \
+    python task_manager.py --action init --project_dir /path/to/task
+    python task_manager.py --action add_task --project_dir /path/to/task \
         --title "Implement login" --priority high --assigned_agent OVR_COD_03
-    python task_manager.py --action add_subtask --project_dir /path/to/project \
+    python task_manager.py --action add_subtask --project_dir /path/to/task \
         --task_id T-001 --title "Create auth middleware"
-    python task_manager.py --action complete_task --project_dir /path/to/project --task_id T-001
-    python task_manager.py --action query --project_dir /path/to/project
+    python task_manager.py --action complete_task --project_dir /path/to/task --task_id T-001
+    python task_manager.py --action query --project_dir /path/to/task
 """
 
 import io
@@ -29,12 +29,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-
 sys.path.insert(0, str(Path(__file__).parent))
 from log_manager import log_tool_invocation
+from task_workspace import env_task_dir
 
 TASKING_LOG = "TaskingLog.md"
 
@@ -349,13 +346,18 @@ def query_tasks(project_dir: str) -> dict:
 # --- CLI Interface ---
 
 def main():
-    import argparse
+    import argparse, io
+
+    if sys.platform == "win32":
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
     parser = argparse.ArgumentParser(description="Overlord11 Task Manager")
     parser.add_argument("--action", required=True,
                         choices=["add_task", "add_subtask", "complete_task",
                                  "complete_subtask", "update_status", "query", "init"])
-    parser.add_argument("--project_dir", required=True, help="Path to project directory")
+    parser.add_argument("--project_dir", default=None, help="Path to task directory")
+    parser.add_argument("--task_dir", default=None, help="Alias for --project_dir")
     parser.add_argument("--task_id", default=None)
     parser.add_argument("--subtask_id", default=None)
     parser.add_argument("--title", default="")
@@ -371,23 +373,27 @@ def main():
     args = parser.parse_args()
     start = time.time()
 
+    project_dir = args.task_dir or args.project_dir or (str(env_task_dir()) if env_task_dir() else None)
+    if not project_dir:
+        parser.error("--project_dir is required when no task workspace is active")
+
     if args.action == "init":
-        result = init_log(args.project_dir)
+        result = init_log(project_dir)
     elif args.action == "add_task":
-        result = add_task(args.project_dir, args.title, args.description,
+        result = add_task(project_dir, args.title, args.description,
                           args.priority, args.assigned_agent)
     elif args.action == "add_subtask":
-        result = add_subtask(args.project_dir, args.task_id, args.title,
+        result = add_subtask(project_dir, args.task_id, args.title,
                              args.description)
     elif args.action == "complete_task":
-        result = complete_task(args.project_dir, args.task_id, args.note)
+        result = complete_task(project_dir, args.task_id, args.note)
     elif args.action == "complete_subtask":
-        result = complete_subtask(args.project_dir, args.subtask_id)
+        result = complete_subtask(project_dir, args.subtask_id)
     elif args.action == "update_status":
-        result = update_status(args.project_dir, args.task_id, args.status,
+        result = update_status(project_dir, args.task_id, args.status,
                                args.note)
     elif args.action == "query":
-        result = query_tasks(args.project_dir)
+        result = query_tasks(project_dir)
     else:
         result = {"error": f"Unknown action: {args.action}"}
 
@@ -397,7 +403,7 @@ def main():
         log_tool_invocation(
             session_id=args.session_id,
             tool_name="task_manager",
-            params={"action": args.action, "project_dir": args.project_dir},
+            params={"action": args.action, "project_dir": project_dir},
             result={"status": result.get("status", "unknown")},
             duration_ms=duration_ms
         )

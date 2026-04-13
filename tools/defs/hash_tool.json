@@ -1,0 +1,46 @@
+{
+  "name": "hash_tool",
+  "description": "Compute and verify cryptographic hashes for strings and files. Supports MD5, SHA-1, SHA-256, SHA-512, and SHA3-256. Use for file integrity verification, deduplication, and content fingerprinting.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Operation to perform. hash_string: hash a string value. hash_file: hash file contents. verify_file: check a file matches an expected hash. compare: test whether two strings or files are identical.",
+        "enum": ["hash_string", "hash_file", "verify_file", "compare"]
+      },
+      "input": {
+        "type": "string",
+        "description": "String to hash (for hash_string and compare actions)."
+      },
+      "input_b": {
+        "type": "string",
+        "description": "Second string for the compare action."
+      },
+      "file": {
+        "type": "string",
+        "description": "Path to a file to hash (for hash_file, verify_file, compare actions)."
+      },
+      "file_b": {
+        "type": "string",
+        "description": "Path to a second file for the compare action."
+      },
+      "algorithm": {
+        "type": "string",
+        "description": "Hash algorithm to use. Defaults to sha256.",
+        "enum": ["md5", "sha1", "sha256", "sha512", "sha3_256"],
+        "default": "sha256"
+      },
+      "expected": {
+        "type": "string",
+        "description": "Expected hash hex string for the verify_file action."
+      },
+      "encoding": {
+        "type": "string",
+        "description": "String encoding for hash_string. Defaults to utf-8.",
+        "default": "utf-8"
+      }
+    },
+    "required": ["action"]
+  }
+}

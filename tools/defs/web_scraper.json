@@ -52,6 +52,10 @@
         "description": "Maximum number of images to process. Default 20.",
         "default": 20
       },
+      "output": {
+        "type": "string",
+        "description": "File path for the primary output file (e.g., scraped content JSON or llm_prompt.txt). If omitted, defaults to the active task's tools/web/ directory."
+      },
       "query": {
         "type": "string",
         "description": "Search query string for the 'search' action."
@@ -63,7 +67,7 @@
       },
       "output_dir": {
         "type": "string",
-        "description": "Directory to save output files (JSON manifests, downloaded images, llm_prompt.txt). Auto-generated if omitted."
+        "description": "Directory to save output files (JSON manifests, downloaded images, llm_prompt.txt). Defaults to the active task's tools/web/ directory when available."
       },
       "wait_for_js": {
         "type": "boolean",

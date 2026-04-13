@@ -1,21 +1,25 @@
 {
   "name": "scaffold_generator",
-  "description": "Generate project scaffolding from templates. Creates directory structures, boilerplate files, configuration, and starter code for various project types (Python CLI, Python API, Node API, static site, etc.). Use --list-templates to see available templates.",
+  "description": "Generate project scaffolding from templates. Creates directory structures, boilerplate files, configuration, and starter code for various project types. In task-aware runs, the scaffold should target the task's app/ directory. Pass list_templates=true to see available templates.",
   "parameters": {
     "type": "object",
     "properties": {
       "template": {
         "type": "string",
-        "description": "Template to use for scaffolding. Available: python_cli, python_api, python_lib, node_api, static_site, overlord_agent, overlord_tool.",
-        "enum": ["python_cli", "python_api", "python_lib", "node_api", "static_site", "overlord_agent", "overlord_tool"]
+        "description": "Template to use for scaffolding. Available: python_cli, python_api, node_api, react_app.",
+        "enum": ["python_cli", "python_api", "node_api", "react_app"]
       },
       "name": {
         "type": "string",
         "description": "Project or module name (used for directories and imports)."
       },
+      "project_dir": {
+        "type": "string",
+        "description": "Project directory where the scaffold will be created. Preferred over output. Defaults to the active task's app/ directory when available."
+      },
       "output": {
         "type": "string",
-        "description": "Output directory for the scaffold. Defaults to current directory."
+        "description": "Deprecated alias for project_dir."
       },
       "description": {
         "type": "string",
@@ -26,6 +30,10 @@
         "type": "boolean",
         "description": "If true, list available templates and exit.",
         "default": false
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session ID for log_manager integration. Auto-injected by the engine."
       }
     },
     "required": ["template", "name"]

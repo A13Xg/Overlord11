@@ -152,63 +152,69 @@ _RG_BIN = _find_rg()
 
 def search_file_content(
     pattern: str,
-    dir_path: Optional[str] = None,
-    include: Optional[str] = None,
+    path: Optional[str] = None,
+    file_glob: Optional[str] = None,
+    case_sensitive: Optional[bool] = True,
+    context_lines: Optional[int] = 0,
+    max_results: Optional[int] = 100,
+    fixed_string: Optional[bool] = False,
     no_ignore: Optional[bool] = False,
-    case_sensitive: Optional[bool] = False,
-    fixed_strings: Optional[bool] = False,
-    before: Optional[int] = 0,
-    after: Optional[int] = 0,
-    context: Optional[int] = 0
 ) -> str:
     """
-    Search for a pattern in files and return JSON results.
+    Search for a pattern in files and return JSON-lines results.
 
     Uses ripgrep (rg) when available for speed, otherwise falls back to a
-    pure-Python regex search engine that produces the same JSON format.
+    pure-Python regex search engine that produces the same JSON-lines format.
 
     Args:
-        pattern: The pattern to search for.
-        dir_path: Directory or file to search. Defaults to current working directory.
-        include: Glob pattern to filter files (e.g., '*.ts').
-        no_ignore: If true, searches all files including those usually ignored.
-        case_sensitive: If true, search is case-sensitive. Defaults to false.
-        fixed_strings: If true, treats the ``pattern`` as a literal string. Defaults to false.
-        before: Show this many lines before each match.
-        after: Show this many lines after each match.
-        context: Show this many lines of context around each match.
+        pattern:       The search pattern (regex or literal string).
+        path:          Directory or file to search. Defaults to current working directory.
+        file_glob:     Glob pattern to restrict which files are searched (e.g., '*.py', '*.{js,ts}').
+        case_sensitive: Whether the search is case-sensitive. Defaults to True.
+        context_lines: Number of lines of context to show before and after each match. Defaults to 0.
+        max_results:   Maximum number of matching lines to return. Defaults to 100.
+        fixed_string:  If True, treats the pattern as a literal string rather than a regex.
+        no_ignore:     If True, searches all files including those usually ignored by .gitignore.
 
     Returns:
-        A JSON string representing the search results, or an error message.
+        A newline-delimited JSON string (JSON-lines) with match and summary objects,
+        or a JSON error object string on failure.
     """
-    search_path = dir_path or os.getcwd()
+    search_path = path or os.getcwd()
+
+    if not os.path.exists(search_path):
+        return json.dumps({
+            "status": "error",
+            "error": f"Search path not found: {search_path}",
+            "hint": "Check that the path exists. Use list_directory to browse available directories.",
+        })
 
     # ── Try ripgrep first ──────────────────────────────────────────────
     if _RG_BIN:
         cmd = [_RG_BIN, "--json", pattern, search_path]
-        if include:
-            cmd.extend(["-g", include])
+        if file_glob:
+            cmd.extend(["-g", file_glob])
         if no_ignore:
             cmd.append("--no-ignore")
         if case_sensitive:
             cmd.append("--case-sensitive")
         else:
             cmd.append("--ignore-case")
-        if fixed_strings:
+        if fixed_string:
             cmd.append("--fixed-strings")
-        if before > 0:
-            cmd.extend(["--before-context", str(before)])
-        if after > 0:
-            cmd.extend(["--after-context", str(after)])
-        if context > 0:
-            cmd.extend(["--context", str(context)])
-        cmd.extend(["--max-count", "20000"])
+        if context_lines and context_lines > 0:
+            cmd.extend(["--context", str(context_lines)])
+        cmd.extend(["--max-count", str(max_results)])
 
         try:
             process = subprocess.run(cmd, capture_output=True, text=True, check=False, encoding="utf-8")
-            if process.returncode in (0, 1):  # 0 = matches, 1 = no matches
+            if process.returncode in (0, 1):  # 0 = matches found, 1 = no matches
                 return process.stdout
-            return f"Error executing ripgrep: {process.stderr}"
+            return json.dumps({
+                "status": "error",
+                "error": f"ripgrep exited with code {process.returncode}: {process.stderr.strip()}",
+                "hint": "The pattern may be an invalid regex. Try fixed_string=true for literal searches.",
+            })
         except (FileNotFoundError, OSError):
             pass  # Fall through to Python engine
 
@@ -216,13 +222,41 @@ def search_file_content(
     return _python_search(
         pattern=pattern,
         dir_path=search_path,
-        include=include,
+        include=file_glob,
         case_sensitive=case_sensitive,
-        fixed_strings=fixed_strings,
-        before=before,
-        after=after,
-        context=context,
+        fixed_strings=fixed_string,
+        context=context_lines or 0,
+        max_results=max_results,
     )
+
+
+def main(**kwargs):
+    """Strategy 1 entry point: called by ToolExecutor with schema params as kwargs."""
+    if kwargs:
+        return search_file_content(**kwargs)
+    # Strategy 2 / CLI fallback
+    import argparse
+    parser = argparse.ArgumentParser(description="Overlord11 Search File Content")
+    parser.add_argument("--pattern", required=True, help="Search pattern (regex or literal)")
+    parser.add_argument("--path", default=None, help="Directory or file to search")
+    parser.add_argument("--file_glob", default=None, help="Glob pattern to filter files (e.g. '*.py')")
+    parser.add_argument("--case_sensitive", default="true", help="Case-sensitive search (true/false). Default: true.")
+    parser.add_argument("--context_lines", type=int, default=0, help="Lines of context around each match")
+    parser.add_argument("--max_results", type=int, default=100, help="Maximum results to return")
+    parser.add_argument("--fixed_string", default="false", help="Treat pattern as literal string (true/false). Default: false.")
+    parser.add_argument("--no_ignore", default="false", help="Search ignored files too (true/false). Default: false.")
+    args = parser.parse_args()
+    result = search_file_content(
+        pattern=args.pattern,
+        path=args.path,
+        file_glob=args.file_glob,
+        case_sensitive=args.case_sensitive.lower() != "false",
+        context_lines=args.context_lines,
+        max_results=args.max_results,
+        fixed_string=args.fixed_string.lower() != "false",
+        no_ignore=args.no_ignore.lower() != "false",
+    )
+    print(result)
 
 
 if __name__ == "__main__":

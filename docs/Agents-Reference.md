@@ -67,6 +67,8 @@ Orchestrator → Analyst → Writer [Tier 1] → Reviewer
 
 ### Quality Checklist
 
+- [ ] `Memory.md` read at session start — permanent rules applied
+- [ ] `Consciousness.md` checked for active signals and pending handoffs
 - [ ] Request fully understood before delegation begins
 - [ ] Output tier assessed and documented in the plan
 - [ ] All required agents identified and invoked
@@ -82,7 +84,7 @@ Orchestrator → Analyst → Writer [Tier 1] → Reviewer
 ## OVR_RES_02 — Researcher
 
 **File:** `agents/researcher.md`  
-**Tools:** `web_fetch`, `web_scraper`, `read_file`, `list_directory`, `glob`, `search_file_content`, `save_memory`, `project_scanner`
+**Tools:** `web_fetch`, `web_scraper`, `read_file`, `list_directory`, `glob`, `search_file_content`, `save_memory`, `project_scanner`, `consciousness_tool`, `error_handler`
 
 ### Responsibilities
 
@@ -142,7 +144,7 @@ Orchestrator → Analyst → Writer [Tier 1] → Reviewer
 ## OVR_COD_03 — Coder
 
 **File:** `agents/coder.md`  
-**Tools:** `read_file`, `write_file`, `replace`, `run_shell_command`, `code_analyzer`, `project_scanner`, `scaffold_generator`, `git_tool`, `search_file_content`, `glob`
+**Tools:** `read_file`, `write_file`, `replace`, `run_shell_command`, `code_analyzer`, `project_scanner`, `scaffold_generator`, `git_tool`, `search_file_content`, `glob`, `task_manager`, `error_logger`, `project_docs_init`, `launcher_generator`, `ui_design_system`, `execute_python`
 
 ### Responsibilities
 
@@ -195,7 +197,7 @@ Orchestrator → Analyst → Writer [Tier 1] → Reviewer
 ## OVR_ANL_04 — Analyst
 
 **File:** `agents/analyst.md`  
-**Tools:** `read_file`, `calculator`, `code_analyzer`, `project_scanner`, `search_file_content`, `glob`, `save_memory`
+**Tools:** `read_file`, `calculator`, `code_analyzer`, `project_scanner`, `search_file_content`, `glob`, `save_memory`, `consciousness_tool`, `response_formatter`, `file_converter`
 
 ### Responsibilities
 
@@ -300,7 +302,7 @@ Orchestrator → Analyst → Writer [Tier 1] → Reviewer
 ## OVR_PUB_07 — Publisher
 
 **File:** `agents/publisher.md`  
-**Tools:** `read_file`, `write_file`, `replace`, `publisher_tool`
+**Tools:** `read_file`, `write_file`, `replace`, `publisher_tool`, `response_formatter`
 
 ### Responsibilities
 
@@ -339,7 +341,7 @@ Orchestrator → Analyst → Writer [Tier 1] → Reviewer
 ## OVR_CLN_08 — Cleanup
 
 **File:** `agents/cleanup.md`
-**Tools:** `cleanup_tool`, `read_file`, `glob`, `search_file_content`, `run_shell_command`
+**Tools:** `cleanup_tool`, `session_clean`, `read_file`, `glob`, `search_file_content`, `run_shell_command`
 
 ### Responsibilities
 

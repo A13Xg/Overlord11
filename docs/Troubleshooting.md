@@ -259,6 +259,56 @@ python tools/python/scaffold_generator.py --list-templates
 
 ---
 
+## WebUI Issues
+
+### API keys work in the CLI but not in the WebUI after a server restart
+
+**Cause:** The setup wizard writes API keys to `.env` and `os.environ` in the same process. Environment variable changes are not persisted — after a restart the keys are gone.
+
+**Fix:** This is handled automatically since v2.3.1. The `.env` file written by the setup wizard is loaded at startup before any imports. If you are running an older version, add your keys directly to `.env` and restart the server:
+
+```bash
+# .env (project root)
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+---
+
+### WebUI shows "401 Unauthorized" on job endpoints
+
+**Cause:** Your session cookie expired or was cleared.
+
+**Fix:** Navigate to `/login` and log in again. Sessions expire after the configured TTL (default: 24 hours).
+
+---
+
+### Jobs stuck in PAUSED or RATE_LIMITED after server restart
+
+**Cause:** In versions before v2.3.1, `PAUSED` and `RATE_LIMITED` jobs were left in their broken states on restart because there was no worker to resume them.
+
+**Fix:** This is fixed in v2.3.1 — all interrupted jobs (`RUNNING`, `QUEUED`, `PAUSED`, `RATE_LIMITED`) are automatically reset to `FAILED` on startup. To retry the job, use the **Restart** button in the WebUI to create a new copy.
+
+---
+
+### Rate-limited job shows no progress and won't respond to Stop
+
+**Cause:** The job is inside a backoff sleep and the stop signal isn't being checked.
+
+**Fix:** This is handled automatically. The engine bridge uses a `threading.Event`-based stop signal that interrupts the backoff sleep immediately. If a job doesn't respond within a few seconds of pressing Stop, check the server logs for a hung tool subprocess.
+
+---
+
+### WebUI shows "Error: Could not load jobs" in the footer
+
+**Cause:** The backend is not running, or a network error occurred.
+
+**Fix:**
+1. Verify the WebUI server is running: `python scripts/run_webui.py`
+2. Check `http://localhost:7900/api/health` — it should return `{"status": "ok"}`
+3. Check the server console for startup errors (missing `.env`, import failures, etc.)
+
+---
+
 ## Getting More Help
 
 If your issue is not covered here:

@@ -1,0 +1,48 @@
+{
+  "name": "env_tool",
+  "description": "Read, write, validate, and manage .env files. Safely handles comments, quoted values, and multiline strings. Use to inject configuration, check that required environment variables are present before running a task, or update secrets/settings without shell access.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Operation to perform. read: load all key-value pairs. write: set one or more keys. delete: remove a key. validate: check required keys are present and non-empty. get: retrieve a single key's value. list: show key names only (hides values for safety).",
+        "enum": ["read", "write", "delete", "validate", "get", "list"]
+      },
+      "file": {
+        "type": "string",
+        "description": "Path to the .env file. Defaults to '.env' in the current directory.",
+        "default": ".env"
+      },
+      "key": {
+        "type": "string",
+        "description": "Environment variable name for get/write/delete actions."
+      },
+      "value": {
+        "type": "string",
+        "description": "Value to set for the key (write action). Automatically quoted if it contains spaces or special characters."
+      },
+      "pairs": {
+        "type": "object",
+        "description": "Dict of key→value pairs for bulk write (e.g., {'DB_HOST': 'localhost', 'DB_PORT': '5432'}).",
+        "additionalProperties": { "type": "string" }
+      },
+      "required": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "List of required environment variable names for the validate action (e.g., ['DATABASE_URL', 'SECRET_KEY', 'API_KEY'])."
+      },
+      "allow_empty": {
+        "type": "boolean",
+        "description": "For validate action: treat empty-string values as present (default false — empty is treated as missing).",
+        "default": false
+      },
+      "create": {
+        "type": "boolean",
+        "description": "Create the .env file if it does not exist (write action). Defaults to true.",
+        "default": true
+      }
+    },
+    "required": ["action"]
+  }
+}

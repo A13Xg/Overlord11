@@ -176,11 +176,12 @@ See [Configuration Reference](Configuration-Reference.md) for every field.
 
 Each agent run produces a **session**:
 
-1. `session_manager.py` creates a session directory under `workspace/YYYYMMDD_HHMMSS/`
+1. `session_manager.py` creates exactly one task directory under `workspace/YYYYMMDD_HHMMSS/`
 2. Each tool call is logged to `logs/sessions/` (JSONL format)
-3. Agent outputs are written to `workspace/YYYYMMDD_HHMMSS/output/`
-4. Session is closed with a summary written to `workspace/YYYYMMDD_HHMMSS/session.json`
-5. Key findings are persisted to `Consciousness.md`
+3. Task-local agent/tool/runtime data is written under `agent/`, `tools/`, and `logs/` inside that task directory
+4. Final deliverables are written at the task-root level; software project files live in `app/` when applicable
+5. Session metadata is written to `workspace/YYYYMMDD_HHMMSS/logs/session.json`
+6. Key findings are persisted to `Consciousness.md`
 
 Sessions are retained for up to 50 runs (configurable via `workspace.max_sessions_retained`).
 
@@ -193,8 +194,104 @@ Sessions are retained for up to 50 runs (configurable via `workspace.max_session
 | `agents/*.md` | Framework developers | System prompts — edit carefully |
 | `tools/defs/*.json` | Framework developers | JSON Schema tool definitions |
 | `tools/python/*.py` | Framework developers | Tool implementations |
+| `engine/` | Framework developers | Internal execution engine |
+| `backend/` | Framework developers | Tactical WebUI FastAPI backend |
+| `frontend/` | Framework developers | Tactical WebUI single-page app |
 | `config.json` | Operators | Runtime configuration |
 | `Consciousness.md` | All agents | Shared memory — agents write here |
 | `.env` | Operators | API keys — never commit |
 | `workspace/` | Runtime | Auto-created, gitignored |
 | `logs/` | Runtime | Auto-created, gitignored |
+
+---
+
+## Internal Execution Engine (`engine/`)
+
+Overlord11 v2.3.0 introduces an **internal Python execution engine** that lets agents run without any external CLI (Claude CLI, Gemini CLI, etc.). The framework supports two modes:
+
+### Mode A — External CLI (existing behavior)
+- User loads an agent `.md` file as a system prompt in their LLM client
+- Agent reads `ONBOARDING.md` and operates using tool schemas
+- No code changes required
+
+### Mode B — Internal Engine
+- `run_engine.py` launches an interactive terminal interface
+- `EngineRunner` manages the full agent loop: prompt → LLM call → tool detection → tool execution → re-injection → repeat
+- `OrchestratorBridge` handles provider API calls (Anthropic, Gemini, OpenAI) with automatic fallback
+- `ToolExecutor` parses tool calls from three text formats and dispatches to `tools/python/` implementations
+- `EventStream` emits structured events at every step (agent start/complete, tool call/result, session start/end)
+- `SelfHealingEngine` classifies errors and builds retry hints for re-injection into the agent context
+
+```
+engine/
+  runner.py             ← Core agent execution loop
+  orchestrator_bridge.py← Provider-agnostic LLM API caller (stdlib urllib)
+  tool_executor.py      ← Tool call parser + Python/subprocess dispatcher
+  session_manager.py    ← EngineSession wrapper over tools/python/session_manager.py
+  event_stream.py       ← EventType enum + EventStream with callbacks
+  self_healing.py       ← Error classification, retry logic, failure logging
+```
+
+### Engine Data Flow
+
+```
+run_engine.py / WebUI job
+       │
+       ▼
+ EngineRunner.run(user_input)
+       │
+       ├─► OrchestratorBridge.build_system_prompt()  ← reads ONBOARDING.md + agent .md
+       │
+       └─► Loop (max_loops):
+              │
+              ├─► OrchestratorBridge.call_provider()   ← REST call with fallback
+              │         │
+              │         └─► response text
+              │
+              ├─► extract_tool_calls(response)          ← 3-format parser
+              │
+              ├─► ToolExecutor.execute(tool_call)       ← import + call main(), or subprocess
+              │
+              ├─► EventStream.emit(...)                 ← TOOL_CALL / TOOL_RESULT events
+              │
+              └─► OrchestratorBridge.build_context()   ← append tool results as user messages
+```
+
+---
+
+## Tactical WebUI (`backend/` + `frontend/`)
+
+A self-hosted web application providing a visual interface over the engine.
+
+### Backend (`backend/`)
+
+Built with FastAPI + async WebSockets (SSE). Entry point: `scripts/run_webui.py` (port 7900).
+
+```
+backend/
+  main.py                ← FastAPI app, lifespan, CORS, routers
+  api/
+    jobs.py              ← Job CRUD + start/stop/pause/resume/restart
+    providers.py         ← Provider/model listing + selection
+    artifacts.py         ← Artifact listing + secure file serving
+    events.py            ← SSE endpoints (/api/events, /api/events/{job_id})
+  core/
+    session_store.py     ← Job dataclass + SessionStore (file-persisted)
+    engine_bridge.py     ← Async engine driver + sequential job queue worker
+    event_stream.py      ← EventBroadcaster with SSE fan-out + heartbeat
+```
+
+### Job State Machine
+
+```
+QUEUED → RUNNING → COMPLETED
+                 → FAILED
+         PAUSED (from RUNNING) → RUNNING (on resume)
+         (stop) → FAILED
+```
+
+Jobs run **sequentially** via `asyncio.Queue`. The engine runs in a thread-pool executor so the async event loop stays responsive.
+
+### Frontend (`frontend/index.html`)
+
+Self-contained single-page application (no build step). Cold-war Soviet control panel aesthetic with CRT scanlines, radar animation, and matrix-green palette. Connects to the backend via REST + SSE.

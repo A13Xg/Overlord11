@@ -22,14 +22,6 @@ import os
 import sys
 from pathlib import Path
 
-# ---------------------------------------------------------------------------
-# Windows console encoding safety
-# ---------------------------------------------------------------------------
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-
-
 def safe_str(val, max_len: int = 200) -> str:
     """Encoding-safe string conversion. Prevents UnicodeEncodeError on cp1252/cp437 terminals.
 
@@ -441,10 +433,28 @@ def _persist_design_system(content: str, output_format: str, page: str | None) -
 
 
 # ---------------------------------------------------------------------------
-# CLI entry point
+# CLI / Strategy 1 entry point
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
+def main(**kwargs):
+    """Strategy 1 entry point called by ToolExecutor with schema params as kwargs."""
+    if kwargs:
+        result = ui_design_system(
+            style_id=kwargs.get("style_id"),
+            palette_id=kwargs.get("palette_id"),
+            stack=kwargs.get("stack", "html-tailwind"),
+            page=kwargs.get("page"),
+            project_name=kwargs.get("project_name", "My Project"),
+            output_format=kwargs.get("output_format", "md"),
+            persist=kwargs.get("persist", False),
+        )
+        print(safe_str(result, max_len=100000))
+        sys.exit(0)
+
+    # Strategy 2 / CLI fallback
+    if sys.platform == "win32":
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
     p = argparse.ArgumentParser(description="Generate a UI/UX design system")
     p.add_argument("--style_id", default=None,
                    help="UI style ID (e.g. minimal-zen)")
@@ -459,8 +469,9 @@ if __name__ == "__main__":
                    help="Project name (used in headers and default selection)")
     p.add_argument("--output_format", default="md", choices=["md", "json"],
                    help="Output format: md (default) or json")
-    p.add_argument("--persist", action="store_true",
-                   help="Persist to design-system/MASTER.md (and pages/<page>.md if --page set)")
+    p.add_argument("--persist", default="false",
+                   help="Persist to design-system/MASTER.md (true/false)")
+    p.add_argument("--session_id", default=None, help="Session ID for logging")
     args = p.parse_args()
 
     result = ui_design_system(
@@ -470,7 +481,11 @@ if __name__ == "__main__":
         page=args.page,
         project_name=args.project_name,
         output_format=args.output_format,
-        persist=args.persist,
+        persist=args.persist.lower() != "false",
     )
     print(safe_str(result, max_len=100000))
     sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

@@ -247,6 +247,21 @@ Add your tool to:
 
 ---
 
+### Choosing an Execution Baseline
+
+When building tools that need to **run code or commands**, two sandboxed execution tools already exist — use them rather than calling `subprocess` directly:
+
+| Tool | Isolation | pip Support | File I/O | Speed |
+|------|-----------|-------------|----------|-------|
+| `execute_python` | ProcessPoolExecutor + restricted globals | No | Blocked | Fast (no venv) |
+| `sandbox_runner` | Real temporary venv | Yes | Allowed | Slower (venv create) |
+
+**Use `execute_python`** for pure computation — math, json, re, datetime, collections. No setup overhead.
+
+**Use `sandbox_runner`** when you need: pip packages, file I/O, full stdlib access (`os`, `sys`, `subprocess`), or when you want a completely clean environment guaranteed to be destroyed after the call. The `sandbox_runner` creates a `tempfile.mkdtemp` directory, spins up a venv inside it, and `shutil.rmtree`s everything in a `finally` block — nothing persists.
+
+---
+
 ## Adding a New LLM Provider
 
 ### Step 1 — Add to `config.json`

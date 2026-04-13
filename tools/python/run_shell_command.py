@@ -1,39 +1,117 @@
-import subprocess
+import argparse
+import json
 import os
+import platform
+import shutil
+import subprocess
+from pathlib import Path
+from typing import Optional
 
-def run_shell_command(command: str, dir_path: str = None) -> dict:
-    """
-    This tool executes a given shell command as `powershell.exe -NoProfile -Command <command>`.
-    Command can start background processes using PowerShell constructs such as `Start-Process -NoNewWindow` or `Start-Job`.
 
-    Args:
-        command: Exact command to execute as `powershell.exe -NoProfile -Command <command>`
-        dir_path: (OPTIONAL) The path of the directory to run the command in. If not provided, the project root directory is used.
+def _detect_shell() -> dict:
+    system_name = platform.system().lower()
+    shell_env = os.environ.get("SHELL") or os.environ.get("COMSPEC") or ""
 
-    Returns:
-        A dictionary containing:
-        - "Command": The executed command.
-        - "Directory": The directory where the command was executed.
-        - "Stdout": Standard output of the command.
-        - "Stderr": Standard error of the command.
-        - "Error": Any error message from the subprocess module.
-        - "Exit Code": The exit code of the command.
-    """
-    original_dir = os.getcwd()
-    execution_dir = original_dir
+    if system_name == "windows":
+        for shell_name, executable, args in (
+            ("powershell", "powershell.exe", ["-NoProfile", "-Command"]),
+            ("pwsh", "pwsh", ["-NoProfile", "-Command"]),
+            ("cmd", "cmd.exe", ["/C"]),
+        ):
+            resolved = shutil.which(executable)
+            if resolved:
+                return {
+                    "name": shell_name,
+                    "path": resolved,
+                    "argv_prefix": [resolved, *args],
+                    "shell_env": shell_env,
+                    "platform": system_name,
+                }
+    else:
+        for shell_name in (shell_env, "bash", "sh"):
+            if not shell_name:
+                continue
+            executable = shell_name if os.path.isabs(shell_name) else shutil.which(shell_name)
+            if executable:
+                return {
+                    "name": Path(executable).name,
+                    "path": executable,
+                    "argv_prefix": [executable, "-lc"],
+                    "shell_env": shell_env,
+                    "platform": system_name,
+                }
 
-    if dir_path:
-        if not os.path.isdir(dir_path):
-            return {
-                "Command": command,
-                "Directory": dir_path,
-                "Stdout": "(empty)",
-                "Stderr": f"Error: Directory not found: {dir_path}",
-                "Error": "DirectoryNotFound",
-                "Exit Code": 1
-            }
-        execution_dir = dir_path
-        os.chdir(execution_dir)
+    return {
+        "name": "unknown",
+        "path": None,
+        "argv_prefix": [],
+        "shell_env": shell_env,
+        "platform": system_name,
+    }
+
+
+def describe_environment() -> dict:
+    shell_info = _detect_shell()
+    return {
+        "platform": platform.platform(),
+        "system": platform.system(),
+        "release": platform.release(),
+        "machine": platform.machine(),
+        "python_version": platform.python_version(),
+        "cwd": os.getcwd(),
+        "shell": shell_info,
+        "env": {
+            "SHELL": os.environ.get("SHELL", ""),
+            "COMSPEC": os.environ.get("COMSPEC", ""),
+            "TERM": os.environ.get("TERM", ""),
+            "USER": os.environ.get("USER", ""),
+        },
+    }
+
+
+def run_shell_command(
+    command: str,
+    working_dir: str = ".",
+    timeout_seconds: int = 60,
+    env: Optional[dict] = None,
+    dir_path: Optional[str] = None,
+) -> dict:
+    """Execute a shell command using the best available local shell for the host OS."""
+    shell_info = _detect_shell()
+    requested_dir = dir_path or working_dir or "."
+    execution_dir = Path(requested_dir).resolve()
+
+    if not execution_dir.is_dir():
+        return {
+            "status": "error",
+            "command": command,
+            "directory": str(execution_dir),
+            "stdout": "(empty)",
+            "stderr": f"Error: Directory not found: {execution_dir}",
+            "error": "DirectoryNotFound",
+            "hint": "Verify the working_dir path exists before running the command.",
+            "exit_code": 1,
+            "shell": shell_info,
+            "environment": describe_environment(),
+        }
+
+    if not shell_info["path"]:
+        return {
+            "status": "error",
+            "command": command,
+            "directory": str(execution_dir),
+            "stdout": "(empty)",
+            "stderr": "No supported shell executable was found on PATH.",
+            "error": "ShellNotFound",
+            "hint": "Ensure bash, sh, or cmd.exe is available in PATH.",
+            "exit_code": 1,
+            "shell": shell_info,
+            "environment": describe_environment(),
+        }
+
+    run_env = os.environ.copy()
+    for key, value in (env or {}).items():
+        run_env[str(key)] = str(value)
 
     stdout_output = "(empty)"
     stderr_output = "(empty)"
@@ -41,69 +119,87 @@ def run_shell_command(command: str, dir_path: str = None) -> dict:
     exit_code = None
 
     try:
-        # Use powershell.exe -NoProfile -Command for consistency with the tool definition
-        # Using shell=True for this specific context, as the command is passed as a string to PowerShell.
         result = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-Command", command],
+            [*shell_info["argv_prefix"], command],
             capture_output=True,
             text=True,
-            check=False # Do not raise CalledProcessError for non-zero exit codes
+            check=False,
+            cwd=str(execution_dir),
+            timeout=max(1, int(timeout_seconds)),
+            env=run_env,
         )
         stdout_output = result.stdout.strip() if result.stdout else "(empty)"
         stderr_output = result.stderr.strip() if result.stderr else "(empty)"
         exit_code = result.returncode
-
-        if result.returncode != 0 and not stderr_output:
-            # If there's an error but no stderr, it might be due to a PowerShell-specific error
-            stderr_output = f"Command failed with exit code {result.returncode} but no stderr output was captured."
-
-    except FileNotFoundError:
-        error_message = "'powershell.exe' not found. Ensure PowerShell is installed and in your PATH."
+        if result.returncode != 0 and stderr_output == "(empty)":
+            stderr_output = f"Command failed with exit code {result.returncode}."
+    except subprocess.TimeoutExpired as exc:
+        stdout_output = (exc.stdout or "").strip() or "(empty)"
+        stderr_output = (exc.stderr or "").strip() or f"Command timed out after {timeout_seconds} seconds."
+        error_message = "TimeoutExpired"
+        exit_code = 124
+    except Exception as exc:
+        error_message = str(exc)
         exit_code = 1
-    except Exception as e:
-        error_message = str(e)
-        exit_code = 1
-    finally:
-        # Always change back to the original directory
-        os.chdir(original_dir)
 
+    succeeded = exit_code == 0 and error_message == "(none)"
     return {
-        "Command": command,
-        "Directory": execution_dir,
-        "Stdout": stdout_output,
-        "Stderr": stderr_output,
-        "Error": error_message,
-        "Exit Code": exit_code
+        "status": "success" if succeeded else "error",
+        "command": command,
+        "directory": str(execution_dir),
+        "stdout": stdout_output,
+        "stderr": stderr_output,
+        "error": error_message,
+        "exit_code": exit_code,
+        "shell": shell_info,
+        "environment": describe_environment(),
     }
 
+
+def main(**kwargs):
+    # ToolExecutor calls main(**params) directly. Never invoke argparse in this path.
+    if kwargs is not None:
+        command = kwargs.get("command")
+        if not command:
+            return {
+                "status": "error",
+                "command": "",
+                "directory": str(Path(kwargs.get("working_dir", ".")).resolve()),
+                "stdout": "(empty)",
+                "stderr": "Missing required parameter: command",
+                "error": "MissingCommand",
+                "hint": "Provide the 'command' parameter with the shell command to execute.",
+                "exit_code": 2,
+                "shell": _detect_shell(),
+                "environment": describe_environment(),
+            }
+        return run_shell_command(**kwargs)
+
+
+def cli_main():
+    parser = argparse.ArgumentParser(description="Run a shell command")
+    parser.add_argument("--command", required=True)
+    parser.add_argument("--working_dir", default=".")
+    parser.add_argument("--timeout_seconds", type=int, default=60)
+    parser.add_argument("--env", default="{}")
+    parser.add_argument("--dir_path", default=None)
+    parser.add_argument("--describe_environment", action="store_true")
+    args = parser.parse_args()
+
+    if args.describe_environment:
+        print(json.dumps(describe_environment(), indent=2))
+        return
+
+    env = json.loads(args.env) if args.env else {}
+    result = run_shell_command(
+        command=args.command,
+        working_dir=args.working_dir,
+        timeout_seconds=args.timeout_seconds,
+        env=env,
+        dir_path=args.dir_path,
+    )
+    print(json.dumps(result, indent=2))
+
+
 if __name__ == "__main__":
-    # Example usage:
-    print("--- Running 'echo Hello World' ---")
-    result = run_shell_command("echo Hello World")
-    for k, v in result.items():
-        print(f"{k}: {v}")
-
-    print("\n--- Running 'dir' (or 'ls' on Linux) in current directory ---")
-    result = run_shell_command("dir") # Use 'ls' on Linux
-    for k, v in result.items():
-        print(f"{k}: {v}")
-
-    print("\n--- Running 'dir' in a non-existent directory ---")
-    result = run_shell_command("dir", dir_path="non_existent_dir")
-    for k, v in result.items():
-        print(f"{k}: {v}")
-
-    print("\n--- Running a command that produces stderr ---")
-    # This command will produce an error if 'nonexistentcommand' is not found
-    result = run_shell_command("nonexistentcommand")
-    for k, v in result.items():
-        print(f"{k}: {v}")
-
-    print("\n--- Running a Python script and capturing output ---")
-    # Create a dummy Python script
-    with open("test_script.py", "w") as f:
-        f.write("import sys\nprint('Hello from Python')\nsys.stderr.write('Error from Python\n')\nsys.exit(0)")
-    result = run_shell_command("python test_script.py")
-    for k, v in result.items():
-        print(f"{k}: {v}")
-    os.remove("test_script.py")
+    cli_main()

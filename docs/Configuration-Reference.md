@@ -187,6 +187,34 @@ Each tool entry maps a tool name to its schema and implementation:
 | `max_sessions_retained` | integer | Maximum number of sessions to keep before cleanup (default: 50) |
 | `auto_cleanup_days` | integer | Purge sessions older than this many days (default: 30) |
 
+Each task creates exactly one directory under `workspace/<task_id>/`. Within that task root, Overlord11 stores task-local runtime data under `agent/`, `tools/`, and `logs/`. Final deliverables stay at the task root, and software project source lives in `app/` when applicable.
+
+---
+
+## `rate_limiting`
+
+Controls how the engine handles API 429 responses.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `base_delay_seconds` | number | `60` | Initial wait after first 429 before retry |
+| `max_delay_seconds` | number | `600` | Hard ceiling on any single backoff wait |
+| `jitter_factor` | number | `0.2` | ±20% random jitter applied to each delay to avoid thundering-herd |
+| `max_retries` | integer | `5` | Maximum consecutive 429 retries before marking job as `FAILED` |
+
+**Example:**
+
+```json
+"rate_limiting": {
+  "base_delay_seconds": 60,
+  "max_delay_seconds": 600,
+  "jitter_factor": 0.2,
+  "max_retries": 5
+}
+```
+
+Per-job behaviour on rate-limit is further controlled by `rate_limit_action` in the job itself (`"pause"` / `"stop"` / `"try_different_model"`). See [Providers → Rate Limiting](Providers.md#rate-limiting) for details.
+
 ---
 
 ## `logging`

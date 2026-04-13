@@ -106,17 +106,68 @@ def _write_file(path: Path, content: str) -> None:
 # Actions
 # ---------------------------------------------------------------------------
 
-def read_all(file_path: Path = None) -> dict:
-    """Return the entire Consciousness.md file."""
+def _filter_expired_entries(content: str) -> tuple[str, int]:
+    """
+    Return (filtered_content, expired_count).
+
+    Scans all ### heading blocks.  Any block whose TTL has elapsed is stripped
+    from the returned text.  This is the read-time enforcement path — it does
+    NOT write to disk; call cleanup() to persist the removal.
+    """
+    if not content:
+        return content, 0
+
+    lines = content.splitlines(keepends=True)
+    result_lines: list[str] = []
+    expired_count = 0
+    i = 0
+
+    while i < len(lines):
+        line = lines[i]
+        m = re.match(r"^(###\s+\[([A-Z]+)\]\s+(.+))", line)
+        if m:
+            # Collect the full block
+            block = [line]
+            j = i + 1
+            while j < len(lines) and not re.match(r"^#{1,3}\s+", lines[j]):
+                block.append(lines[j])
+                j += 1
+
+            block_text = "".join(block)
+            created_m = re.search(r"\*\*Created\*\*:\s*([^\n]+)", block_text)
+            ttl_m = re.search(r"\*\*TTL\*\*:\s*([^\n]+)", block_text)
+            created_str = (created_m.group(1) if created_m else "").strip()
+            ttl_str = (ttl_m.group(1) if ttl_m else "7d").strip()
+
+            if _is_expired(created_str, ttl_str):
+                expired_count += 1
+                i = j
+                continue  # skip this block
+
+            result_lines.extend(block)
+            i = j
+        else:
+            result_lines.append(line)
+            i += 1
+
+    return "".join(result_lines), expired_count
+
+
+def read_all(file_path: Path = None, enforce_ttl: bool = True) -> dict:
+    """Return the entire Consciousness.md file, filtering expired entries on read."""
     path = file_path or DEFAULT_CONSCIOUSNESS_FILE
     content = _read_file(path)
     if not content:
         return {"status": "empty", "content": "", "char_count": 0}
+    expired_count = 0
+    if enforce_ttl:
+        content, expired_count = _filter_expired_entries(content)
     return {
         "status": "ok",
         "content": content,
         "char_count": len(content),
         "line_count": content.count("\n") + 1,
+        "expired_filtered": expired_count,
     }
 
 
@@ -297,6 +348,79 @@ def commit(
     }
 
 
+def ttl_stats(file_path: Path = None) -> dict:
+    """
+    Return TTL statistics for all entries without modifying the file.
+
+    Useful for dashboards and diagnostics.
+    """
+    path = file_path or DEFAULT_CONSCIOUSNESS_FILE
+    content = _read_file(path)
+    if not content:
+        return {"status": "empty", "total": 0, "active": 0, "expired": 0, "persistent": 0, "entries": []}
+
+    lines = content.splitlines(keepends=True)
+    entries = []
+    i = 0
+
+    while i < len(lines):
+        line = lines[i]
+        m = re.match(r"^###\s+\[([A-Z]+)\]\s+(.+)", line)
+        if m:
+            block = [line]
+            j = i + 1
+            while j < len(lines) and not re.match(r"^#{1,3}\s+", lines[j]):
+                block.append(lines[j])
+                j += 1
+            block_text = "".join(block)
+            created_m = re.search(r"\*\*Created\*\*:\s*([^\n]+)", block_text)
+            ttl_m = re.search(r"\*\*TTL\*\*:\s*([^\n]+)", block_text)
+            status_m = re.search(r"\*\*Status\*\*:\s*(\w+)", block_text)
+
+            created_str = (created_m.group(1) if created_m else "").strip()
+            ttl_str = (ttl_m.group(1) if ttl_m else "7d").strip()
+            status = (status_m.group(1) if status_m else "ACTIVE").strip()
+
+            delta = _parse_ttl(ttl_str)
+            is_persistent = delta is None
+            is_expired_flag = (not is_persistent) and _is_expired(created_str, ttl_str)
+
+            expiry_str = None
+            if not is_persistent and created_str:
+                try:
+                    expiry_dt = datetime.fromisoformat(created_str) + delta
+                    expiry_str = expiry_dt.strftime("%Y-%m-%d %H:%M")
+                except Exception:
+                    pass
+
+            entries.append({
+                "key": m.group(2).strip(),
+                "priority": m.group(1),
+                "ttl": ttl_str,
+                "created": created_str,
+                "expires_at": expiry_str,
+                "status": status,
+                "expired": is_expired_flag,
+                "persistent": is_persistent,
+            })
+            i = j
+        else:
+            i += 1
+
+    active = sum(1 for e in entries if not e["expired"] and not e["persistent"] and e["status"] == "ACTIVE")
+    expired = sum(1 for e in entries if e["expired"])
+    persistent = sum(1 for e in entries if e["persistent"])
+
+    return {
+        "status": "ok",
+        "total": len(entries),
+        "active": active,
+        "expired": expired,
+        "persistent": persistent,
+        "entries": entries,
+    }
+
+
 def cleanup(file_path: Path = None, dry_run: bool = False) -> dict:
     """Remove entries marked [RESOLVED] or with expired TTLs.
 
@@ -377,7 +501,7 @@ def main():
     parser = argparse.ArgumentParser(description="Overlord11 Consciousness Tool")
     parser.add_argument("--action", required=True,
                         choices=["read_all", "read_section", "search", "search_index",
-                                 "commit", "cleanup"],
+                                 "commit", "cleanup", "ttl_stats"],
                         help="Action to perform on Consciousness.md")
     parser.add_argument("--section", default="", help="Section name for read_section")
     parser.add_argument("--query", default="", help="Search query for search action")
@@ -435,6 +559,8 @@ def main():
                 )
         elif args.action == "cleanup":
             result = cleanup(file_path, dry_run=args.dry_run)
+        elif args.action == "ttl_stats":
+            result = ttl_stats(file_path)
         else:
             result = {"error": f"Unknown action: {args.action}"}
 

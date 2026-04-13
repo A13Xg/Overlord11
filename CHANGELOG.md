@@ -1,233 +1,74 @@
-# Changelog
+# Overlord11 Changelog
 
-All notable changes to Overlord11 are documented here.
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
-
----
-
-## [2.2.0] — 2026-03-22
-
-### Added — Cleanup Agent (OVR_CLN_08)
-
-- `agents/cleanup.md` — Pre-deployment sanity check agent
-- Scans for hardcoded secrets, removes temp files, validates project structure
-- Added to Orchestrator's `can_delegate_to` list in `config.json`
-
-### Added — Project Management Tools
-
-- `cleanup_tool` — secrets scan, temp cleanup, structure validation (`tools/defs/cleanup_tool.json` + `tools/python/cleanup_tool.py`)
-- `task_manager` — manage `TaskingLog.md` with T-NNN IDs and subtasks
-- `error_logger` — log errors to `ErrorLog.md` with severity and resolution tracking
-- `project_docs_init` — initialize 5 standardized project files (ProjectOverview, Settings, TaskingLog, AInotes, ErrorLog)
-- `launcher_generator` — generate `run.py` (ASCII title, color menu, concurrent mode) + `run.bat` + `run.command`
-- `replace` tool now has a Python implementation (`tools/python/replace_tool.py`)
-- `scaffold_generator` now has a JSON schema definition
-
-### Added — Utility Tools (registered in config.json)
-
-- `consciousness_tool` — programmatic read/query/manage of `Consciousness.md`
-- `error_handler` — catch, classify, and recover from tool execution errors
-- `response_formatter` — format agent responses into structured output
-- `file_converter` — convert files between JSON, CSV, YAML, and Markdown
-- `computer_control` — desktop automation (mouse, keyboard, screenshots)
-- `vision_tool` — image analysis, OCR, screenshot interpretation
-
-### Added — Behavioral Directives (`directives/`)
-
-- `Personality.md` — tone, voice, 5 personality types (ChildFriendly, Assistant, Cautious, Quick, Mentor)
-- `CustomBehavior.md` — decision-making, autonomy, transparency mode, contradiction resolution
-- `OutputFormat.md` — 5-section standard response structure, verbosity rules
-- `CodingBehavior.md` — CheckMode/GoMode, `.ai/` context directory, implementation cycle, testing
-- `WritingBehavior.md` — writing rules, document templates, revision cycles
-- `GeneralBehavior.md` — research, analysis, multi-part requests, when to push back
-- `README.md` — directive layering guide and quick-start combos
-
-### Added — Standardized Project Files
-
-- Every sandboxed project directory gets 5 files via `project_docs_init`: `ProjectOverview.md`, `Settings.md`, `TaskingLog.md`, `AInotes.md`, `ErrorLog.md`
-
-### Added — Launcher System
-
-- Every Python project gets `run.py`, `run.bat`, `run.command` via `launcher_generator`
-- Scaffold templates include basic launchers; `launcher_generator` creates full-featured ones
-
-### Added — UI/UX Design System Skill
-
-A native Overlord11 UI/UX design system skill that gives agents a consistent,
-reusable visual specification before any UI implementation begins.
-
-#### Datasets (`skills/uiux/`)
-- `skills/uiux/styles.json` — 10 vastly different UI styles with full layout,
-  typography, shape, interaction, and Do/Don't guidance:
-  `brutalist`, `glassmorphism`, `neobrutalism`, `editorial`, `minimal-zen`,
-  `data-dense`, `soft-ui`, `retro-terminal`, `biomimetic`, `aurora-gradient`
-- `skills/uiux/palettes.json` — 10 color palettes (light + dark modes) with
-  14 semantic token hex values each and WCAG contrast notes:
-  `midnight-ink`, `chalk-board`, `neon-city`, `nordic-frost`, `terracotta-sun`,
-  `deep-forest`, `sakura-bloom`, `volcanic-night`, `arctic-monochrome`, `ultraviolet`
-
-#### New Tool (`ui_design_system`)
-- `tools/defs/ui_design_system.json` — provider-agnostic tool schema
-- `tools/python/ui_design_system.py` — Python implementation
-- Accepts: `style_id`, `palette_id`, `stack` (html-tailwind/html-css/react/nextjs/vue/svelte),
-  `page`, `project_name`, `output_format` (md/json), `persist` (bool)
-- Outputs: complete design spec (tokens, layout rules, typography, shapes, motion, Do/Don't,
-  stack implementation code, Reviewer checklist)
-- When `persist=true`: writes `design-system/MASTER.md` and optional per-page override
-- Deterministic default selection: same project name always produces the same style+palette
-- Style-palette affinity tables guide sensible default pairings
-
-#### Agent Updates
-- **Orchestrator** (`agents/orchestrator.md`): Added "UI/UX Feature Request" delegation
-  pattern; Coder is instructed to generate/consult design system before UI work
-- **Coder** (`agents/coder.md`): Added step 3 "UI/UX Check" — read `design-system/MASTER.md`
-  or call `ui_design_system` with `persist=true` if missing; added UI token compliance to
-  quality checklist; `ui_design_system` added to tool list
-- **Reviewer** (`agents/reviewer.md`): Added "UI Design System Audit" workflow step;
-  added full "UI Design System Checklist" section; added `ui_design_system` to tool list
-
-#### Config Updates
-- `config.json`: `ui_design_system` registered in `tools` section; added to Coder and
-  Reviewer agent tool lists
-
-#### Documentation
-- `docs/UI-UX-Design-System.md` — comprehensive documentation: what the skill is,
-  dataset structure, tool reference, CLI usage, persist/reuse patterns, style+palette
-  combination guide, extending the skill, and troubleshooting
-- `ONBOARDING.md`: Added "UI/UX Design System Skill" section with quick-start CLI
-  examples and tool reference; added `ui_design_system` to tool table; added rule 15
-  ("Use the design system for UI"); updated delegation patterns
-- `README.md`: Added `🎨 UI/UX design system skill` feature bullet; updated tool count
-  badge to 16; added `skills/uiux/` to directory structure; added `ui_design_system`
-  to Analysis & Memory tools table; added `docs/UI-UX-Design-System.md` to docs listing
-
-#### Tests
-- `tests/test.py`: Added `test_ui_design_system` function with 6 tests covering:
-  Markdown output, JSON output, default selection, persist to disk, invalid IDs,
-  and error handling for missing data
-
----
-
-### Added — Test Suite (`tests/test.py`)
-
-A comprehensive test suite for all 16 Overlord11 modules was built and
-hardened across multiple iterations. It is designed to be usable directly
-by LLM agents as well as humans.
-
-#### Coverage
-- **81 tests** across 28 modules: read_file, write_file, list_directory,
-  glob, search_file_content, run_shell_command, web_fetch, web_scraper,
-  git_tool, calculator, save_memory, code_analyzer, project_scanner,
-  publisher_tool, log_manager, session_manager
-- Encoding edge-cases: UTF-8, CJK (Chinese/Japanese/Korean), emoji, empty
-  files — all verified via roundtrip write/read
-- Ripgrep + pure-Python fallback compatibility: JSON output format
-  differences (`"type":"match"` vs `"type": "match"`) handled in all tests
-- Web scraper tests call the actual `act_*` API (`act_validate_url`,
-  `act_search`, `act_detect_type`, `act_extract_text`, `act_analyze_structure`,
-  `act_find_feeds`) — no more SKIP returns
-
-#### CLI flags
-| Flag | Description |
-|------|-------------|
-| `--skip-web` | Skip internet-dependent tests |
-| `--tool X[,Y,Z]` | Run one or more tools (comma-separated) |
-| `--quiet` / `-q` | Summary + failures only — LLM/CI friendly |
-| `--no-color` | Strip all ANSI codes; auto-applied when stdout is not a TTY |
-| `--output PATH` | Write JSON results to a custom path |
-| `--list` | Print available tool names and exit |
-| `--fail-fast` | Abort on first failure |
-
-#### Machine-readable JSON output (`tests/test_results.json`)
-Every run emits a JSON file with a full `environment` block:
-```json
-{
-  "environment": {
-    "python_version": "3.x",
-    "platform": "win32 | linux | darwin",
-    "ripgrep": true,
-    "packages": { "bs4": true, "requests": true, "ddgs": true, ... }
-  }
-}
-```
-
-#### `NO_COLOR` environment variable
-Honoured at process startup (POSIX standard). Equivalent to `--no-color`.
-
-### Fixed — `tools/python/search_file_content.py`
-- Added `_find_rg()` — probes `rg` on `PATH` then common Windows install
-  paths (Scoop, WinGet, Chocolatey, Cargo) before giving up
-- Added `_python_search()` — pure-Python regex fallback producing
-  ripgrep-compatible JSON-lines (`{"type":"begin",...}` / `{"type":"match",...}` /
-  `{"type":"summary",...}`)
-- `_RG_BIN` module-level cache — binary discovery happens once at import,
-  not per call
-
-### Fixed — `tools/python/publisher_tool.py`
-- `log_tool_invocation(tool=...)` → `log_tool_invocation(tool_name=...)`
-  (wrong keyword argument caused every publisher call to log an exception)
-- `log_error(tool=...)` → `log_error(source=...)` (same root cause)
-
-### Fixed — Windows console encoding (`tests/test.py`)
-- Wrap `sys.stdout` / `sys.stderr` in `io.TextIOWrapper(..., encoding="utf-8")`
-  at startup on `win32` to avoid `UnicodeEncodeError` on cp1252 consoles
-- `safe_str()` helper encodes all output values through
-  `encode("ascii", errors="backslashreplace")` as a final fallback
-
----
-
-## [2.1.0] — README & Wiki Overhaul
-
-### Added
-- 12-page Wiki in `docs/`: Home, Getting Started, Architecture, Agents
-  Reference, Tools Reference, Configuration Reference, Providers, Memory
-  System, Output Tiers, Extension Guide, Development, Troubleshooting
-- Publisher agent (`OVR_PUB_07`) — generates fully self-contained styled
-  HTML reports with inline CSS and 9 visual themes
-- Web scraper: LLM analysis action, smart image scoring, RSS/Atom feed
-  discovery, DuckDuckGo search via `ddgs`
-### Changed
-- README completely rewritten: architecture diagram, full tool tables,
-  output-tier guide, provider switching reference
-- Branding unified: "AgenticToolset" → "Overlord11" throughout all files
+## [Unreleased]
 
 ### Fixed
-- `write_file.py`: `mode` parameter (`overwrite`/`append`) and `encoding`
-  parameters now correctly implemented from JSON schema
-
----
-
-## [2.0.0] — Provider-Agnostic Restructure
+- **Workspace Generation**: Fixed issue where multiple spurious workspace folders were created with job IDs. Now creates only ONE workspace folder per job with proper naming convention `{ISO_DATE}_{JOB_ID}`.
+- **Folder Structure**: Implemented proper workspace hierarchy:
+  - `workspace/{ISO_DATE}_{JOB_ID}/` — single root per job
+  - `output/` — main deliverables (applications, reports, code)
+  - `artifacts/` — supporting files (MD docs, logs, tool results)
+  - Root MD files — ProjectOverview.md, Settings.md, TaskingLog.md, AInotes.md, ErrorLog.md
+- **Artifact API**: Fixed artifacts.py to prevent fallback creation of `workspace/{job_id}` folders. Now requires session_id to be set before artifact access.
+- **Publisher Tool**: Updated to save HTML outputs to `output/` folder by default instead of workspace root.
 
 ### Changed
-- Restructured from scattered subsystems into a unified, provider-agnostic
-  LLM toolset
-- All agent definitions and tool schemas made provider-neutral
-- `config.json` unified configuration: providers, agents, tools
-- Fallback provider order configurable via `orchestration.fallback_provider_order`
+- **task_workspace.py**: 
+  - Updated `task_dir_for()` to accept job_id parameter for proper naming
+  - Added `output/` folder to layout structure
+  - Updated docstring to reflect new `{ISO_DATE}_{JOB_ID}` naming convention
+- **session_manager.py (tools/python)**:
+  - `create_session()` now accepts `job_id` parameter
+  - Workspace naming changed to `{ISO_DATE}_{JOB_ID}` when job_id provided
+  - Collision handling updated for suffix naming (`_v01`, `_v02`, etc.)
+  - Added `--job_id` CLI parameter
+- **engine_bridge.py**:
+  - Updated `EngineRunner.run()` call to pass job_id from job object
+- **runner.py**:
+  - Added `job_id` parameter to `run()` method
+  - Updated docstring to document job_id usage for workspace naming
+- **EngineSession (session_manager.py - engine/)**:
+  - Added `job_id` parameter to __init__
+  - Updated `create()` to pass job_id to session creation
+  - Updated docstring to explain workspace naming convention
+- **artifacts.py**:
+  - Removed fallback folder creation with job_id
+  - Now raises 409 error if job lacks session_id instead of creating spurious folders
+  - Updated error message to prompt job completion wait
+- **publisher_tool.py**:
+  - Changed default output path to `task_dir/output/` instead of `task_dir/`
+- **publisher.md (agent)**:
+  - Updated to specify saving to `output/` folder
+  - Changed example path to show `output/` folder in workspace structure
+- **reviewer.md (agent)**:
+  - Added step to verify deliverables are in `output/` folder
+  - Added workspace structure validation to quality checklist
+  - Added output folder contents verification to responsibilities
+- **session_manager.json (tool def)**:
+  - Added `job_id` parameter documentation
+  - Updated workspace naming description to reflect `{ISO_DATE}_{JOB_ID}` format
 
-### Added
-- Provider support: Anthropic Claude, Google Gemini, OpenAI GPT
-- 7 specialist agents with unique IDs (`OVR_DIR_01` … `OVR_PUB_07`)
-- 15 tool implementations in `tools/python/`
-- 15 provider-agnostic tool JSON schemas in `tools/defs/`
-- `Consciousness.md` shared memory system
-- `ONBOARDING.md` universal LLM onboarding guide
-- `.env.example` environment variable template
+### Technical Details
 
----
+#### Workspace Naming Convention
+- **Single job, no webui job_id**: `workspace/20260413_000521/`
+- **Single job with webui job_id**: `workspace/20260413_000521_9fcc067f/` (ISO date + job_id)
+- **Collision handling**: `workspace/20260413_000521_9fcc067f_v01/` (adds version suffix)
 
-## [1.x] — Early Development
+#### Artifact API Behavior
+- Artifacts can only be accessed if job has a valid `session_id` set
+- `session_id` is set by EngineRunner after job completes
+- Prevents spurious folder creation and ensures clean artifact organization
 
-### Added
-- Gemini multi-bot support
-- Sandboxing infrastructure
-- AgenticToolset initial toolkit with agents and tools (`web_researcher`,
-  later renamed `web_scraper`)
-- Linux hardening guide (later removed from repo)
-- Requirements file
-- Initial agent configurations
+#### Output Tier System
+- **Tier 0**: Direct text response (no file)
+- **Tier 1**: Markdown file saved to `output/{name}.md`
+- **Tier 2**: Styled HTML report saved to `output/{name}.html`
 
----
+All tier outputs go to the `output/` folder within the workspace.
 
-*For the full commit history see `git log --oneline`.*
+### Migration Notes
+- Existing workspaces created before this change may have spurious job_id folders that can be safely deleted
+- Empty directories like `workspace/{job_id}/` (without ISO prefix) should be cleaned up
+- Sessions created with old format will still be accessible; new sessions use new format
+

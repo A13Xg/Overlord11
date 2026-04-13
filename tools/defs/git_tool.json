@@ -43,8 +43,14 @@
           "type": "string"
         },
         "description": "Additional arguments to pass to the git command (e.g., ['--stat'] for diff --stat)."
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session ID for log_manager integration. Auto-injected by the engine."
       }
     },
-    "required": ["operation"]
+    "required": [
+      "operation"
+    ]
   }
 }

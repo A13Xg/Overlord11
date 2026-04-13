@@ -7,11 +7,21 @@
       "action": {
         "type": "string",
         "description": "Action to perform on the error log.",
-        "enum": ["log_error", "resolve_error", "add_attempt", "query", "init"]
+        "enum": [
+          "log_error",
+          "resolve_error",
+          "add_attempt",
+          "query",
+          "init"
+        ]
       },
       "project_dir": {
         "type": "string",
-        "description": "Absolute path to the sandboxed project directory containing ErrorLog.md."
+        "description": "Absolute path to the task directory containing ErrorLog.md."
+      },
+      "task_dir": {
+        "type": "string",
+        "description": "Alias for project_dir."
       },
       "error_id": {
         "type": "string",
@@ -24,7 +34,12 @@
       "severity": {
         "type": "string",
         "description": "Error severity level.",
-        "enum": ["critical", "major", "minor", "warning"],
+        "enum": [
+          "critical",
+          "major",
+          "minor",
+          "warning"
+        ],
         "default": "major"
       },
       "source": {
@@ -46,8 +61,15 @@
         "type": "string",
         "description": "How the error was resolved (for resolve_error action).",
         "default": ""
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session ID for log_manager integration. Auto-injected by the engine."
       }
     },
-    "required": ["action", "project_dir"]
+    "required": [
+      "action",
+      "project_dir"
+    ]
   }
 }

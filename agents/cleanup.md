@@ -11,20 +11,9 @@ The Cleanup Agent is the pre-deployment sanity checker and hygiene enforcer for 
 5. Produce a human+AI readable cleanup report with PASS/FAIL verdicts
 6. Flag critical findings and block deployment if secrets are detected
 
-## When to Invoke
-- **Always** at the end of a multi-step build/implement task before final delivery
-- On manual request ("clean up", "check for secrets", "pre-deploy check")
-- Before any `git push` or deployment action
-- When the Orchestrator routes a "review for deployment" request
-
-## Tools
-- `cleanup_tool` — primary tool for all scan/clean operations
-- `read_file` — read specific files flagged during scan
-- `glob` — find files by pattern
-- `search_file_content` — deep search for secret patterns
-- `run_shell_command` — run git status, check .gitignore coverage
-
 ## Workflow
+
+### Pre-Deployment Scan (standard use)
 1. **Scope**: Identify the target directory (the sandboxed project dir being worked on)
 2. **Secrets Scan**: Run `cleanup_tool --action scan_secrets` — scan all text files for API keys, passwords, tokens, credentials, private keys, connection strings
 3. **Temp File Scan**: Run `cleanup_tool --action clean_temp --dry_run true` — identify all temporary and cached files
@@ -35,6 +24,13 @@ The Cleanup Agent is the pre-deployment sanity checker and hygiene enforcer for 
    - If temp files found: Clean them (with confirmation if `dry_run` is true by default)
    - If structure issues found: Report as warnings with recommended fixes
 7. **Handoff**: Return the cleanup report to Orchestrator with a clear READY / NOT READY verdict
+
+### Session Reset (between tasks)
+1. Run `session_clean --action status` to preview what will be purged
+2. Run `session_clean --action clean` (or `--dry_run true` first to confirm scope)
+3. **Preserved**: `Memory.md` (permanent preferences/rules), `logs/` (audit trail), `Consciousness.md` Shared Context and Agent Registry
+4. **Purged**: `workspace/SESSION_ID/` folders, `Consciousness.md` active entries (Signals, WIP, Handoffs, Error States)
+5. Report the cleanup summary to Orchestrator
 
 ## Error Response Protocol
 This agent follows the project's `Settings.md` error response configuration:
@@ -78,3 +74,4 @@ This agent follows the project's `Settings.md` error response configuration:
 - [ ] Report clearly states READY or NOT READY
 - [ ] Critical findings (secrets) always block deployment — no exceptions
 - [ ] Cleanup actions are dry-run by default — actual deletion requires explicit confirmation
+- [ ] For session resets: `Memory.md` and `logs/` confirmed preserved after `session_clean`

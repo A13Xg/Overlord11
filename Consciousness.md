@@ -6,12 +6,15 @@
 
 ## Purpose
 
-This document serves as a **shared memory location** for all Overlord11 sub-agents to communicate, share context, and maintain awareness across workflow boundaries. It enables:
+This document is the **ephemeral shared memory** for all Overlord11 agents. It enables real-time cross-agent communication: active signals, work-in-progress tracking, pending handoffs, and error broadcasting. Its active sections are cleared between tasks by `session_clean`.
 
+For **permanent** preferences, rules, and standing decisions that survive session resets, see `Memory.md`.
+
+Key properties:
 - Cross-agent context sharing without direct coupling
-- Persistent state that survives individual sessions
+- Persistent state within a session; ephemeral between sessions
 - Coordinated multi-agent workflows
-- Prevention of redundant work across systems
+- Prevention of redundant work across agents
 
 ---
 
@@ -71,6 +74,14 @@ _No active signals._
 ### Shared Context
 
 <!-- Persistent context that all agents should be aware of -->
+
+### [PERSISTENT] Execution Environment Profile
+- **Source**: SYSTEM
+- **Created**: 2026-04-13 00:05
+- **TTL**: persistent
+- **Status**: ACTIVE
+- **Context**: Runtime host is Windows 11 on AMD64. Shell type: cmd; Python 3.14.4. Available tools: git, python, python3, pip, pip3, node, npm, curl.
+- **Action**: Use Windows shell syntax (backslashes, %VAR%, etc.). Check available_tools list before calling run_shell_command with tools that may not be installed.
 
 ### [PERSISTENT] Active Model Configuration
 - **Source**: SYSTEM
@@ -194,19 +205,6 @@ _Archive empty._
 
 ---
 
-## Overlord11 Integration (Future)
-
-This shared memory will be programmatically managed by Overlord11:
-
-- **Auto-cleanup**: Expired entries removed automatically
-- **Entry validation**: Format enforcement on write
-- **Conflict resolution**: Duplicate detection and merging
-- **Priority escalation**: Auto-escalate based on age/impact
-- **Cross-reference**: Link related entries across sections
-- **Metrics**: Track handoff success rates, resolution times
-
----
-
 ## Anti-Bloat Measures
 
 To prevent context runaway:
@@ -244,3 +242,5 @@ To prevent context runaway:
 2. Read Work In Progress (already being done?)
 3. Read Pending Handoffs (can I help?)
 4. Read Cross-Agent Signals (relevant context?)
+
+---

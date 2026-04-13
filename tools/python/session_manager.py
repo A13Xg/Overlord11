@@ -1,8 +1,8 @@
 """
 Overlord11 - Session Manager
 ================================
-Manages work sessions with unique IDs, tracks changes, and enables session
-continuity. Each session gets a dedicated workspace for intermediate files.
+Manages task sessions with unique IDs, tracks changes, and preserves a single
+canonical task directory per task under workspace/<task_id>/.
 
 Usage:
     python session_manager.py --action create --description "Implement user auth"
@@ -22,10 +22,22 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from log_manager import log_tool_invocation, log_event
+from task_workspace import WORKSPACE_ROOT, ensure_task_layout
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-WORKSPACE_DIR = BASE_DIR / "workspace"
+WORKSPACE_DIR = WORKSPACE_ROOT
 SESSION_INDEX = WORKSPACE_DIR / "session_index.json"
+
+
+def _session_manifest_path(session_dir: Path) -> Path:
+    # Check new artifacts/logs/ path first, then legacy paths
+    artifacts_modern = session_dir / "artifacts" / "logs" / "session.json"
+    if artifacts_modern.exists():
+        return artifacts_modern
+    legacy_modern = session_dir / "logs" / "session.json"
+    if legacy_modern.exists():
+        return legacy_modern
+    return session_dir / "session.json"
 
 
 def _load_index() -> dict:
@@ -44,14 +56,39 @@ def _save_index(index: dict):
     SESSION_INDEX.write_text(json.dumps(index, indent=2, default=str), encoding="utf-8")
 
 
-def create_session(description: str = "", tags: list = None) -> dict:
-    """Create a new work session."""
-    session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+def create_session(description: str = "", tags: list = None, job_id: str = "") -> dict:
+    """Create a new work session with a single canonical task directory.
+
+    Workspace naming: {ISO_DATE}_{JOB_ID} if job_id provided, else {ISO_DATE}_{HH}{MM}{SS}
+
+    Args:
+        description: Human-readable description of the session
+        tags: Optional list of tags for categorization
+        job_id: Optional job_id from webui (8-16 char hex) for workspace naming
+
+    Returns:
+        Session dict with workspace paths and metadata
+    """
+    # Create base session ID with timestamp
+    base_session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    if job_id:
+        # Use job_id in workspace naming
+        session_id = f"{base_session_id}_{job_id}"
+    else:
+        session_id = base_session_id
+
     session_dir = WORKSPACE_DIR / session_id
 
-    session_dir.mkdir(parents=True, exist_ok=True)
-    (session_dir / "output").mkdir(exist_ok=True)
-    (session_dir / "temp").mkdir(exist_ok=True)
+    # Handle collision: if workspace already exists for this job_id, add suffix
+    suffix = 1
+    original_session_id = session_id
+    while session_dir.exists():
+        suffix += 1
+        session_id = f"{original_session_id}_v{suffix:02d}"
+        session_dir = WORKSPACE_DIR / session_id
+
+    layout = ensure_task_layout(session_dir)
 
     session = {
         "session_id": session_id,
@@ -59,15 +96,20 @@ def create_session(description: str = "", tags: list = None) -> dict:
         "description": description,
         "tags": tags or [],
         "status": "active",
-        "workspace": str(session_dir),
+        "workspace": str(layout["root"]),
+        "task_dir": str(layout["root"]),
+        "agent_dir": str(layout["agent"]),
+        "tools_dir": str(layout["tools"]),
+        "logs_dir": str(layout["logs"]),
+        "app_dir": str(layout["app"]),
         "changes": [],
         "agents_used": [],
         "tools_used": [],
         "notes": [],
     }
 
-    # Save session manifest
-    manifest_path = session_dir / "session.json"
+    # Save session manifest in artifacts/logs/
+    manifest_path = layout["logs"] / "session.json"
     manifest_path.write_text(json.dumps(session, indent=2, default=str), encoding="utf-8")
 
     # Update index
@@ -76,7 +118,8 @@ def create_session(description: str = "", tags: list = None) -> dict:
         "description": description,
         "status": "active",
         "created_at": session["created_at"],
-        "workspace": str(session_dir),
+        "workspace": str(layout["root"]),
+        "task_dir": str(layout["root"]),
     }
     _save_index(index)
 
@@ -88,7 +131,7 @@ def create_session(description: str = "", tags: list = None) -> dict:
 def get_session(session_id: str) -> dict:
     """Get full session details."""
     session_dir = WORKSPACE_DIR / session_id
-    manifest = session_dir / "session.json"
+    manifest = _session_manifest_path(session_dir)
     if not manifest.exists():
         return {"error": f"Session not found: {session_id}"}
     try:
@@ -100,7 +143,8 @@ def get_session(session_id: str) -> dict:
 def _save_session(session_id: str, session: dict):
     """Save session manifest."""
     session_dir = WORKSPACE_DIR / session_id
-    manifest = session_dir / "session.json"
+    layout = ensure_task_layout(session_dir)
+    manifest = layout["logs"] / "session.json"
     manifest.write_text(json.dumps(session, indent=2, default=str), encoding="utf-8")
 
 
@@ -230,6 +274,7 @@ def main():
                                  "log_tool", "add_note", "close", "list", "active"],
                         help="Action to perform")
     parser.add_argument("--session_id", default=None, help="Session ID")
+    parser.add_argument("--job_id", default="", help="Job ID (for workspace naming)")
     parser.add_argument("--description", default="", help="Session description")
     parser.add_argument("--data", default="{}", help="JSON data for the action")
     parser.add_argument("--status_filter", default=None, help="Filter sessions by status")
@@ -242,7 +287,8 @@ def main():
     if args.action == "create":
         result = create_session(
             description=args.description or data.get("description", ""),
-            tags=data.get("tags", [])
+            tags=data.get("tags", []),
+            job_id=args.job_id or data.get("job_id", "")
         )
     elif args.action == "status":
         result = get_session(args.session_id)

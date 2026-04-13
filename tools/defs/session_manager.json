@@ -1,0 +1,35 @@
+{
+  "name": "session_manager",
+  "description": "Manages work sessions with unique IDs. Creates exactly one canonical task directory per task under workspace/{ISO_DATE}_{JOB_ID}/, tracks file changes and agent/tool usage, appends notes, and closes sessions with a final summary. Sessions are indexed in workspace/session_index.json.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "The session action to perform.",
+        "enum": ["create", "status", "log_change", "log_agent", "log_tool", "add_note", "close", "list", "active"]
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session ID / task ID (format: YYYYMMDD_HHMMSS or YYYYMMDD_HHMMSS_{JOB_ID} or YYYYMMDD_HHMMSS_NN). Required for all actions except 'create', 'list', and 'active'."
+      },
+      "job_id": {
+        "type": "string",
+        "description": "Optional job ID from webui (8-16 char hex). When provided, workspace folder is named {ISO_DATE}_{JOB_ID}. Used only with 'create' action."
+      },
+      "description": {
+        "type": "string",
+        "description": "Human-readable description. Used when creating a session or closing one as a close summary."
+      },
+      "data": {
+        "type": "object",
+        "description": "Payload for the action. log_change expects {file, action, summary, diff_preview}; log_agent expects {agent_id}; log_tool expects {tool_name}; add_note expects {note}; close expects {summary}; create optionally accepts {description, tags, job_id}."
+      },
+      "status_filter": {
+        "type": "string",
+        "description": "For 'list' action: filter sessions by status (e.g., 'active', 'closed'). Returns all sessions if omitted."
+      }
+    },
+    "required": ["action"]
+  }
+}

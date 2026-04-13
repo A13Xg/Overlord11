@@ -1,0 +1,11 @@
+{
+  "_comment": "Password hashes use SHA-256. To change a password, replace the 'hash' value with sha256(new_password).hex(). The 'salt' is prepended to the password before hashing: sha256(salt + password).",
+  "users": {
+    "admin": {
+      "hash": "50223abaff947ea306d394ac26fdefa874cac67e369470575b60f0655ed92b2b",
+      "salt": "overlord11",
+      "role": "admin",
+      "display_name": "Administrator"
+    }
+  }
+}

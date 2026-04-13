@@ -6,7 +6,7 @@
     "properties": {
       "project_dir": {
         "type": "string",
-        "description": "Absolute path to the project directory where run.py will be created."
+        "description": "Absolute path to the software project directory where run.py will be created. In task-aware runs this is usually <task>/app."
       },
       "project_name": {
         "type": "string",
@@ -28,20 +28,44 @@
         "items": {
           "type": "object",
           "properties": {
-            "key": { "type": "string", "description": "Menu key (e.g., '1', '2')" },
-            "label": { "type": "string", "description": "Display label (e.g., 'CLI Mode')" },
-            "cmd": { "type": "string", "description": "Shell command to execute (e.g., 'python -m myapp.cli')" },
-            "desc": { "type": "string", "description": "Optional description shown below the label", "default": "" }
+            "key": {
+              "type": "string",
+              "description": "Menu key (e.g., '1', '2')"
+            },
+            "label": {
+              "type": "string",
+              "description": "Display label (e.g., 'CLI Mode')"
+            },
+            "cmd": {
+              "type": "string",
+              "description": "Shell command to execute (e.g., 'python -m myapp.cli')"
+            },
+            "desc": {
+              "type": "string",
+              "description": "Optional description shown below the label",
+              "default": ""
+            }
           },
-          "required": ["key", "label", "cmd"]
+          "required": [
+            "key",
+            "label",
+            "cmd"
+          ]
         }
       },
       "color_scheme": {
         "type": "object",
         "description": "Override default ANSI color codes. Keys: title, menu_key, menu_label, success, error, info, dim, accent. Values: ANSI code strings (e.g., '36' for cyan).",
         "default": {}
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session ID for log_manager integration. Auto-injected by the engine."
       }
     },
-    "required": ["project_dir", "project_name"]
+    "required": [
+      "project_dir",
+      "project_name"
+    ]
   }
 }

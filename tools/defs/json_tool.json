@@ -1,0 +1,49 @@
+{
+  "name": "json_tool",
+  "description": "Parse, validate, query, transform, and format JSON data. Supports dot-notation path queries (e.g., 'users.0.name'), deep merge, structural diff, key enumeration, and in-place set/delete operations. All operations return structured results that can be chained into further tool calls.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Operation to perform. parse: parse JSON string into object. validate: check JSON syntax. query: extract value at a path. format: pretty-print or minify. merge: deep-merge two objects. diff: compare two objects. keys: list all key paths. set: set a value at a path. delete: remove a key.",
+        "enum": ["parse", "validate", "query", "format", "merge", "diff", "keys", "set", "delete"]
+      },
+      "input": {
+        "type": "string",
+        "description": "JSON string to operate on. Required for all actions. Alternative: use 'file' to point to a JSON file."
+      },
+      "input_b": {
+        "type": "string",
+        "description": "Second JSON string for merge and diff actions. Alternative: use 'file_b'."
+      },
+      "path": {
+        "type": "string",
+        "description": "Dot-notation path to a value within the JSON (e.g., 'users.0.name', 'config.timeout'). Required for query, set, delete. Optional for keys (scopes the key listing)."
+      },
+      "value": {
+        "type": "string",
+        "description": "JSON-encoded value to set at the given path (for 'set' action). Must be valid JSON: e.g., '\"text\"', '42', 'true', '[1,2,3]', '{\"key\":\"val\"}'."
+      },
+      "indent": {
+        "type": "integer",
+        "description": "Indentation spaces for 'format' action. 0 produces minified single-line JSON. Defaults to 2.",
+        "default": 2
+      },
+      "recursive": {
+        "type": "boolean",
+        "description": "For 'keys' action: include keys from nested objects and arrays. Defaults to true.",
+        "default": true
+      },
+      "file": {
+        "type": "string",
+        "description": "Path to a JSON file to use as the primary input. Alternative to 'input'."
+      },
+      "file_b": {
+        "type": "string",
+        "description": "Path to a second JSON file for merge/diff actions. Alternative to 'input_b'."
+      }
+    },
+    "required": ["action"]
+  }
+}
