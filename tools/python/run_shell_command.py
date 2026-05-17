@@ -9,6 +9,26 @@ from pathlib import Path
 from typing import Optional
 
 
+_MUTATING_KEYWORD_RE = re.compile(
+    r"(?i)\b("
+    r"set-content|add-content|out-file|new-item|copy-item|move-item|remove-item|rename-item|clear-content|"
+    r"cp|mv|rm|mkdir|touch|truncate|tee|sed|chmod|chown|"
+    r"copy|move|del|erase|ren|rmdir|md|rd"
+    r")\b"
+)
+_PS_PATH_PARAM_RE = re.compile(
+    r"(?i)\-(path|literalpath|destination|filepath|outfilepath|target)\s+"
+    r"(\"[^\"]+\"|'[^']+'|\S+)"
+)
+_REDIRECT_TARGET_RE = re.compile(r"(?:^|\s)(?:\d?>|>>|2>>|1>|1>>)\s*(\"[^\"]+\"|'[^']+'|\S+)")
+_FORBIDDEN_GLOBAL_MUTATION_RE = re.compile(
+    r"(?i)"
+    r"(remove-item\s+.+\-(recurse|force).*(\\|/|\*)|"
+    r"\brm\s+\-rf\s+(/|~|\\|[A-Za-z]:\\|[A-Za-z]:/)|"
+    r"\b(del|erase)\b.*\b(/s|/q)\b)"
+)
+
+
 def _available_shells() -> dict[str, dict]:
     system_name = platform.system().lower()
     shell_env = os.environ.get("SHELL") or os.environ.get("COMSPEC") or ""
@@ -249,6 +269,219 @@ def _build_mismatch_response(
     }
 
 
+def _strip_quotes(value: str) -> str:
+    if not value:
+        return value
+    if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+        return value[1:-1]
+    return value
+
+
+def _is_mutating_command(command: str) -> bool:
+    """
+    Best-effort mutation detection.
+
+    We intentionally over-detect a little for safety because this guard only
+    runs in task-workspace mode and produces actionable error guidance.
+    """
+    if not command:
+        return False
+    if _MUTATING_KEYWORD_RE.search(command):
+        return True
+    # Redirection usually implies write side effects.
+    if re.search(r"(?:^|\s)(?:\d?>|>>|1>|1>>|2>|2>>)\s*", command):
+        return True
+    return False
+
+
+def _tokenize_path_candidates(command: str) -> list[str]:
+    """
+    Extract potential filesystem target tokens from command text.
+
+    This is a conservative lexer that prioritizes explicit path-bearing forms.
+    """
+    tokens: list[str] = []
+    for m in _PS_PATH_PARAM_RE.finditer(command):
+        tokens.append(_strip_quotes(m.group(2)))
+    for m in _REDIRECT_TARGET_RE.finditer(command):
+        tokens.append(_strip_quotes(m.group(1)))
+    for m in re.finditer(r'"([^"]+)"|\'([^\']+)\'', command):
+        tokens.append((m.group(1) or m.group(2) or "").strip())
+    # Fallback path-ish tokens
+    for tok in re.findall(r"(?:^|\s)([^\s|&;]+)", command):
+        t = _strip_quotes(tok.strip())
+        if t:
+            tokens.append(t)
+    # Preserve order but dedupe.
+    seen = set()
+    ordered: list[str] = []
+    for t in tokens:
+        if t in seen:
+            continue
+        seen.add(t)
+        ordered.append(t)
+    return ordered
+
+
+def _looks_like_path_token(token: str) -> bool:
+    if not token:
+        return False
+    if token.startswith("-"):
+        return False
+    if token.startswith(("http://", "https://")):
+        return False
+    if token in {"|", "||", "&", "&&", ";"}:
+        return False
+    if token in {"2>&1", "1>&2", ">&2"}:
+        return False
+    if token.startswith(("$", "%")):
+        # Dynamic env expansion is not safely resolvable here.
+        return False
+    return any(marker in token for marker in ("\\", "/", ".", ":"))
+
+
+def _resolve_candidate_path(token: str, execution_dir: Path) -> Optional[Path]:
+    """
+    Resolve token to an absolute path when it is plausibly a path target.
+    """
+    if not _looks_like_path_token(token):
+        return None
+    p = Path(token)
+    if p.is_absolute():
+        return p.resolve()
+    return (execution_dir / p).resolve()
+
+
+def _build_write_policy_violation(
+    *,
+    command: str,
+    execution_dir: Path,
+    task_root: Path,
+    reason: str,
+    detail: str,
+    candidates: Optional[list[str]] = None,
+) -> dict:
+    return {
+        "status": "error",
+        "command": command,
+        "directory": str(execution_dir),
+        "stdout": "(empty)",
+        "stderr": detail,
+        "error": "ShellWritePolicyViolation",
+        "policy_reason": reason,
+        "hint": (
+            "Use explicit relative paths under the task workspace/output directory. "
+            f"Allowed root: {task_root}"
+        ),
+        "exit_code": 2,
+        "shell": _detect_shell(),
+        "environment": describe_environment(),
+        "write_policy": {
+            "task_root": str(task_root),
+            "candidates": candidates or [],
+        },
+    }
+
+
+def _enforce_workspace_write_policy(command: str, execution_dir: Path) -> Optional[dict]:
+    """
+    Block mutating commands that target paths outside OVERLORD11_TASK_DIR.
+
+    This is a *pre-execution* safety gate. A separate post-exec filesystem
+    audit still exists as a defense-in-depth fallback.
+    """
+    task_dir = os.environ.get("OVERLORD11_TASK_DIR", "").strip()
+    if not task_dir:
+        return None
+    task_root = Path(task_dir).resolve()
+    if not _is_mutating_command(command):
+        return None
+
+    if _FORBIDDEN_GLOBAL_MUTATION_RE.search(command or ""):
+        return _build_write_policy_violation(
+            command=command,
+            execution_dir=execution_dir,
+            task_root=task_root,
+            reason="forbidden_global_mutation_pattern",
+            detail="Command matches a globally destructive mutation pattern.",
+        )
+
+    if re.search(r"(^|[\\/\s])\.\.([\\/\s]|$)", command):
+        return _build_write_policy_violation(
+            command=command,
+            execution_dir=execution_dir,
+            task_root=task_root,
+            reason="parent_traversal_not_allowed",
+            detail="Parent-directory traversal is not allowed for mutating shell commands.",
+        )
+
+    tokens = _tokenize_path_candidates(command)
+    if not tokens:
+        return _build_write_policy_violation(
+            command=command,
+            execution_dir=execution_dir,
+            task_root=task_root,
+            reason="no_path_targets_detected",
+            detail=(
+                "Mutating command has no explicit path targets; refusing to execute because "
+                "write destination cannot be verified."
+            ),
+        )
+
+    outside: list[str] = []
+    unresolved_dynamic: list[str] = []
+    resolved_any = False
+    for token in tokens:
+        if not token:
+            continue
+        if token.startswith(("$", "%")):
+            unresolved_dynamic.append(token)
+            continue
+        resolved = _resolve_candidate_path(token, execution_dir)
+        if resolved is None:
+            continue
+        resolved_any = True
+        try:
+            resolved.relative_to(task_root)
+        except ValueError:
+            outside.append(str(resolved))
+
+    if unresolved_dynamic:
+        return _build_write_policy_violation(
+            command=command,
+            execution_dir=execution_dir,
+            task_root=task_root,
+            reason="dynamic_path_not_allowed",
+            detail=(
+                "Mutating command uses environment-variable path targets that cannot be safely verified."
+            ),
+            candidates=unresolved_dynamic[:20],
+        )
+
+    if outside:
+        return _build_write_policy_violation(
+            command=command,
+            execution_dir=execution_dir,
+            task_root=task_root,
+            reason="write_target_outside_task_root",
+            detail="One or more write targets resolve outside the allowed task workspace.",
+            candidates=outside[:20],
+        )
+
+    if not resolved_any:
+        return _build_write_policy_violation(
+            command=command,
+            execution_dir=execution_dir,
+            task_root=task_root,
+            reason="path_resolution_failed",
+            detail=(
+                "Mutating command did not expose any verifiable filesystem target paths. "
+                "Use explicit relative paths to proceed."
+            ),
+        )
+    return None
+
+
 def describe_environment() -> dict:
     shell_info = _detect_shell(shell_preference="auto")
     return {
@@ -277,6 +510,7 @@ def run_shell_command(
     shell_preference: str = "auto",
     reject_on_shell_mismatch: bool = True,
     auto_switch_shell: bool = True,
+    enforce_workspace_write_policy: Optional[bool] = None,
 ) -> dict:
     """Execute a shell command using the best available local shell for the host OS."""
     pref_error = _validate_shell_preference(shell_preference)
@@ -287,6 +521,11 @@ def run_shell_command(
     execution_dir = Path(requested_dir).resolve()
     reject_mismatch = _normalize_bool(reject_on_shell_mismatch, True)
     auto_switch = _normalize_bool(auto_switch_shell, True)
+    enforce_write_policy = (
+        bool(os.environ.get("OVERLORD11_TASK_DIR"))
+        if enforce_workspace_write_policy is None
+        else _normalize_bool(enforce_workspace_write_policy, True)
+    )
     shell_info, style, switched = _select_shell_for_command(
         command=command,
         shell_preference=shell_preference,
@@ -334,6 +573,12 @@ def run_shell_command(
             shell_info=shell_info,
             style=style,
         )
+    if enforce_write_policy:
+        policy_violation = _enforce_workspace_write_policy(command=command, execution_dir=execution_dir)
+        if policy_violation is not None:
+            policy_violation["shell"] = shell_info
+            policy_violation["command_style"] = style
+            return policy_violation
 
     run_env = os.environ.copy()
     for key, value in (env or {}).items():

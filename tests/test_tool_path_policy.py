@@ -40,7 +40,7 @@ class ToolPathPolicyTests(unittest.TestCase):
             self.assertIsInstance(violation, dict)
             self.assertEqual(violation.get("reason"), "shell_parent_traversal_blocked")
 
-    def test_shell_post_write_audit_blocks_write_outside_task_root(self):
+    def test_shell_preexec_policy_blocks_write_outside_task_root(self):
         ex = self._executor()
         repo_root = Path(__file__).resolve().parent.parent
         outside_path = repo_root / f"_tmp_shell_audit_{uuid.uuid4().hex}.txt"
@@ -52,9 +52,36 @@ class ToolPathPolicyTests(unittest.TestCase):
             self.assertEqual(result.get("status"), "error")
             payload = result.get("result")
             self.assertIsInstance(payload, dict)
-            self.assertEqual(payload.get("reason"), "shell_write_outside_task_root")
+            self.assertEqual(payload.get("error"), "ShellWritePolicyViolation")
+            self.assertEqual(payload.get("policy_reason"), "write_target_outside_task_root")
+            self.assertIn("allowed task workspace", payload.get("stderr", "").lower())
+            self.assertFalse(outside_path.exists())
         if outside_path.exists():
             outside_path.unlink()
+
+    def test_shell_mutation_inside_task_root_is_allowed(self):
+        ex = self._executor()
+        with tempfile.TemporaryDirectory() as td:
+            ex.set_runtime_context(session_id="test", task_dir=Path(td))
+            (Path(td) / "output").mkdir(parents=True, exist_ok=True)
+            cmd = 'Set-Content -LiteralPath "local_ok.txt" -Value "hello"'
+            result = ex.execute(ToolCall(tool_name="run_shell_command", params={"command": cmd}))
+            self.assertEqual(result.get("status"), "success")
+            target = Path(td).resolve() / "output" / "local_ok.txt"
+            self.assertTrue(target.exists())
+
+    def test_shell_dynamic_env_write_target_is_blocked(self):
+        ex = self._executor()
+        with tempfile.TemporaryDirectory() as td:
+            ex.set_runtime_context(session_id="test", task_dir=Path(td))
+            (Path(td) / "output").mkdir(parents=True, exist_ok=True)
+            cmd = 'Set-Content -Path "$env:TEMP\\outside_guard.txt" -Value "x"'
+            result = ex.execute(ToolCall(tool_name="run_shell_command", params={"command": cmd}))
+            self.assertEqual(result.get("status"), "error")
+            payload = result.get("result")
+            self.assertIsInstance(payload, dict)
+            self.assertEqual(payload.get("error"), "ShellWritePolicyViolation")
+            self.assertEqual(payload.get("policy_reason"), "dynamic_path_not_allowed")
 
     def test_shell_inner_error_is_propagated_as_error_status(self):
         ex = self._executor()

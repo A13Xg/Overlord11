@@ -44,6 +44,11 @@
         "description": "If true (default), automatically switch to a compatible available shell when style mismatch is detected.",
         "default": true
       },
+      "enforce_workspace_write_policy": {
+        "type": "boolean",
+        "description": "When true, mutating shell commands must use verifiable write targets inside OVERLORD11_TASK_DIR. If omitted, defaults to true when task context is present.",
+        "default": true
+      },
       "describe_environment": {
         "type": "boolean",
         "description": "If true, prefix output with a summary of the current shell environment (OS, shell, env vars).",

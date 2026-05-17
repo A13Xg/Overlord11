@@ -394,7 +394,46 @@ class ToolExecutor:
             return False
 
     def _deny(self, reason: str, **extra: Any) -> dict:
-        out = {"status": "policy_violation", "reason": reason}
+        reason_messages = {
+            "memory_path_not_allowlisted": (
+                "Memory writes are restricted to canonical persistent memory files.",
+                "Use Consciousness.md or Memory.md through consciousness_tool.",
+            ),
+            "write_outside_task_root": (
+                "Write target resolves outside the active task workspace.",
+                "Use a relative path under ./output for generated files.",
+            ),
+            "write_to_blocked_control_plane_path": (
+                "Direct writes to control-plane files are blocked in enforce mode.",
+                "Persist user deliverables in the task workspace/output directory.",
+            ),
+            "shell_workdir_outside_task_root": (
+                "Shell working directory resolves outside task workspace.",
+                "Run shell commands in the task workspace (default) or a subdirectory within it.",
+            ),
+            "shell_parent_traversal_blocked": (
+                "Parent traversal is blocked for shell commands in enforce mode.",
+                "Use explicit relative paths that stay inside the task workspace.",
+            ),
+            "shell_control_plane_target_blocked": (
+                "Shell command references blocked control-plane paths.",
+                "Avoid touching config/runtime files; operate only inside task workspace output.",
+            ),
+            "shell_write_outside_task_root": (
+                "Shell command changed files outside task workspace (detected by audit).",
+                "Restrict command targets to paths under the active task workspace.",
+            ),
+        }
+        message, hint = reason_messages.get(
+            reason,
+            ("Tool policy enforcement blocked this operation.", "Review tool parameters and workspace-relative paths."),
+        )
+        out = {
+            "status": "policy_violation",
+            "reason": reason,
+            "message": message,
+            "hint": hint,
+        }
         out.update(extra)
         return out
 

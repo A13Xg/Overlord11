@@ -51,6 +51,7 @@ Non-trivial tasks must execute parseable tool calls. Prose-only non-trivial resp
 - New jobs default to `TRY DIFFERENT MODEL` rate-limit behavior.
 - New jobs default to auto-start enabled; when disabled, jobs are created queued for manual start.
 - Shell execution defaults to strict style guards with environment-aware shell preference (`reject_on_shell_mismatch=true`, `auto_switch_shell=true`).
+- In task context, mutating shell commands are pre-validated so write targets must resolve inside `OVERLORD11_TASK_DIR` before execution (`enforce_workspace_write_policy=true`).
 
 ## Stabilization Gate
 
