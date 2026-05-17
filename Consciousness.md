@@ -77,10 +77,10 @@ _No active signals._
 
 ### [PERSISTENT] Execution Environment Profile
 - **Source**: SYSTEM
-- **Created**: 2026-04-13 00:05
+- **Created**: 2026-05-17 02:01
 - **TTL**: persistent
 - **Status**: ACTIVE
-- **Context**: Runtime host is Windows 11 on AMD64. Shell type: cmd; Python 3.14.4. Available tools: git, python, python3, pip, pip3, node, npm, curl.
+- **Context**: Runtime host is Windows 11 on AMD64. Shell type: cmd; Python 3.14.4. Available tools: git, python, python3, pip, pip3, node, npm, rg, curl.
 - **Action**: Use Windows shell syntax (backslashes, %VAR%, etc.). Check available_tools list before calling run_shell_command with tools that may not be installed.
 
 ### [PERSISTENT] Active Model Configuration
@@ -242,5 +242,9 @@ To prevent context runaway:
 2. Read Work In Progress (already being done?)
 3. Read Pending Handoffs (can I help?)
 4. Read Cross-Agent Signals (relevant context?)
+
+---
+
+
 
 ---

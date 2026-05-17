@@ -430,6 +430,14 @@
       "max_concurrent_jobs": 3,
       "max_concurrent_tools": 4
     },
+    "model_fallback_policy": {
+      "description": "Selected model always attempted first; remaining models ranked by competency + quota fit + recent health",
+      "free_tier_assumption_when_unknown": true,
+      "free_tier_snapshot_date": "2026-05-17",
+      "competency_weight": 0.6,
+      "quota_weight": 0.3,
+      "health_weight": 0.1
+    },
     "rate_limit": {
       "action": "pause",
       "initial_wait_s": 300,

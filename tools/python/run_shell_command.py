@@ -2,56 +2,255 @@ import argparse
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 from pathlib import Path
 from typing import Optional
 
 
-def _detect_shell() -> dict:
+def _available_shells() -> dict[str, dict]:
     system_name = platform.system().lower()
     shell_env = os.environ.get("SHELL") or os.environ.get("COMSPEC") or ""
+    shells: dict[str, dict] = {}
+
+    def _add_shell(shell_name: str, executable: str, args: list[str]) -> None:
+        resolved = executable if os.path.isabs(executable) else shutil.which(executable)
+        if resolved:
+            shells[shell_name] = {
+                "name": shell_name,
+                "path": resolved,
+                "argv_prefix": [resolved, *args],
+                "shell_env": shell_env,
+                "platform": system_name,
+            }
 
     if system_name == "windows":
-        for shell_name, executable, args in (
-            ("powershell", "powershell.exe", ["-NoProfile", "-Command"]),
-            ("pwsh", "pwsh", ["-NoProfile", "-Command"]),
-            ("cmd", "cmd.exe", ["/C"]),
-        ):
-            resolved = shutil.which(executable)
-            if resolved:
-                return {
-                    "name": shell_name,
-                    "path": resolved,
-                    "argv_prefix": [resolved, *args],
-                    "shell_env": shell_env,
-                    "platform": system_name,
-                }
+        _add_shell("powershell", "powershell.exe", ["-NoProfile", "-Command"])
+        _add_shell("pwsh", "pwsh", ["-NoProfile", "-Command"])
+        _add_shell("cmd", "cmd.exe", ["/C"])
+        # Optional POSIX-style shells on Windows (e.g., Git Bash / MSYS)
+        _add_shell("bash", "bash", ["-lc"])
+        _add_shell("sh", "sh", ["-lc"])
     else:
-        for shell_name in (shell_env, "bash", "sh"):
+        for shell_name in (shell_env, "bash", "zsh", "sh"):
             if not shell_name:
                 continue
-            executable = shell_name if os.path.isabs(shell_name) else shutil.which(shell_name)
-            if executable:
-                return {
-                    "name": Path(executable).name,
-                    "path": executable,
-                    "argv_prefix": [executable, "-lc"],
-                    "shell_env": shell_env,
-                    "platform": system_name,
-                }
+            executable = shell_name if os.path.isabs(shell_name) else shell_name
+            key = Path(executable).name.lower() if os.path.isabs(executable) else shell_name.lower()
+            _add_shell(key, executable, ["-lc"])
+    return shells
+
+
+def _detect_shell(shell_preference: str = "auto") -> dict:
+    shells = _available_shells()
+    preference = (shell_preference or "auto").strip().lower()
+    if preference != "auto" and preference in shells:
+        return shells[preference]
+
+    # Deterministic default order.
+    default_order = (
+        ["powershell", "pwsh", "cmd", "bash", "sh"]
+        if platform.system().lower() == "windows"
+        else ["bash", "zsh", "sh"]
+    )
+    for name in default_order:
+        if name in shells:
+            return shells[name]
+    if shells:
+        return next(iter(shells.values()))
 
     return {
         "name": "unknown",
         "path": None,
         "argv_prefix": [],
-        "shell_env": shell_env,
-        "platform": system_name,
+        "shell_env": os.environ.get("SHELL") or os.environ.get("COMSPEC") or "",
+        "platform": platform.system().lower(),
+    }
+
+
+def _shell_family(shell_name: str) -> str:
+    name = (shell_name or "").lower()
+    if name in {"powershell", "pwsh"}:
+        return "powershell"
+    if name == "cmd":
+        return "cmd"
+    if name in {"bash", "sh", "zsh"}:
+        return "posix"
+    return "unknown"
+
+
+def _detect_command_style(command: str) -> dict:
+    cmd = command or ""
+    reasons: list[str] = []
+    scores = {"powershell": 0, "cmd": 0, "posix": 0}
+
+    patterns = {
+        "powershell": [
+            r"\$env:[A-Za-z_]\w*",
+            r"\b(Get|Set|Remove|Copy|Move|Test)-[A-Za-z]+\b",
+            r"\bWhere-Object\b",
+            r"\bSelect-String\b",
+            r"\bOut-File\b",
+            r"-LiteralPath\b",
+        ],
+        "cmd": [
+            r"%[A-Za-z_]\w*%",
+            r"(^|\s)dir(\s|$)",
+            r"(^|\s)findstr(\s|$)",
+            r"(^|\s)copy(\s|$)",
+            r"(^|\s)del(\s|$)",
+            r"(^|\s)type(\s|$)",
+            r"(^|\s)set\s+[A-Za-z_]\w*=",
+        ],
+        "posix": [
+            r"\$\{?[A-Za-z_]\w*\}?",
+            r"(^|\s)export\s+[A-Za-z_]\w*=",
+            r"(^|\s)(ls|grep|sed|awk|chmod|chown|sudo|pwd|touch)\b",
+            r"/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)+",
+            r"(^|\s)\./[A-Za-z0-9._/-]+",
+        ],
+    }
+
+    for style, regs in patterns.items():
+        for rx in regs:
+            if re.search(rx, cmd):
+                scores[style] += 1
+                reasons.append(f"{style}:{rx}")
+
+    style = "unknown"
+    best_score = 0
+    for key in ("powershell", "cmd", "posix"):
+        if scores[key] > best_score:
+            best_score = scores[key]
+            style = key
+
+    return {
+        "style": style,
+        "score": best_score,
+        "reasons": reasons[:8],
+    }
+
+
+def _is_style_compatible(command_style: str, shell_name: str) -> bool:
+    if command_style == "unknown":
+        return True
+    family = _shell_family(shell_name)
+    if command_style == "powershell":
+        return family == "powershell"
+    if command_style == "cmd":
+        return family == "cmd"
+    if command_style == "posix":
+        return family == "posix"
+    return True
+
+
+def _find_compatible_shell(command_style: str, preferred: str = "auto") -> Optional[dict]:
+    shells = _available_shells()
+    preference = (preferred or "auto").strip().lower()
+    if preference != "auto" and preference in shells:
+        candidate = shells[preference]
+        if _is_style_compatible(command_style, candidate.get("name", "")):
+            return candidate
+
+    for candidate in shells.values():
+        if _is_style_compatible(command_style, candidate.get("name", "")):
+            return candidate
+    return None
+
+
+def _shell_mismatch_hint(command_style: str, shell_name: str) -> str:
+    if command_style == "posix":
+        return (
+            f"Detected POSIX-style command but active shell is '{shell_name}'. "
+            "Use bash/sh syntax only with bash/sh; otherwise translate command to PowerShell/cmd."
+        )
+    if command_style == "powershell":
+        return (
+            f"Detected PowerShell-style command but active shell is '{shell_name}'. "
+            "Use cmd/bash syntax only with those shells, or switch shell_preference to powershell/pwsh."
+        )
+    if command_style == "cmd":
+        return (
+            f"Detected cmd-style command but active shell is '{shell_name}'. "
+            "Use shell_preference='cmd' or translate command to PowerShell."
+        )
+    return "Command style could not be determined."
+
+
+def _normalize_bool(value: object, default: bool) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() not in {"0", "false", "no", "off"}
+    return bool(value)
+
+
+def _validate_shell_preference(shell_preference: str) -> Optional[dict]:
+    allowed = {"auto", "powershell", "pwsh", "cmd", "bash", "sh", "zsh"}
+    pref = (shell_preference or "auto").strip().lower()
+    if pref not in allowed:
+        return {
+            "status": "error",
+            "command": "",
+            "directory": str(Path(".").resolve()),
+            "stdout": "(empty)",
+            "stderr": f"Invalid shell_preference: {shell_preference}",
+            "error": "InvalidShellPreference",
+            "hint": f"Use one of: {', '.join(sorted(allowed))}",
+            "exit_code": 2,
+            "shell": _detect_shell(),
+            "environment": describe_environment(),
+        }
+    return None
+
+
+def _select_shell_for_command(
+    command: str,
+    shell_preference: str,
+    auto_switch_shell: bool,
+) -> tuple[dict, dict, bool]:
+    shell_info = _detect_shell(shell_preference=shell_preference)
+    style = _detect_command_style(command)
+    switched = False
+    if style["style"] != "unknown" and not _is_style_compatible(style["style"], shell_info.get("name", "")):
+        if auto_switch_shell:
+            compatible = _find_compatible_shell(style["style"], preferred=shell_preference)
+            if compatible is not None and compatible.get("name") != shell_info.get("name"):
+                shell_info = compatible
+                switched = True
+    return shell_info, style, switched
+
+
+def _build_mismatch_response(
+    *,
+    command: str,
+    execution_dir: Path,
+    shell_info: dict,
+    style: dict,
+) -> dict:
+    return {
+        "status": "error",
+        "command": command,
+        "directory": str(execution_dir),
+        "stdout": "(empty)",
+        "stderr": (
+            f"Shell/command mismatch: detected '{style.get('style')}' style, "
+            f"selected shell '{shell_info.get('name')}'."
+        ),
+        "error": "ShellStyleMismatch",
+        "hint": _shell_mismatch_hint(style.get("style", "unknown"), shell_info.get("name", "unknown")),
+        "exit_code": 2,
+        "shell": shell_info,
+        "environment": describe_environment(),
+        "command_style": style,
     }
 
 
 def describe_environment() -> dict:
-    shell_info = _detect_shell()
+    shell_info = _detect_shell(shell_preference="auto")
     return {
         "platform": platform.platform(),
         "system": platform.system(),
@@ -75,11 +274,24 @@ def run_shell_command(
     timeout_seconds: int = 60,
     env: Optional[dict] = None,
     dir_path: Optional[str] = None,
+    shell_preference: str = "auto",
+    reject_on_shell_mismatch: bool = True,
+    auto_switch_shell: bool = True,
 ) -> dict:
     """Execute a shell command using the best available local shell for the host OS."""
-    shell_info = _detect_shell()
+    pref_error = _validate_shell_preference(shell_preference)
+    if pref_error is not None:
+        return pref_error
+
     requested_dir = dir_path or working_dir or "."
     execution_dir = Path(requested_dir).resolve()
+    reject_mismatch = _normalize_bool(reject_on_shell_mismatch, True)
+    auto_switch = _normalize_bool(auto_switch_shell, True)
+    shell_info, style, switched = _select_shell_for_command(
+        command=command,
+        shell_preference=shell_preference,
+        auto_switch_shell=auto_switch,
+    )
 
     if not execution_dir.is_dir():
         return {
@@ -93,6 +305,7 @@ def run_shell_command(
             "exit_code": 1,
             "shell": shell_info,
             "environment": describe_environment(),
+            "command_style": style,
         }
 
     if not shell_info["path"]:
@@ -107,7 +320,20 @@ def run_shell_command(
             "exit_code": 1,
             "shell": shell_info,
             "environment": describe_environment(),
+            "command_style": style,
         }
+
+    style_mismatch = (
+        style.get("style") != "unknown"
+        and not _is_style_compatible(style.get("style", "unknown"), shell_info.get("name", "unknown"))
+    )
+    if style_mismatch and reject_mismatch:
+        return _build_mismatch_response(
+            command=command,
+            execution_dir=execution_dir,
+            shell_info=shell_info,
+            style=style,
+        )
 
     run_env = os.environ.copy()
     for key, value in (env or {}).items():
@@ -153,18 +379,25 @@ def run_shell_command(
         "exit_code": exit_code,
         "shell": shell_info,
         "environment": describe_environment(),
+        "command_style": style,
+        "shell_switched_for_style": switched,
+        "style_mismatch_detected": style_mismatch,
+        "style_mismatch_hint": _shell_mismatch_hint(style.get("style", "unknown"), shell_info.get("name", "unknown"))
+        if style_mismatch else "",
     }
 
 
 def main(**kwargs):
     # ToolExecutor calls main(**params) directly. Never invoke argparse in this path.
     if kwargs is not None:
-        command = kwargs.get("command")
+        direct_kwargs = dict(kwargs)
+        include_env = bool(direct_kwargs.pop("describe_environment", False))
+        command = direct_kwargs.get("command")
         if not command:
             return {
                 "status": "error",
                 "command": "",
-                "directory": str(Path(kwargs.get("working_dir", ".")).resolve()),
+                "directory": str(Path(direct_kwargs.get("working_dir", ".")).resolve()),
                 "stdout": "(empty)",
                 "stderr": "Missing required parameter: command",
                 "error": "MissingCommand",
@@ -173,7 +406,10 @@ def main(**kwargs):
                 "shell": _detect_shell(),
                 "environment": describe_environment(),
             }
-        return run_shell_command(**kwargs)
+        result = run_shell_command(**direct_kwargs)
+        if include_env:
+            result["environment"] = describe_environment()
+        return result
 
 
 def cli_main():
@@ -184,6 +420,9 @@ def cli_main():
     parser.add_argument("--env", default="{}")
     parser.add_argument("--dir_path", default=None)
     parser.add_argument("--describe_environment", action="store_true")
+    parser.add_argument("--shell_preference", default="auto")
+    parser.add_argument("--reject_on_shell_mismatch", default="false")
+    parser.add_argument("--auto_switch_shell", default="true")
     args = parser.parse_args()
 
     if args.describe_environment:
@@ -197,6 +436,9 @@ def cli_main():
         timeout_seconds=args.timeout_seconds,
         env=env,
         dir_path=args.dir_path,
+        shell_preference=args.shell_preference,
+        reject_on_shell_mismatch=args.reject_on_shell_mismatch.lower() not in {"0", "false", "no", "off"},
+        auto_switch_shell=args.auto_switch_shell.lower() not in {"0", "false", "no", "off"},
     )
     print(json.dumps(result, indent=2))
 

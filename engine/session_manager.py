@@ -273,9 +273,16 @@ class EngineSession:
         if not output_text:
             return None
         extension = ".html" if "<html" in output_text.lower() else ".md"
-        relative_path = f"final_output{extension}"
+        relative_path = f"answer{extension}"
         self.write_artifact(relative_path, output_text)
+        # Backward-compatible copy for older tooling that still expects final_output.*
+        self.write_artifact(f"final_output{extension}", output_text)
         return relative_path
+
+    def write_job_summary(self, summary: dict) -> str:
+        """Write canonical per-job summary metadata for UI/debug consumers."""
+        payload = json.dumps(summary, indent=2, ensure_ascii=False, default=str)
+        return self.write_artifact("artifacts/logs/job_summary.json", payload)
 
     # ------------------------------------------------------------------
     # Introspection

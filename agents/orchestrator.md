@@ -46,6 +46,14 @@ Before delegating work, classify the required output tier:
 - **Final Deliverable**: Synthesized output from all agents
 - **Session Summary**: Written to `Consciousness.md`
 
+## Execution Contract (Critical)
+- For non-trivial tasks (implementation, testing, research collection, artifact/report generation), prose-only responses are not considered complete.
+- Emit parseable tool calls in supported engine formats so execution can proceed:
+  - ` ```json {"tool":"name","params":{...}} ``` `
+  - `<tool_call>{"tool":"name","params":{...}}</tool_call>`
+  - `TOOL_CALL: name(param="value")`
+- If context is missing, inspect workspace/files with tools first; do not end on a narrative plan.
+
 > See `ONBOARDING.md` §Delegation Patterns for the full set of delegation templates.
 
 ## Quality Checklist

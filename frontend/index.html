@@ -232,6 +232,35 @@ body::after {
 @keyframes blink { 50% { opacity: 0; } }
 .exec-section { background: var(--panel); border: 1px solid var(--border); padding: 10px 12px; }
 .exec-section h3 { font-size: 11px; letter-spacing: .15em; color: var(--txt2); margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+#exec-result-summary { color: var(--txt2); font-size: 12px; line-height: 1.7; }
+.result-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 4px; }
+.result-btn {
+  background: transparent; border: 1px solid var(--border); color: var(--teal);
+  padding: 4px 9px; font-family: var(--font); font-size: 11px; cursor: pointer;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.result-btn:hover { border-color: var(--teal); background: rgba(0,229,204,.08); }
+.result-files-list { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.result-file-link {
+  color: var(--txt2);
+  text-decoration: none;
+  border: 1px solid rgba(30,58,30,.45);
+  background: rgba(0,255,65,.03);
+  padding: 4px 7px;
+  font-size: 11px;
+}
+.result-file-link:hover { color: var(--teal); border-color: var(--teal); }
+.meta-link-btn {
+  background: transparent;
+  color: var(--teal);
+  border: 1px solid var(--border);
+  font-family: var(--font);
+  font-size: 10px;
+  letter-spacing: .08em;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+.meta-link-btn:hover { border-color: var(--teal); }
 #event-feed { font-size: 12px; max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
 .ev-line {
   padding: 5px 8px;
@@ -477,11 +506,25 @@ body::after {
 #modal-body { padding: 14px; overflow-y: auto; flex: 1; }
 .form-group { margin-bottom: 12px; }
 .form-group label { display: block; font-size: 11px; letter-spacing: .1em; color: var(--txt2); margin-bottom: 4px; }
-.form-group input, .form-group textarea {
+.form-group input, .form-group textarea, .form-group select {
   width: 100%; background: var(--surface); color: var(--txt); border: 1px solid var(--border);
   font-family: var(--font); font-size: 12px; padding: 6px 8px; outline: none; resize: vertical;
 }
-.form-group input:focus, .form-group textarea:focus { border-color: var(--teal); }
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--teal); }
+.form-group select { cursor: pointer; appearance: none; background-image: linear-gradient(45deg,transparent 50%,var(--txt2) 50%),linear-gradient(135deg,var(--txt2) 50%,transparent 50%); background-position: calc(100% - 16px) calc(1em + 1px), calc(100% - 11px) calc(1em + 1px); background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; padding-right: 26px; }
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--txt2);
+  font-size: 11px;
+  letter-spacing: .08em;
+}
+.checkbox-row input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: #00e5cc;
+}
 #modal-footer { padding: 10px 14px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
 .modal-btn {
   padding: 6px 16px; font-family: var(--font); font-size: 12px; letter-spacing: .08em;
@@ -912,6 +955,7 @@ body::after {
       <!-- TABS -->
       <div id="tabs">
         <button class="tab-btn active" onclick="switchTab('execution', this)">[ EXECUTION ]</button>
+        <button class="tab-btn" onclick="switchTab('result', this)">[ RESULT ]</button>
         <button class="tab-btn" onclick="switchTab('files', this)">[ FILES ]</button>
       </div>
 
@@ -935,9 +979,21 @@ body::after {
               <div id="stream-text"></div>
             </div>
             <div class="exec-section">
+              <h3>◼ RESULT</h3>
+              <div id="exec-result-summary" style="color:var(--txt3)">No resolved output yet.</div>
+            </div>
+            <div class="exec-section">
               <h3>◼ ENGINE EVENTS</h3>
               <div id="event-feed"></div>
             </div>
+          </div>
+        </div>
+
+        <!-- RESULT -->
+        <div id="tab-result" class="tab-panel">
+          <div class="exec-section">
+            <h3>◼ PRIMARY RESULT</h3>
+            <div id="result-tab-content" style="color:var(--txt3)">SELECT A JOB TO VIEW RESULT OUTPUT.</div>
           </div>
         </div>
 
@@ -1025,10 +1081,17 @@ body::after {
       <div class="form-group">
         <label>IF RATE LIMITED</label>
         <select id="new-job-rl-action">
-          <option value="pause" selected>PAUSE — wait &amp; retry (5m → 10m → 20m … max 8h)</option>
-          <option value="try_different_model">TRY DIFFERENT MODEL — wait Retry-After, use fastest available</option>
+          <option value="try_different_model" selected>TRY DIFFERENT MODEL — wait Retry-After, use fastest available</option>
+          <option value="pause">PAUSE — wait &amp; retry (5m → 10m → 20m … max 8h)</option>
           <option value="stop">STOP — fail immediately</option>
         </select>
+      </div>
+      <div class="form-group">
+        <label>START BEHAVIOR</label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="new-job-auto-start" checked>
+          AUTO START JOB IMMEDIATELY AFTER CREATION
+        </label>
       </div>
     </div>
     <div id="modal-footer">
@@ -1546,10 +1609,11 @@ function selectJob(jobId) {
 
 function updateJobControls(job) {
   const s = job.status;
-  // START is only meaningful for failed jobs (retry). Queued jobs are already
-  // in the worker queue (auto-started); re-enqueuing would double-submit them.
-  // Completed jobs should use RESTART instead.
-  document.getElementById('ctrl-start').disabled   = s !== 'failed';
+  const canManualStart =
+    s === 'failed' ||
+    (s === 'queued' && job.auto_started === false) ||
+    (s === 'paused' && job.auto_started === false);
+  document.getElementById('ctrl-start').disabled   = !canManualStart;
   document.getElementById('ctrl-pause').disabled   = s !== 'running';
   document.getElementById('ctrl-resume').disabled  = !['paused', 'rate_limited'].includes(s);
   document.getElementById('ctrl-stop').disabled    = !['running','queued','paused','rate_limited','waiting_for_dependencies'].includes(s);
@@ -1648,18 +1712,20 @@ function closeNewJobModal(e) {
   document.getElementById('modal-overlay').classList.remove('open');
   document.getElementById('new-job-title').value = '';
   document.getElementById('new-job-prompt').value = '';
-  document.getElementById('new-job-rl-action').value = 'pause';
+  document.getElementById('new-job-rl-action').value = 'try_different_model';
+  document.getElementById('new-job-auto-start').checked = true;
 }
 async function submitNewJob() {
   const title           = document.getElementById('new-job-title').value.trim();
   const prompt          = document.getElementById('new-job-prompt').value.trim();
   const rate_limit_action = document.getElementById('new-job-rl-action').value;
+  const auto_start        = !!document.getElementById('new-job-auto-start').checked;
   if (!title || !prompt) { alert('Title and prompt are required.'); return; }
   try {
     const res = await apiFetch('/api/jobs', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({title, prompt, rate_limit_action, auto_start: true})
+      body: JSON.stringify({title, prompt, rate_limit_action, auto_start})
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({detail: res.statusText}));
@@ -1673,7 +1739,8 @@ async function submitNewJob() {
     document.getElementById('modal-overlay').classList.remove('open');
     document.getElementById('new-job-title').value = '';
     document.getElementById('new-job-prompt').value = '';
-    document.getElementById('new-job-rl-action').value = 'pause';
+    document.getElementById('new-job-rl-action').value = 'try_different_model';
+    document.getElementById('new-job-auto-start').checked = true;
 
     // Handle conflict info from auto-start
     const conflict = job._conflict;
@@ -1686,10 +1753,18 @@ async function submitNewJob() {
         const ids = conflict.soft.map(id => id.slice(-6)).join(', ');
         appendFooterLog(`SOFT CONFLICT: [${job.job_id.slice(-6)}] overlaps with [${ids}] — running in parallel`);
       } else {
-        appendFooterLog(`JOB QUEUED: [${job.job_id.slice(-6)}] — ${title} — no conflicts, running immediately`);
+        appendFooterLog(
+          auto_start
+            ? `JOB QUEUED: [${job.job_id.slice(-6)}] — ${title} — no conflicts, running immediately`
+            : `JOB CREATED: [${job.job_id.slice(-6)}] — ${title} — queued, waiting for manual start`
+        );
       }
     } else {
-      appendFooterLog('JOB CREATED: ' + job.job_id + ' — ' + title);
+      appendFooterLog(
+        auto_start
+          ? ('JOB CREATED: ' + job.job_id + ' — ' + title)
+          : ('JOB CREATED (MANUAL START): ' + job.job_id + ' — ' + title)
+      );
     }
 
     // Refresh queue status pill
@@ -1751,10 +1826,128 @@ function renderExecutionPanel(job) {
     ${job.conflict_info && job.conflict_info.sequenced_after ? `<div><span style="color:var(--txt3)">SEQUENCED: </span><span style="color:#f59e0b">After [${escHtml(job.conflict_info.sequenced_after.join(', '))}]</span></div>` : ''}
     ${job.conflict_info && job.conflict_info.overlap ? `<div><span style="color:var(--txt3)">CONFLICT:  </span><span style="color:var(--txt3);font-size:10px">${escHtml(Object.values(job.conflict_info.overlap).flat().join(', '))}</span></div>` : ''}
     ${job.priority !== undefined && job.priority !== 0 ? `<div><span style="color:var(--txt3)">PRIORITY:  </span>${job.priority < 0 ? '<span style="color:var(--teal)">HIGH</span>' : '<span style="color:var(--txt2)">LOW</span>'}</div>` : ''}
+    ${job.completion_mode ? `<div><span style="color:var(--txt3)">COMPLETION:</span> ${escHtml(String(job.completion_mode).toUpperCase())}</div>` : ''}
+    ${job.tool_call_count !== undefined ? `<div><span style="color:var(--txt3)">TOOL COUNT: </span>${job.tool_call_count}</div>` : ''}
+    ${job.artifact_count !== undefined ? `<div><span style="color:var(--txt3)">ARTIFACTS:  </span>${job.artifact_count}</div>` : ''}
+    ${['completed','failed'].includes(job.status) ? `<div><span style="color:var(--txt3)">RESULT:     </span><button class="meta-link-btn" onclick="openPrimaryOutputForJob('${job.job_id}')">OPEN RESULT</button></div>` : ''}
     ${job.status === 'running' ? `<div class="progress-bar"><span>■■■□□□</span><span class="progress-label">EXECUTING…</span></div>` : ''}
   `;
 
   renderEventFeed(job.events || []);
+  renderPrimaryOutputPanel(job).catch((e) => {
+    const el = document.getElementById('exec-result-summary');
+    if (el) el.innerHTML = `<span style="color:var(--red)">RESULT RESOLVE ERROR: ${escHtml(e.message || String(e))}</span>`;
+  });
+}
+
+async function fetchPrimaryOutput(jobId) {
+  const res = await apiFetch(`/api/artifacts/${jobId}/primary-output`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({detail: res.statusText}));
+    throw new Error(err.detail || res.statusText || 'Unable to resolve output');
+  }
+  return res.json();
+}
+
+async function renderPrimaryOutputPanel(job) {
+  const panels = [
+    document.getElementById('exec-result-summary'),
+    document.getElementById('result-tab-content'),
+  ].filter(Boolean);
+  if (!panels.length) return;
+  const _setPanels = (html) => { panels.forEach((p) => { p.innerHTML = html; }); };
+  const jobId = job && job.job_id;
+  if (!jobId) {
+    panels.forEach((p) => { p.textContent = 'No resolved output yet.'; });
+    return;
+  }
+  _setPanels('<span style="color:var(--txt3)">Resolving output…</span>');
+  let data;
+  try {
+    data = await fetchPrimaryOutput(jobId);
+  } catch (e) {
+    _setPanels(`<span style="color:var(--red)">Unable to resolve output: ${escHtml(e.message || String(e))}</span>`);
+    return;
+  }
+
+  const outputFiles = Array.isArray(data.output_files) ? data.output_files : [];
+  const fileLinks = outputFiles.slice(0, 8).map((f) => {
+    const rel = f.relative_path || f.name || '';
+    const enc = encodeURIComponent(rel);
+    return `<a class="result-file-link" href="#" onclick="openArtifactPathEncoded('${jobId}','${enc}');return false;">${escHtml(rel)}</a>`;
+  }).join('');
+
+  if (data.mode === 'file' && data.primary) {
+    const rel = data.primary.relative_path;
+    const relEnc = encodeURIComponent(rel);
+    const actions = `
+      <div class="result-actions">
+        <button class="result-btn" onclick="openArtifactPathEncoded('${jobId}','${relEnc}')">OPEN</button>
+        <button class="result-btn" onclick="downloadArtifactPathEncoded('${jobId}','${relEnc}')">DOWNLOAD</button>
+        <button class="result-btn" onclick="switchToFilesAndSelectEncoded('${jobId}','${relEnc}')">OPEN IN FILES</button>
+      </div>
+    `;
+    _setPanels(`
+      <div><span style="color:var(--txt3)">PRIMARY OUTPUT:</span> ${escHtml(rel)}</div>
+      <div><span style="color:var(--txt3)">MODE:</span> ${escHtml((job.completion_mode || 'unknown').toUpperCase())}</div>
+      ${actions}
+      ${fileLinks ? `<div class="result-files-list">${fileLinks}</div>` : ''}
+    `);
+    return;
+  }
+
+  const dirHint = data.directory || 'output';
+  _setPanels(`
+    <div><span style="color:var(--txt3)">No single answer file resolved.</span></div>
+    <div><span style="color:var(--txt3)">Fallback:</span> Browse <code>${escHtml(dirHint)}</code> in FILES.</div>
+    <div class="result-actions">
+      <button class="result-btn" onclick="activateTab('files');renderFilesPanel('${jobId}')">OPEN FILES</button>
+      <button class="result-btn" onclick="downloadWorkspaceZip()">DOWNLOAD ZIP</button>
+    </div>
+    ${fileLinks ? `<div class="result-files-list">${fileLinks}</div>` : ''}
+  `);
+}
+
+async function openPrimaryOutputForJob(jobId) {
+  if (!jobId) return;
+  try {
+    const data = await fetchPrimaryOutput(jobId);
+    if (data.mode === 'file' && data.primary && data.primary.relative_path) {
+      openArtifactPath(jobId, data.primary.relative_path);
+      return;
+    }
+    activateTab('files');
+    if (selectedJobId !== jobId) selectJob(jobId);
+    await renderFilesPanel(jobId);
+  } catch (e) {
+    appendFooterLog('ERROR resolving primary output: ' + (e.message || String(e)));
+  }
+}
+
+function downloadArtifactPath(jobId, relativePath) {
+  const a = document.createElement('a');
+  a.href = artifactFileUrl(jobId, relativePath);
+  a.download = (relativePath || '').split('/').pop() || 'artifact';
+  a.click();
+}
+
+function openArtifactPathEncoded(jobId, encodedPath) {
+  return openArtifactPath(jobId, decodeURIComponent(encodedPath || ''));
+}
+
+function downloadArtifactPathEncoded(jobId, encodedPath) {
+  return downloadArtifactPath(jobId, decodeURIComponent(encodedPath || ''));
+}
+
+async function switchToFilesAndSelect(jobId, relativePath) {
+  if (selectedJobId !== jobId) selectJob(jobId);
+  activateTab('files');
+  await renderFilesPanel(jobId);
+  _ftSelectFile(jobId, relativePath, true);
+}
+
+async function switchToFilesAndSelectEncoded(jobId, encodedPath) {
+  return switchToFilesAndSelect(jobId, decodeURIComponent(encodedPath || ''));
 }
 
 function renderEventFeed(events) {
@@ -2243,6 +2436,12 @@ function switchTab(name, btn) {
   if (name === 'files' && selectedJobId) renderFilesPanel(selectedJobId);
 }
 
+function activateTab(name) {
+  const btn = Array.from(document.querySelectorAll('.tab-btn'))
+    .find((b) => (b.getAttribute('onclick') || '').includes(`'${name}'`));
+  if (btn) switchTab(name, btn);
+}
+
 /* ═══════════════════════════════════════════════════════
    SSE
 ═══════════════════════════════════════════════════════ */
@@ -2625,6 +2824,10 @@ function clearContentPanels() {
   document.getElementById('exec-empty').style.display = '';
   document.getElementById('exec-info').style.display = 'none';
   document.getElementById('event-feed').innerHTML = '';
+  const rs = document.getElementById('exec-result-summary');
+  if (rs) rs.textContent = 'No resolved output yet.';
+  const rt = document.getElementById('result-tab-content');
+  if (rt) rt.textContent = 'SELECT A JOB TO VIEW RESULT OUTPUT.';
   // Reset file explorer
   _ftJobId = null; _ftArtifacts = []; _ftSelectedPath = null;
   const tb = document.getElementById('file-tree-body');

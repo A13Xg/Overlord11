@@ -46,7 +46,7 @@ _VALID_RL_ACTIONS = {"pause", "stop", "try_different_model"}
 class CreateJobRequest(BaseModel):
     title: str
     prompt: str
-    rate_limit_action: str = "pause"   # "pause" | "stop" | "try_different_model"
+    rate_limit_action: str = "try_different_model"   # "pause" | "stop" | "try_different_model"
     auto_start: bool = True            # auto-enqueue immediately after creation
     depends_on: List[str] = []         # explicit prerequisite job IDs (optional)
     priority: int = 0                  # 0=normal, -1=high, 1=low
@@ -69,7 +69,7 @@ async def queue_status(_session: dict = Depends(require_auth)):
 
 @router.post("", status_code=201)
 async def create_job(req: CreateJobRequest, _session: dict = Depends(require_auth)):
-    action = req.rate_limit_action if req.rate_limit_action in _VALID_RL_ACTIONS else "pause"
+    action = req.rate_limit_action if req.rate_limit_action in _VALID_RL_ACTIONS else "try_different_model"
 
     # Pre-extract resource domains so conflict detection happens before creation
     domains = extract_domains(req.prompt.strip(), req.title.strip())
@@ -115,6 +115,18 @@ async def get_job(job_id: str, _session: dict = Depends(require_auth)):
 @router.delete("/{job_id}", status_code=204)
 async def delete_job(job_id: str, _session: dict = Depends(require_auth)):
     _validate_job_id(job_id)
+    job = store.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    archive_result = store.archive_job_workspace(job)
+    if archive_result.get("errors"):
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Failed to archive job workspace during delete",
+                "archive": archive_result,
+            },
+        )
     if not store.delete_job(job_id):
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -130,10 +142,13 @@ async def start_job(job_id: str, _session: dict = Depends(require_auth)):
         raise HTTPException(status_code=409, detail="Job is already running")
     if job.status == JobStatus.COMPLETED:
         raise HTTPException(status_code=409, detail="Job already completed")
-    if job.status == JobStatus.QUEUED:
+    if job.status == JobStatus.QUEUED and job.auto_started:
         raise HTTPException(status_code=409, detail="Job is already queued — use STOP then START to re-queue")
     store.update_job(job_id, status=JobStatus.QUEUED)
     bridge.enqueue(job_id)
+    # Once manually started, treat the job as actively queued/runnable.
+    if not job.auto_started:
+        store.update_job(job_id, auto_started=True)
     broadcaster.publish(job_id, {
         "type": "STATUS",
         "job_id": job_id,

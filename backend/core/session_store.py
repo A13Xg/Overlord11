@@ -5,6 +5,7 @@ Session store — in-memory + file-backed job/session state.
 import json
 import os
 import secrets
+import shutil
 import threading
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -14,6 +15,7 @@ from typing import List, Optional
 
 _BASE_DIR = Path(__file__).resolve().parent.parent.parent
 _WORKSPACE_DIR = _BASE_DIR / "workspace"
+_ARCHIVE_DIR = _WORKSPACE_DIR / "archive"
 _JOBS_FILE = _WORKSPACE_DIR / ".webui_jobs.json"
 
 
@@ -44,10 +46,11 @@ class Job:
     # Enforced by EngineBridge._wait_for_dependencies().
     depends_on: List[str] = field(default_factory=list)
     # What to do when all providers return 429: "pause" | "stop" | "try_different_model"
-    # "pause" (default): exponential backoff starting at initial_wait_s, doubling each hit, max 8 hours
+    # "try_different_model" (default): wait shortest provider Retry-After, then retry
+    # "pause": exponential backoff starting at initial_wait_s, doubling each hit, max 8 hours
     # "stop": fail the job immediately
     # "try_different_model": wait only as long as the shortest provider Retry-After, then retry
-    rate_limit_action: str = "pause"
+    rate_limit_action: str = "try_different_model"
     # Resource domains extracted by conflict_detector; used for smart sequencing.
     resource_domains: dict = field(default_factory=dict)
     # Execution priority: lower = higher priority (0 = normal, -1 = high, 1 = low)
@@ -56,6 +59,10 @@ class Job:
     auto_started: bool = True
     # Conflict info: which jobs this was sequenced behind and why
     conflict_info: dict = field(default_factory=dict)
+    # Terminal quality metadata (set by engine bridge from runner result)
+    completion_mode: Optional[str] = None  # tool_driven | direct_answer | empty_response_fail | no_effect_fail
+    tool_call_count: int = 0
+    artifact_count: int = 0
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -78,11 +85,14 @@ class Job:
             artifacts=d.get("artifacts", []),
             events=d.get("events", []),
             depends_on=d.get("depends_on", []),
-            rate_limit_action=d.get("rate_limit_action", "pause"),
+            rate_limit_action=d.get("rate_limit_action", "try_different_model"),
             resource_domains=d.get("resource_domains", {}),
             priority=d.get("priority", 0),
             auto_started=d.get("auto_started", True),
             conflict_info=d.get("conflict_info", {}),
+            completion_mode=d.get("completion_mode"),
+            tool_call_count=int(d.get("tool_call_count", 0) or 0),
+            artifact_count=int(d.get("artifact_count", 0) or 0),
         )
 
 
@@ -105,7 +115,7 @@ class SessionStore:
         title: str,
         prompt: str,
         depends_on: Optional[List[str]] = None,
-        rate_limit_action: str = "pause",
+        rate_limit_action: str = "try_different_model",
         resource_domains: Optional[dict] = None,
         priority: int = 0,
         auto_started: bool = True,
@@ -164,6 +174,57 @@ class SessionStore:
             del self._jobs[job_id]
         self.persist()
         return True
+
+    def archive_job_workspace(self, job: Job) -> dict:
+        """
+        Move any workspace directory for this job into workspace/archive/.
+
+        Returns:
+            {
+              "moved": ["/abs/path/to/archive/item", ...],
+              "candidates": ["/abs/path/source", ...],
+              "errors": ["..."]
+            }
+        """
+        _ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+        candidates: list[Path] = []
+        moved: list[str] = []
+        errors: list[str] = []
+
+        # 1) Exact session folder when present.
+        if job.session_id:
+            p = (_WORKSPACE_DIR / job.session_id).resolve()
+            if p.exists() and p.is_dir():
+                candidates.append(p)
+
+        # 2) Fallback naming pattern: <timestamp>_<jobid>[_vNN]
+        pattern = f"*_{job.job_id}*"
+        for p in _WORKSPACE_DIR.glob(pattern):
+            rp = p.resolve()
+            if rp == _ARCHIVE_DIR.resolve():
+                continue
+            if rp.is_dir() and rp not in candidates:
+                candidates.append(rp)
+
+        for src in candidates:
+            stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            target_name = f"{src.name}__deleted_{stamp}"
+            dst = (_ARCHIVE_DIR / target_name).resolve()
+            suffix = 1
+            while dst.exists():
+                suffix += 1
+                dst = (_ARCHIVE_DIR / f"{target_name}_v{suffix:02d}").resolve()
+            try:
+                shutil.move(str(src), str(dst))
+                moved.append(str(dst))
+            except OSError as exc:
+                errors.append(f"{src} -> {dst}: {exc}")
+
+        return {
+            "moved": moved,
+            "candidates": [str(p) for p in candidates],
+            "errors": errors,
+        }
 
     def append_event(self, job_id: str, event: dict) -> Optional[Job]:
         with self._lock:

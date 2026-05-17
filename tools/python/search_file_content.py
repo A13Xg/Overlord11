@@ -260,27 +260,4 @@ def main(**kwargs):
 
 
 if __name__ == "__main__":
-    # Quick self-test
-    if not os.path.exists("test_search_dir"):
-        os.makedirs("test_search_dir")
-    with open("test_search_dir/fileA.txt", "w") as f:
-        f.write("This is a test line.\nAnother test line.\nFinal line here.\n")
-    with open("test_search_dir/fileB.py", "w") as f:
-        f.write("def my_function():\n    print('Hello, world!')\n# This is a comment\n")
-
-    print("--- Searching for 'test' in test_search_dir (case-insensitive) ---")
-    print(search_file_content(pattern="test", dir_path="test_search_dir"))
-
-    print("\n--- Searching for 'line' in fileA.txt with context ---")
-    print(search_file_content(pattern="line", dir_path="test_search_dir/fileA.txt", context=1))
-
-    print("\n--- Searching for 'print' in .py files (case-sensitive) ---")
-    print(search_file_content(pattern="print", dir_path="test_search_dir", include="*.py", case_sensitive=True))
-
-    print("\n--- Searching for non-existent pattern ---")
-    print(search_file_content(pattern="nonexistent", dir_path="test_search_dir"))
-
-    # Cleanup
-    os.remove("test_search_dir/fileA.txt")
-    os.remove("test_search_dir/fileB.py")
-    os.rmdir("test_search_dir")
+    main()

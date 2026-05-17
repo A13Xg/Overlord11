@@ -125,7 +125,7 @@ Tools are implemented in `tools/python/` and registered in `config.json`.
 Every session gets an isolated directory. The engine creates this automatically before your first loop.
 
 ```
-workspace/<YYYYMMDD_HHMMSS>/
+workspace/<YYYYMMDD_HHMMSS[_JOBID]>/
 ├── ProjectOverview.md    ← task context (read at session start)
 ├── Settings.md           ← AI behavior config (read at session start)
 ├── TaskingLog.md         ← task tracking (check at session start)
@@ -147,6 +147,8 @@ workspace/<YYYYMMDD_HHMMSS>/
     │   └── timeline.jsonl← trace index
     └── app/              ← code scaffold output (scaffold_generator)
 ```
+
+Deleted jobs are moved to `workspace/archive/` for retention and postmortem review.
 
 **Rule:** All work files go inside `artifacts/`. Only the 5 context files, `final_output.md`, and any deliverables the agent explicitly produces stay at the workspace root.
 
@@ -319,6 +321,19 @@ Phases may be skipped when not needed.
 14. **Every new Python project gets a launcher** — generate `run.py` + `run.bat` + `run.command` via `launcher_generator`.
 15. **Stay in scope** — complete the delegated subtask fully; don't expand scope without notifying the Orchestrator.
 16. **Be explicit about uncertainty** — if you don't know something, say so. Don't fabricate data or code.
+17. **Tool-call contract for non-trivial execution tasks is mandatory** — if the task requires building, editing, testing, research collection, analysis with evidence, or artifact creation, you must emit at least one parseable tool call. Prose-only planning is not completion.
+18. **Supported tool-call formats only** — use one of:
+    - JSON block:
+      ```json
+      {"tool":"read_file","params":{"path":"config.json"}}
+      ```
+    - XML wrapper:
+      ```xml
+      <tool_call>{"tool":"glob","params":{"pattern":"**/*.py"}}</tool_call>
+      ```
+    - Function style:
+      `TOOL_CALL: run_shell_command(command="python -m unittest -q")`
+19. **When unsure, inspect first** — call `list_directory`, `glob`, or `read_file` to gather context before proposing final output.
 
 ---
 
@@ -339,4 +354,4 @@ If the active provider fails, the Orchestrator falls back through the order in `
 | Tool implementations | `tools/python/` |
 | Framework config | `config.json` |
 | Shared memory | `Consciousness.md`, `Memory.md` |
-| Full documentation | `docs/` |
+| Runtime docs | `README.md`, `ONBOARDING.md` |

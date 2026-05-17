@@ -489,7 +489,7 @@ class EngineBridge:
             import time
             while _check_paused():
                 time.sleep(0.5)
-            return runner.run(job.prompt, job_id=job_id)
+            return runner.run(job.prompt, job_id=job_id, job_title=job.title)
 
         try:
             result = await loop.run_in_executor(None, _run_sync)
@@ -512,18 +512,34 @@ class EngineBridge:
             stop_event.set()
             self._job_stop_events.pop(job_id, None)
 
+        result_status = str(result.get("status", "") or "").lower()
+        is_complete = result_status == "complete"
+        job_status = JobStatus.COMPLETED if is_complete else JobStatus.FAILED
+        completion_mode = result.get("completion_mode")
+        tool_call_count = int(result.get("tool_call_count", 0) or 0)
+        artifact_count = int(result.get("artifact_count", 0) or 0)
+        error_msg = result.get("error") if not is_complete else None
+
         store.update_job(
             job_id,
-            status=JobStatus.COMPLETED,
+            status=job_status,
             output=result.get("output", ""),
             session_id=result.get("session_id"),
+            error=error_msg,
+            completion_mode=completion_mode,
+            tool_call_count=tool_call_count,
+            artifact_count=artifact_count,
             completed_at=datetime.now(timezone.utc).isoformat(),
         )
         broadcaster.publish(job_id, {
             "type": "JOB_COMPLETE",
             "job_id": job_id,
-            "status": JobStatus.COMPLETED.value,
+            "status": job_status.value,
             "session_id": result.get("session_id"),
+            "completion_mode": completion_mode,
+            "tool_call_count": tool_call_count,
+            "artifact_count": artifact_count,
+            "error": error_msg,
         })
 
     def enqueue(self, job_id: str) -> None:

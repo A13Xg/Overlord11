@@ -6,6 +6,7 @@ Core execution loop for the Overlord11 engine.
 
 import json
 import random
+import re
 import sys
 import threading
 import time
@@ -87,6 +88,7 @@ class EngineRunner:
         user_input: str,
         session_id: Optional[str] = None,
         job_id: Optional[str] = None,
+        job_title: Optional[str] = None,
         agent_id: str = "OVR_DIR_01",
         streaming: bool = True,
     ) -> dict:
@@ -136,16 +138,43 @@ class EngineRunner:
 
         # Build initial system prompt and message history
         system_prompt = self._bridge.build_system_prompt(agent_id)
+        shell_type = str((system_profile.get("shell") or {}).get("type") or "auto").lower()
+        shell_pref = "powershell" if shell_type in {"powershell", "cmd"} else shell_type
+        if shell_pref not in {"powershell", "pwsh", "cmd", "bash", "sh", "zsh"}:
+            shell_pref = "auto"
+        syntax_hint = (
+            "Use Windows shell syntax and commands."
+            if shell_type in {"powershell", "cmd"}
+            else "Use POSIX shell syntax and commands."
+        )
         system_prompt = (
             system_prompt
             + "\n\n---\n\n"
             + "Execution environment profile:\n"
             + json.dumps(system_profile, indent=2, ensure_ascii=False)
+            + "\n\nRuntime execution requirements:\n"
+            + f"- Active shell family: {shell_type}\n"
+            + f"- {syntax_hint}\n"
+            + "- For run_shell_command, explicitly set parameters:\n"
+            + f"  shell_preference=\"{shell_pref}\", reject_on_shell_mismatch=true, auto_switch_shell=true\n"
+            + "- Any deliverable file intended for users should be written inside ./output and named answer.<ext> when possible (e.g., answer.md, answer.html, answer.png)."
         )
         messages = [{"role": "user", "content": user_input}]
 
         final_output = ""
         status = "max_loops_reached"
+        completion_mode = "no_effect_fail"
+        failure_reason = ""
+        total_tool_call_count = 0
+        artifact_count = 0
+        had_effectful_tool_success = False
+        no_tool_retry_count = 0
+        observed_dir_path: Optional[str] = None
+        observed_dir_entries: set[str] = set()
+        max_no_tool_retries = (
+            self._config.get("orchestration", {})
+            .get("no_tool_retries_for_nontrivial", 2)
+        )
         loop = 0
 
         while loop < max_loops:
@@ -275,6 +304,19 @@ class EngineRunner:
             if response is None:
                 break
 
+            if not response or not response.strip():
+                failure_reason = "empty_model_response"
+                completion_mode = "empty_response_fail"
+                status = "failed"
+                self.events.emit(
+                    EventType.ERROR,
+                    session_id=sid,
+                    loop=loop,
+                    message=failure_reason,
+                )
+                session.log_event("error", {"message": failure_reason, "loop": loop})
+                break
+
             agent_log = session.log_agent(agent_id, messages[-1].get("content", ""), response)
             self.events.emit(
                 EventType.AGENT_COMPLETE,
@@ -285,6 +327,7 @@ class EngineRunner:
             )
 
             tool_calls = extract_tool_calls(response)
+            total_tool_call_count += len(tool_calls)
             cycle = session.log_agent_cycle(
                 agent_id=agent_id,
                 loop=loop,
@@ -308,9 +351,62 @@ class EngineRunner:
 
             # Check for tool calls
             if not tool_calls:
-                # No tools → done
-                final_output = response
-                status = "complete"
+                format_issue = self._detect_tool_format_issue(response)
+                if self._is_non_trivial_prompt(user_input):
+                    if (
+                        had_effectful_tool_success
+                        and not format_issue
+                        and self._is_effective_nontrivial_completion(
+                            response,
+                            observed_dir_path=observed_dir_path,
+                            observed_entries=observed_dir_entries,
+                        )
+                    ):
+                        final_output = response
+                        status = "complete"
+                        completion_mode = "tool_driven"
+                        break
+                    if no_tool_retry_count < max_no_tool_retries:
+                        no_tool_retry_count += 1
+                        guidance = (
+                            "SYSTEM REQUIREMENT: For non-trivial execution tasks you must emit at least one "
+                            "parseable tool call in supported format. Prose-only planning is not completion. "
+                            "Use one of: ```json {\"tool\":\"name\",\"params\":{...}}```, "
+                            "<tool_call>{\"tool\":\"name\",\"params\":{...}}</tool_call>, "
+                            "TOOL_CALL: name(param=\"value\"), or TOOL_CODE: name(param=\"value\")."
+                        )
+                        if format_issue:
+                            guidance += (
+                                f" Detected invalid tool-call format ({format_issue}). "
+                                "Do not use pseudo tags like <tool_code> or <execute_bash>."
+                            )
+                        messages.append({
+                            "role": "user",
+                            "content": guidance,
+                        })
+                        continue
+
+                    failure_reason = "invalid_tool_call_format" if format_issue else "no_effect_completion"
+                    completion_mode = "no_effect_fail"
+                    status = "failed"
+                    self.events.emit(
+                        EventType.ERROR,
+                        session_id=sid,
+                        loop=loop,
+                        message=failure_reason,
+                    )
+                    session.log_event("error", {"message": failure_reason, "loop": loop})
+                    break
+
+                # Trivial/direct-answer path
+                if self.detect_completion(response) or self._is_trivial_direct_answer(user_input, response):
+                    final_output = response
+                    status = "complete"
+                    completion_mode = "direct_answer"
+                    break
+                failure_reason = "no_effect_completion"
+                completion_mode = "no_effect_fail"
+                status = "failed"
                 break
 
             # Execute tool calls with dependency-aware parallelism.
@@ -331,6 +427,14 @@ class EngineRunner:
                 session_log_fn=session.log_tool_call,
             )
             tool_results = [result for _tc, result in ordered_pairs]
+            had_effectful_tool_success = had_effectful_tool_success or any(
+                self._is_effectful_tool_result(result) for result in tool_results
+            )
+            observed_dir_path, observed_dir_entries = self._update_observed_directory_snapshot(
+                ordered_pairs=ordered_pairs,
+                prior_path=observed_dir_path,
+                prior_entries=observed_dir_entries,
+            )
 
             # Inject tool results into context
             messages = self._bridge.build_context(messages, tool_results)
@@ -365,14 +469,35 @@ class EngineRunner:
         self.events.emit(EventType.SESSION_END, session_id=sid, status=status, loops=loop)
         output_path = session.log_product_output(final_output or (messages[-1].get("content", "") if messages else ""))
         if output_path:
+            artifact_count += 1
             self.events.emit(EventType.ARTIFACT_CREATED, session_id=sid, category="output", path=output_path)
+        if status == "complete" and completion_mode != "direct_answer":
+            completion_mode = "tool_driven"
+        output_text = final_output or (messages[-1].get("content", "") if messages else "")
+        summary = {
+            "job_id": job_id,
+            "job_title": job_title or user_input[:120],
+            "session_id": sid,
+            "status": status,
+            "completion_mode": completion_mode,
+            "tool_call_count": total_tool_call_count,
+            "artifact_count": artifact_count,
+            "error": failure_reason or None,
+            "output_preview": output_text[:300],
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        session.write_job_summary(summary)
         session.close(status=status)
 
         return {
             "session_id": sid,
-            "output": final_output or (messages[-1].get("content", "") if messages else ""),
+            "output": output_text,
             "events": self.events.get_events(),
             "status": status,
+            "error": failure_reason or None,
+            "completion_mode": completion_mode,
+            "tool_call_count": total_tool_call_count,
+            "artifact_count": artifact_count,
         }
 
     # ------------------------------------------------------------------
@@ -397,6 +522,8 @@ class EngineRunner:
         tool_calls = extract_tool_calls(response)
         if tool_calls:
             return False
+        if self._is_intermediate_or_handoff_response(response):
+            return False
         # Heuristic: if response ends with typical closing phrases it's done
         lowered = response.lower().strip()
         completion_signals = [
@@ -408,4 +535,168 @@ class EngineRunner:
             "i am done",
             "the task is done",
         ]
-        return any(sig in lowered for sig in completion_signals) or len(lowered) > 50
+        return any(sig in lowered for sig in completion_signals)
+
+    def _is_non_trivial_prompt(self, prompt: str) -> bool:
+        """
+        Heuristic for tasks that should not complete with prose-only output.
+        """
+        lowered = (prompt or "").lower()
+        if len(lowered.strip()) > 160:
+            return True
+        keywords = (
+            "create", "build", "implement", "generate", "write code", "refactor",
+            "run tests", "analyze", "research", "report", "html", "artifact",
+            "security review", "scan", "fix",
+        )
+        return any(k in lowered for k in keywords)
+
+    def _is_trivial_direct_answer(self, prompt: str, response: str) -> bool:
+        """
+        Permit concise answers for simple prompts without requiring verbose
+        completion phrases.
+        """
+        if self._is_non_trivial_prompt(prompt):
+            return False
+        text = (response or "").strip()
+        if not text:
+            return False
+        lowered = text.lower()
+        disallowed_prefixes = (
+            "i will",
+            "i'll",
+            "let me",
+            "next,",
+            "plan:",
+            "step 1",
+            "todo",
+        )
+        if any(lowered.startswith(prefix) for prefix in disallowed_prefixes):
+            return False
+        # Simple direct responses are often short and factual.
+        return len(text) <= 120
+
+    def _is_effectful_tool_result(self, result: dict) -> bool:
+        """
+        True when a tool call appears to have produced usable output.
+        """
+        if not isinstance(result, dict):
+            return False
+        if result.get("status") != "success":
+            return False
+        payload = result.get("result")
+        if payload is None:
+            return False
+        if isinstance(payload, dict) and str(payload.get("status", "")).lower() == "error":
+            return False
+        if isinstance(payload, str):
+            parsed = self._try_parse_json(payload)
+            if isinstance(parsed, dict) and str(parsed.get("status", "")).lower() == "error":
+                return False
+            return bool(payload.strip())
+        if isinstance(payload, (list, tuple, set, dict)):
+            return len(payload) > 0
+        return True
+
+    def _try_parse_json(self, text: str) -> Optional[dict]:
+        try:
+            obj = json.loads(text)
+            if isinstance(obj, dict):
+                return obj
+        except Exception:
+            return None
+        return None
+
+    def _detect_tool_format_issue(self, response: str) -> Optional[str]:
+        lowered = (response or "").lower()
+        if "<tool_code>" in lowered or "</tool_code>" in lowered:
+            return "pseudo_tool_code_tag"
+        if "<execute_bash>" in lowered or "</execute_bash>" in lowered:
+            return "pseudo_execute_bash_tag"
+        return None
+
+    def _is_intermediate_or_handoff_response(self, response: str) -> bool:
+        lowered = (response or "").lower()
+        markers = (
+            "<execute_task",
+            "i am delegating",
+            "delegating the",
+            "delegation plan",
+            "your task is to",
+            "ovr_cod_",
+            "ovr_res_",
+            "ovr_rev_",
+            "simulate the handoff",
+            "as there is no new task provided",
+        )
+        return any(marker in lowered for marker in markers)
+
+    def _is_effective_nontrivial_completion(
+        self,
+        response: str,
+        *,
+        observed_dir_path: Optional[str],
+        observed_entries: set[str],
+    ) -> bool:
+        text = (response or "").strip()
+        if not text:
+            return False
+        if self._is_intermediate_or_handoff_response(text):
+            return False
+        if self._detect_tool_format_issue(text):
+            return False
+        # Prevent claiming repository-root verification when only scripts/ was observed.
+        lowered = text.lower()
+        claims_repo_structure = any(k in lowered for k in ("agents/", "tools/", "docs/"))
+        if claims_repo_structure and observed_entries:
+            required = {"agents", "tools", "docs"}
+            if not required.issubset({e.lower() for e in observed_entries}):
+                return False
+        if observed_dir_path and observed_dir_path.lower().endswith("\\scripts"):
+            if "project root" in lowered and "scripts" not in lowered:
+                return False
+        # Must include either completion language or meaningful artifact/result details.
+        completion_signals = (
+            "completed",
+            "task complete",
+            "successfully",
+            "created",
+            "updated",
+            "written",
+            "report",
+            "result",
+        )
+        return any(sig in lowered for sig in completion_signals) or len(text) >= 80
+
+    def _update_observed_directory_snapshot(
+        self,
+        *,
+        ordered_pairs: list[tuple],
+        prior_path: Optional[str],
+        prior_entries: set[str],
+    ) -> tuple[Optional[str], set[str]]:
+        latest_path = prior_path
+        latest_entries = set(prior_entries)
+        for tc, result in ordered_pairs:
+            if getattr(tc, "tool_name", "") != "list_directory":
+                continue
+            if not isinstance(result, dict):
+                continue
+            if result.get("status") != "success":
+                continue
+            payload = result.get("result")
+            parsed = payload if isinstance(payload, dict) else self._try_parse_json(str(payload))
+            if not isinstance(parsed, dict):
+                continue
+            p = parsed.get("path")
+            entries = parsed.get("entries", [])
+            if isinstance(p, str):
+                latest_path = p
+            if isinstance(entries, list):
+                new_entries: set[str] = set()
+                for item in entries:
+                    if isinstance(item, dict) and isinstance(item.get("name"), str):
+                        new_entries.add(item["name"])
+                if new_entries:
+                    latest_entries = new_entries
+        return latest_path, latest_entries

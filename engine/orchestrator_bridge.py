@@ -7,12 +7,13 @@ Agent context management and LLM provider calls.
 import json
 import logging
 import os
+import re
 import sys
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 try:
     from .rate_limit import AllProvidersRateLimitedError, RateLimitError, parse_retry_after
@@ -22,9 +23,31 @@ except ImportError:
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Free-tier heuristic snapshot (validated against Gemini API docs, 2026-05-17).
+# Used only when live quota telemetry is unavailable.
+_FREE_TIER_HEURISTICS: Dict[str, Dict[str, int]] = {
+    "gemini-3.1-pro": {"rpm": 2, "tpm": 250000, "rpd": 50},
+    "gemini-3-pro": {"rpm": 2, "tpm": 250000, "rpd": 50},
+    "gemini-3.1-flash": {"rpm": 8, "tpm": 250000, "rpd": 200},
+    "gemini-3-flash": {"rpm": 8, "tpm": 250000, "rpd": 200},
+    "gemini-3.1-flash-lite": {"rpm": 15, "tpm": 250000, "rpd": 800},
+    "gemini-2.5-pro": {"rpm": 5, "tpm": 250000, "rpd": 100},
+    "gemini-2.5-flash": {"rpm": 10, "tpm": 250000, "rpd": 250},
+    "gemini-2.5-flash-lite": {"rpm": 15, "tpm": 250000, "rpd": 1000},
+    "gemini-2.0-flash": {"rpm": 15, "tpm": 1000000, "rpd": 200},
+    "gemini-2.0-flash-lite": {"rpm": 30, "tpm": 1000000, "rpd": 200},
+    # Gemma 3 & 3n published row in docs.
+    "gemma-3": {"rpm": 30, "tpm": 15000, "rpd": 14400},
+    "gemma-4": {"rpm": 20, "tpm": 20000, "rpd": 12000},
+    "gemma-2": {"rpm": 20, "tpm": 15000, "rpd": 8000},
+}
+
 
 class OrchestratorBridge:
     """Manages agent prompts and provider API calls."""
+    _GLOBAL_STICKY_PROVIDER: str = ""
+    _GLOBAL_STICKY_MODEL_BY_PROVIDER: dict[str, str] = {}
+    _GLOBAL_SUPPORTED_MODELS_BY_PROVIDER: dict[str, set[str]] = {}
 
     def __init__(self, config: dict):
         self._config = config
@@ -36,9 +59,16 @@ class OrchestratorBridge:
         self._provider_diagnostics_done = False
         self._provider_availability: dict[str, bool] = {}
         self._provider_status_detail: dict[str, str] = {}
-        self._sticky_provider: str = ""
-        self._sticky_model_by_provider: dict[str, str] = {}
+        self._sticky_provider: str = OrchestratorBridge._GLOBAL_STICKY_PROVIDER
+        self._sticky_model_by_provider: dict[str, str] = dict(OrchestratorBridge._GLOBAL_STICKY_MODEL_BY_PROVIDER)
+        self._supported_models_by_provider: dict[str, set[str]] = {
+            provider: set(models)
+            for provider, models in OrchestratorBridge._GLOBAL_SUPPORTED_MODELS_BY_PROVIDER.items()
+        }
         self._logger = logging.getLogger("overlord11.providers")
+        self._model_policy = (
+            config.get("orchestration", {}).get("model_fallback_policy", {})
+        )
 
     # ------------------------------------------------------------------
     # Prompt building
@@ -84,9 +114,7 @@ class OrchestratorBridge:
             if provider_name not in order:
                 order.append(provider_name)
 
-        # Keep using the last successful provider for this task before trying defaults.
-        if self._sticky_provider and self._sticky_provider in order:
-            order = [self._sticky_provider] + [p for p in order if p != self._sticky_provider]
+        # Keep user-selected active provider as first attempt.
 
         if not self._provider_diagnostics_done:
             self._diagnose_providers(order, event_callback=event_callback)
@@ -180,9 +208,15 @@ class OrchestratorBridge:
         event_callback=None,
     ) -> str:
         """Try primary model first, then remaining available models for this provider."""
-        model_order = self._get_model_fallback_order(provider, cfg)
+        model_order = self._get_model_fallback_order(provider, cfg, messages, system)
         if not model_order:
             raise RuntimeError("no models configured")
+        self._emit_provider_trace(
+            event_callback,
+            "model_order_computed",
+            provider=provider,
+            order=model_order,
+        )
 
         model_errors: List[str] = []
         last_exc: Optional[Exception] = None
@@ -202,7 +236,7 @@ class OrchestratorBridge:
                     api_key,
                     model=model_name,
                 )
-                self._sticky_model_by_provider[provider] = model_name
+                self._set_sticky_success(provider, model_name)
                 self._provider_status_detail[provider] = f"success model {model_name}"
                 self._emit_provider_trace(event_callback, "model_success", provider=provider, model=model_name)
                 return response
@@ -234,23 +268,215 @@ class OrchestratorBridge:
         joined = "; ".join(model_errors)
         raise RuntimeError(joined or "all model attempts failed") from last_exc
 
-    def _get_model_fallback_order(self, provider: str, cfg: dict) -> List[str]:
-        """Return model order: sticky-success model first, then configured primary, then others."""
+    def _get_model_fallback_order(
+        self,
+        provider: str,
+        cfg: dict,
+        messages: Optional[List[dict]] = None,
+        system: str = "",
+    ) -> List[str]:
+        """
+        Return deterministic model order:
+        1) user-selected model first, always
+        2) remaining models sorted by competency + quota fit + health
+        """
         primary_model = cfg.get("model", "")
-        available_models = list(cfg.get("available_models", {}).keys())
-        sticky_model = self._sticky_model_by_provider.get(provider, "")
+        available_models = [m for m in cfg.get("available_models", {}).keys() if m]
+        available_models = self._filter_supported_models(provider, available_models)
+        supported = self._supported_models_by_provider.get(provider)
+        if primary_model and primary_model not in available_models and (not supported or primary_model in supported):
+            available_models.insert(0, primary_model)
+        if not available_models:
+            return [primary_model] if primary_model else []
 
-        order: List[str] = []
-        if sticky_model:
-            order.append(sticky_model)
-        if primary_model:
-            order.append(primary_model)
+        selected_first = primary_model if primary_model in available_models else available_models[0]
+        remaining = [m for m in available_models if m != selected_first]
+        estimated_tokens = self._estimate_request_tokens(messages or [], system)
 
-        for model_name in available_models:
-            if model_name and model_name not in order:
-                order.append(model_name)
+        # Policy weights with safe defaults.
+        competency_w = float(self._model_policy.get("competency_weight", 0.6))
+        quota_w = float(self._model_policy.get("quota_weight", 0.3))
+        health_w = float(self._model_policy.get("health_weight", 0.1))
 
-        return order
+        scored = []
+        for model_name in remaining:
+            competency = self._competency_score(model_name)
+            quota_fit = self._quota_fit_score(provider, model_name, estimated_tokens)
+            health = 1.0 if self._sticky_model_by_provider.get(provider) == model_name else 0.0
+            score = (competency_w * competency) + (quota_w * quota_fit) + (health_w * health)
+            tier_priority = self._fallback_tier_priority(model_name)
+            scored.append((tier_priority, -score, model_name))
+
+        scored.sort(key=lambda item: (item[0], item[1], item[2]))
+        ordered = [selected_first] + [name for _tier, _score, name in scored]
+
+        # Subsequent runs should continue from the last successful model for
+        # this provider to reduce unnecessary 429 churn and latency. If sticky
+        # fails, fallback naturally continues with selected model at index 1.
+        sticky = self._sticky_model_by_provider.get(provider, "")
+        sticky_enabled = bool(
+            self._model_policy.get("sticky_model_first_on_subsequent_runs", True)
+        )
+        if sticky_enabled and sticky and sticky in ordered and sticky != ordered[0]:
+            ordered = [sticky] + [m for m in ordered if m != sticky]
+        return ordered
+
+    def _estimate_request_tokens(self, messages: List[dict], system: str) -> int:
+        """Rough token estimate for fallback heuristics (chars/4)."""
+        text = system or ""
+        for msg in messages:
+            text += "\n" + str(msg.get("content", ""))
+        # Avoid zero to keep scoring stable.
+        return max(1, len(text) // 4)
+
+    def _competency_score(self, model_name: str) -> float:
+        """Higher is better."""
+        lower = model_name.lower()
+        if "pro" in lower:
+            return 1.0
+        if "flash" in lower and "lite" not in lower:
+            return 0.85
+        if "flash-lite" in lower or "lite" in lower:
+            return 0.7
+        if "gemma" in lower:
+            return 0.65
+        return 0.6
+
+    def _fallback_tier_priority(self, model_name: str) -> int:
+        """
+        Lower is better. Encodes the requested operational order:
+        selected model first (handled outside), then newest Pro → Flash →
+        Gemma → older families.
+        """
+        lower = (model_name or "").lower()
+        deprecated = ("deprecated" in lower) or ("-1.5-" in lower) or ("-2.0-" in lower)
+        # Prefer latest capable families first.
+        if lower.startswith("gemini-3.1-pro") or lower.startswith("gemini-3-pro"):
+            base = 0
+        elif lower.startswith("gemini-2.5-pro"):
+            base = 1
+        elif lower.startswith("gemini-3.1-flash") or lower.startswith("gemini-3-flash"):
+            base = 2
+        elif lower.startswith("gemini-2.5-flash") and "lite" not in lower:
+            base = 3
+        elif lower.startswith("gemini-3.1-flash-lite"):
+            base = 4
+        elif lower.startswith("gemini-2.5-flash-lite"):
+            base = 5
+        elif lower.startswith("gemma-4-"):
+            base = 6
+        elif lower.startswith("gemma-3-"):
+            base = 7
+        elif lower.startswith("gemma-2-"):
+            base = 8
+        elif lower.startswith("gemini-2.0-"):
+            base = 9
+        elif lower.startswith("gemini-1.5-"):
+            base = 10
+        else:
+            base = 11
+        if deprecated:
+            base += 5
+        return base
+
+    def _quota_fit_score(self, provider: str, model_name: str, estimated_tokens: int) -> float:
+        """
+        Score in [0,1]:
+          - 1.0 when estimated tokens fit comfortably within inferred free-tier TPM
+          - lower when likely to hit TPM pressure
+        """
+        limits = self._infer_model_limits(provider, model_name)
+        tpm = int(limits.get("tpm", 0))
+        if tpm <= 0:
+            return 0.5
+        if estimated_tokens <= int(tpm * 0.5):
+            return 1.0
+        if estimated_tokens <= int(tpm * 0.9):
+            return 0.75
+        if estimated_tokens <= tpm:
+            return 0.5
+        return 0.2
+
+    def _infer_model_limits(self, provider: str, model_name: str) -> Dict[str, int]:
+        """Infer limits from config metadata, then heuristics snapshot."""
+        provider_cfg = self._providers.get(provider, {})
+        meta = provider_cfg.get("model_limits", {}).get(model_name, {})
+        if isinstance(meta, dict) and meta:
+            try:
+                return {
+                    "rpm": int(meta.get("rpm", 0)),
+                    "tpm": int(meta.get("tpm", 0)),
+                    "rpd": int(meta.get("rpd", 0)),
+                }
+            except (TypeError, ValueError):
+                pass
+
+        lower = self._normalize_model_family(model_name)
+        # Exact match first.
+        if lower in _FREE_TIER_HEURISTICS:
+            return _FREE_TIER_HEURISTICS[lower]
+        # Prefix family fallback.
+        for key, limits in _FREE_TIER_HEURISTICS.items():
+            if lower.startswith(key):
+                return limits
+        # Conservative Gemma-family fallback.
+        if lower.startswith("gemma-"):
+            return _FREE_TIER_HEURISTICS["gemma-3"]
+        return {"rpm": 0, "tpm": 0, "rpd": 0}
+
+    def _normalize_model_family(self, model_name: str) -> str:
+        """
+        Normalize preview/versioned model names to stable family keys for heuristics.
+        """
+        lower = (model_name or "").lower().strip()
+        # Drop common preview/version tails.
+        lower = re.sub(r"(-preview.*)$", "", lower)
+        lower = re.sub(r"(-\d{2}-\d{4})$", "", lower)  # e.g. -09-2025
+        lower = re.sub(r"(-\d{4}-\d{2}-\d{2})$", "", lower)  # date suffixes
+
+        # Family aliases
+        if lower.startswith("gemini-2.5-flash-lite"):
+            return "gemini-2.5-flash-lite"
+        if lower.startswith("gemini-2.5-flash"):
+            return "gemini-2.5-flash"
+        if lower.startswith("gemini-2.5-pro"):
+            return "gemini-2.5-pro"
+        if lower.startswith("gemini-3.1-flash-lite"):
+            return "gemini-3.1-flash-lite"
+        if lower.startswith("gemini-3.1-flash"):
+            return "gemini-3.1-flash"
+        if lower.startswith("gemini-3-flash"):
+            return "gemini-3-flash"
+        if lower.startswith("gemini-3.1-pro"):
+            return "gemini-3.1-pro"
+        if lower.startswith("gemini-3-pro"):
+            return "gemini-3-pro"
+        if lower.startswith("gemini-2.0-flash-lite"):
+            return "gemini-2.0-flash-lite"
+        if lower.startswith("gemini-2.0-flash"):
+            return "gemini-2.0-flash"
+        if lower.startswith("gemma-"):
+            if lower.startswith("gemma-4-"):
+                return "gemma-4"
+            if lower.startswith("gemma-2-"):
+                return "gemma-2"
+            return "gemma-3"
+        return lower
+
+    def _set_sticky_success(self, provider: str, model: str) -> None:
+        self._sticky_provider = provider
+        self._sticky_model_by_provider[provider] = model
+        OrchestratorBridge._GLOBAL_STICKY_PROVIDER = provider
+        OrchestratorBridge._GLOBAL_STICKY_MODEL_BY_PROVIDER[provider] = model
+
+    def _filter_supported_models(self, provider: str, models: List[str]) -> List[str]:
+        supported = self._supported_models_by_provider.get(provider)
+        if not supported:
+            return list(models)
+        filtered = [m for m in models if m in supported]
+        # If no configured model survives filtering, keep original list so we
+        # still attempt something rather than hard-failing config drift.
+        return filtered or list(models)
 
     # ------------------------------------------------------------------
     # Anthropic
@@ -369,9 +595,6 @@ class OrchestratorBridge:
         for p in configured:
             if p not in order:
                 order.append(p)
-        if self._sticky_provider and self._sticky_provider in order:
-            order = [self._sticky_provider] + [p for p in order if p != self._sticky_provider]
-
         if not self._provider_diagnostics_done:
             self._diagnose_providers(order, event_callback=event_callback)
 
@@ -392,7 +615,13 @@ class OrchestratorBridge:
 
             attempted_providers.add(provider_name)
             try:
-                model_order = self._get_model_fallback_order(provider_name, provider_cfg)
+                model_order = self._get_model_fallback_order(provider_name, provider_cfg, messages, system)
+                self._emit_provider_trace(
+                    event_callback,
+                    "model_order_computed",
+                    provider=provider_name,
+                    order=model_order,
+                )
                 rate_limited_models: dict = {}
 
                 for model_name in model_order:
@@ -405,8 +634,7 @@ class OrchestratorBridge:
                             provider_name, provider_cfg, messages, system,
                             api_key, model_name, token_callback,
                         )
-                        self._sticky_provider = provider_name
-                        self._sticky_model_by_provider[provider_name] = model_name
+                        self._set_sticky_success(provider_name, model_name)
                         return result
                     except urllib.error.HTTPError as exc:
                         if exc.code == 429:
@@ -680,7 +908,15 @@ class OrchestratorBridge:
             if provider == "gemini":
                 api_base = cfg.get("api_base", "https://generativelanguage.googleapis.com/v1beta")
                 url = f"{api_base}/models?key={api_key}"
-                self._http_get(url, {})
+                data = self._http_get(url, {})
+                names = {
+                    str(item.get("name", "")).replace("models/", "")
+                    for item in data.get("models", [])
+                    if isinstance(item, dict) and item.get("name")
+                }
+                if names:
+                    self._supported_models_by_provider["gemini"] = names
+                    OrchestratorBridge._GLOBAL_SUPPORTED_MODELS_BY_PROVIDER["gemini"] = set(names)
                 return True, "models endpoint ok"
 
             if provider == "openai":

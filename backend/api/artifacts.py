@@ -73,6 +73,100 @@ def _iter_artifact_files(root: Path):
                 yield subdir, entry
 
 
+def _artifact_item_from_entry(root: Path, category: str, entry: Path) -> dict:
+    stat = entry.stat()
+    ext = entry.suffix.lstrip(".").lower()
+    rel = str(entry.relative_to(root)).replace("\\", "/")
+    return {
+        "name": entry.name,
+        "relative_path": rel,
+        "category": category,
+        "size": stat.st_size,
+        "mtime": stat.st_mtime,
+        "ext": ext,
+        "is_html": ext in ("html", "htm"),
+        "is_image": ext in ("png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"),
+    }
+
+
+def _collect_artifacts(root: Path) -> list[dict]:
+    items: list[dict] = []
+    for category, entry in _iter_artifact_files(root):
+        items.append(_artifact_item_from_entry(root, category, entry))
+    return items
+
+
+_OUTPUT_EXT_PRIORITY = {
+    "html": 0,
+    "htm": 1,
+    "pdf": 2,
+    "png": 3,
+    "jpg": 4,
+    "jpeg": 5,
+    "webp": 6,
+    "gif": 7,
+    "svg": 8,
+    "md": 9,
+    "txt": 10,
+    "json": 11,
+    "csv": 12,
+    "zip": 13,
+}
+
+
+def _is_primary_output_candidate(item: dict) -> bool:
+    cat = (item.get("category") or "").lower()
+    rel = (item.get("relative_path") or "").lower()
+    name = (item.get("name") or "").lower()
+    ext = (item.get("ext") or "").lower()
+    if name.startswith("answer."):
+        return True
+    if name.startswith("final_output."):
+        return True
+    if cat in {"product", "output", "outputs"}:
+        return True
+    if ext in _OUTPUT_EXT_PRIORITY:
+        return True
+    if rel.startswith("output/") or rel.startswith("outputs/"):
+        return True
+    return False
+
+
+def _output_rank(item: dict) -> tuple:
+    name = (item.get("name") or "").lower()
+    rel = (item.get("relative_path") or "").lower()
+    cat = (item.get("category") or "").lower()
+    ext = (item.get("ext") or "").lower()
+    # Lower is better
+    if name.startswith("answer."):
+        bucket = 0
+    elif name.startswith("final_output."):
+        bucket = 1
+    elif cat == "product":
+        bucket = 2
+    elif cat in {"output", "outputs"}:
+        bucket = 3
+    elif rel.startswith("output/") or rel.startswith("outputs/"):
+        bucket = 4
+    elif item.get("is_html"):
+        bucket = 5
+    elif item.get("is_image"):
+        bucket = 6
+    else:
+        bucket = 7
+    ext_rank = _OUTPUT_EXT_PRIORITY.get(ext, 999)
+    # Prefer newest for ties.
+    mtime_rank = -float(item.get("mtime") or 0.0)
+    return (bucket, ext_rank, mtime_rank, rel)
+
+
+def _select_primary_output(items: list[dict]) -> Optional[dict]:
+    candidates = [it for it in items if _is_primary_output_candidate(it)]
+    if not candidates:
+        return None
+    return sorted(candidates, key=_output_rank)[0]
+
+
 def _resolve_relative_artifact(root: Path, relative_path: str) -> Path:
     target = (root / relative_path).resolve()
     try:
@@ -165,21 +259,82 @@ async def list_artifacts(job_id: str):
     if not session_root.exists():
         return []
 
-    items = []
-    for category, entry in _iter_artifact_files(session_root):
-        stat = entry.stat()
-        ext = entry.suffix.lstrip(".").lower()
-        items.append({
-            "name": entry.name,
-            "relative_path": str(entry.relative_to(session_root)).replace("\\", "/"),
-            "category": category,
-            "size": stat.st_size,
-            "mtime": stat.st_mtime,
-            "ext": ext,
-            "is_html": ext in ("html", "htm"),
-            "is_image": ext in ("png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"),
-        })
-    return items
+    return _collect_artifacts(session_root)
+
+
+@router.get("/{job_id}/primary-output")
+async def get_primary_output(job_id: str):
+    """
+    Resolve the most user-visible result artifact for a job.
+
+    Priority:
+    1) answer.* files
+    2) final_output.*
+    3) product/output(s) category files
+    4) previewable html/image/text-like artifacts
+    5) fallback to output directory hint
+    """
+    _validate_job_id(job_id)
+    job = store.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    session_root = _session_root(job)
+    if not session_root.exists():
+        raise HTTPException(status_code=404, detail="Session workspace not found")
+
+    items = _collect_artifacts(session_root)
+    if not items:
+        return {
+            "status": "empty",
+            "mode": "directory",
+            "job_id": job_id,
+            "session_id": job.session_id,
+            "directory": "output",
+            "download_url": f"/api/artifacts/{job_id}/download/workspace.zip",
+            "message": "No artifacts found yet.",
+        }
+
+    output_items = [
+        it for it in items
+        if (it.get("category") or "").lower() in {"product", "output", "outputs"}
+        or (it.get("relative_path") or "").lower().startswith(("output/", "outputs/"))
+    ]
+    primary = _select_primary_output(items)
+    if primary is not None:
+        rel = primary["relative_path"]
+        ext = (primary.get("ext") or "").lower()
+        previewable = bool(
+            primary.get("is_html")
+            or primary.get("is_image")
+            or ext in {"md", "txt", "json", "csv", "pdf"}
+        )
+        return {
+            "status": "ok",
+            "mode": "file",
+            "job_id": job_id,
+            "session_id": job.session_id,
+            "primary": primary,
+            "previewable": previewable,
+            "file_url": f"/api/artifacts/{job_id}/file/{rel}",
+            "download_url": f"/api/artifacts/{job_id}/file/{rel}",
+            "artifacts_url": f"/api/artifacts/{job_id}",
+            "workspace_zip_url": f"/api/artifacts/{job_id}/download/workspace.zip",
+            "output_files": sorted(output_items, key=_output_rank)[:25],
+        }
+
+    # Fallback to output directory hint when no single primary file can be inferred.
+    has_output_dir = any((session_root / d).exists() for d in ("output", "outputs"))
+    return {
+        "status": "ok",
+        "mode": "directory",
+        "job_id": job_id,
+        "session_id": job.session_id,
+        "directory": "output" if has_output_dir else ".",
+        "artifacts_url": f"/api/artifacts/{job_id}",
+        "workspace_zip_url": f"/api/artifacts/{job_id}/download/workspace.zip",
+        "output_files": sorted(output_items, key=_output_rank)[:25],
+    }
 
 
 @router.get("/{job_id}/{name}")
