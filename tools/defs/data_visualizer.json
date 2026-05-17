@@ -1,0 +1,50 @@
+{
+  "name": "data_visualizer",
+  "description": "Generate interactive, self-contained HTML visualizations from structured data. Produces a single .html file with embedded canvas-based charts — no external dependencies, works offline. Supports bar, line, pie, scatter, heatmap, timeline, and multi-chart dashboard layouts.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Chart type to generate.",
+        "enum": ["bar", "line", "pie", "scatter", "heatmap", "timeline", "dashboard"]
+      },
+      "data": {
+        "type": "string",
+        "description": "JSON string containing the chart data. Accepted formats vary by chart type — see tool docs. One of 'data' or 'data_file' is required."
+      },
+      "data_file": {
+        "type": "string",
+        "description": "Absolute path to a .json or .csv file. The file is loaded and parsed automatically. One of 'data' or 'data_file' is required."
+      },
+      "title": {
+        "type": "string",
+        "description": "Chart or dashboard title displayed at the top of the output. Default: 'Visualization'.",
+        "default": "Visualization"
+      },
+      "x_field": {
+        "type": "string",
+        "description": "For bar/line/scatter: field name in each data record to use as the X axis / label. Auto-detected if omitted."
+      },
+      "y_field": {
+        "type": "string",
+        "description": "For bar/line/scatter: field name(s) to use as Y values. Comma-separate multiple names for multi-series charts (e.g. 'sales,costs'). Auto-detected if omitted."
+      },
+      "color_scheme": {
+        "type": "string",
+        "description": "Color palette for the visualization.",
+        "enum": ["tactical", "dark", "vibrant", "light"],
+        "default": "tactical"
+      },
+      "output_path": {
+        "type": "string",
+        "description": "Absolute path where the .html file is written. Defaults to the current working directory."
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Optional session ID for log_manager integration."
+      }
+    },
+    "required": ["action"]
+  }
+}

@@ -37,7 +37,10 @@ def _rotate_log(log_path: Path, max_size_mb: int = 50, rotation_count: int = 5):
     """Rotate log file if it exceeds max size."""
     if not log_path.exists():
         return
-    size_mb = log_path.stat().st_size / (1024 * 1024)
+    try:
+        size_mb = log_path.stat().st_size / (1024 * 1024)
+    except OSError:
+        return  # Can't stat file; skip rotation and let the write proceed
     if size_mb < max_size_mb:
         return
     # Shift existing rotations
@@ -45,10 +48,16 @@ def _rotate_log(log_path: Path, max_size_mb: int = 50, rotation_count: int = 5):
         older = log_path.with_suffix(f".{i}.jsonl")
         newer = log_path.with_suffix(f".{i-1}.jsonl") if i > 1 else log_path
         if newer.exists():
-            newer.rename(older)
+            try:
+                newer.rename(older)
+            except OSError:
+                pass  # Best-effort rotation; don't block the write
     # Current becomes .1
     if log_path.exists():
-        log_path.rename(log_path.with_suffix(".1.jsonl"))
+        try:
+            log_path.rename(log_path.with_suffix(".1.jsonl"))
+        except OSError:
+            pass  # Best-effort; write will append to the oversized log
 
 
 def _write_entry(entry: dict, session_id: str = None):

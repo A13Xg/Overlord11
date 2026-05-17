@@ -28,6 +28,10 @@
         "items": { "type": "string" },
         "description": "Additional glob patterns to treat as temporary/deletable files.",
         "default": []
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session ID for log_manager integration. Auto-injected by the engine."
       }
     },
     "required": ["action", "target_dir"]

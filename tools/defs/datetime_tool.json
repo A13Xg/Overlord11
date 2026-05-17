@@ -1,0 +1,64 @@
+{
+  "name": "datetime_tool",
+  "description": "Parse, format, calculate, and convert dates and times. Zero external dependencies (pure stdlib). Use to get the current timestamp, parse date strings, compute deadlines, measure durations between events, or convert between timezones. All operations return structured data suitable for further processing.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Operation to perform. now: current date/time in multiple formats. parse: parse a date string to structured fields. format: reformat a date/time string. add: add a duration to a datetime. subtract: subtract a duration. diff: calculate time between two datetimes. convert: convert timezone. timestamp: convert between Unix timestamps and datetimes. validate: check if a string is a valid date/time.",
+        "enum": ["now", "parse", "format", "add", "subtract", "diff", "convert", "timestamp", "validate"]
+      },
+      "input": {
+        "type": "string",
+        "description": "Date/time string to operate on. Accepts ISO 8601 (YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS), common locale formats (MM/DD/YYYY), and natural formats (January 15, 2024)."
+      },
+      "start": {
+        "type": "string",
+        "description": "Start date/time string for the diff action."
+      },
+      "end": {
+        "type": "string",
+        "description": "End date/time string for the diff action."
+      },
+      "output_format": {
+        "type": "string",
+        "description": "strftime format string for the format action (e.g., '%B %d, %Y', '%Y/%m/%d %H:%M', '%I:%M %p'). See Python strftime reference for codes."
+      },
+      "days": {
+        "type": "number",
+        "description": "Days to add or subtract. Fractions allowed.",
+        "default": 0
+      },
+      "hours": {
+        "type": "number",
+        "description": "Hours to add or subtract.",
+        "default": 0
+      },
+      "minutes": {
+        "type": "number",
+        "description": "Minutes to add or subtract.",
+        "default": 0
+      },
+      "seconds": {
+        "type": "number",
+        "description": "Seconds to add or subtract.",
+        "default": 0
+      },
+      "weeks": {
+        "type": "number",
+        "description": "Weeks to add or subtract.",
+        "default": 0
+      },
+      "timezone_name": {
+        "type": "string",
+        "description": "Target timezone for the convert action. Use 'UTC', 'UTC+5', 'UTC-8', or named zones like 'America/New_York' (requires pytz)."
+      },
+      "unix_timestamp": {
+        "type": "number",
+        "description": "Unix epoch timestamp (seconds since 1970-01-01) for the timestamp action. Converts to a human-readable datetime."
+      }
+    },
+    "required": ["action"]
+  }
+}

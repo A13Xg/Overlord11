@@ -1,17 +1,29 @@
 {
   "name": "task_manager",
-  "description": "Manages the standardized TaskingLog.md file within the sandboxed project directory. Supports adding tasks, subtasks, marking complete, updating status, and querying the current task list. Ensures no duplicate work across agent sessions.",
+  "description": "Manages the standardized TaskingLog.md file at the root of the active task directory. Supports adding tasks, subtasks, marking complete, updating status, and querying the current task list. Ensures no duplicate work across agent sessions.",
   "parameters": {
     "type": "object",
     "properties": {
       "action": {
         "type": "string",
         "description": "Action to perform on the task log.",
-        "enum": ["add_task", "add_subtask", "complete_task", "complete_subtask", "update_status", "query", "init"]
+        "enum": [
+          "add_task",
+          "add_subtask",
+          "complete_task",
+          "complete_subtask",
+          "update_status",
+          "query",
+          "init"
+        ]
       },
       "project_dir": {
         "type": "string",
-        "description": "Absolute path to the sandboxed project directory containing TaskingLog.md."
+        "description": "Absolute path to the task directory containing TaskingLog.md."
+      },
+      "task_dir": {
+        "type": "string",
+        "description": "Alias for project_dir."
       },
       "task_id": {
         "type": "string",
@@ -33,7 +45,12 @@
       "priority": {
         "type": "string",
         "description": "Task priority level.",
-        "enum": ["critical", "high", "medium", "low"],
+        "enum": [
+          "critical",
+          "high",
+          "medium",
+          "low"
+        ],
         "default": "medium"
       },
       "assigned_agent": {
@@ -44,15 +61,28 @@
       "status": {
         "type": "string",
         "description": "Status for update_status action.",
-        "enum": ["pending", "in_progress", "blocked", "completed", "skipped"],
+        "enum": [
+          "pending",
+          "in_progress",
+          "blocked",
+          "completed",
+          "skipped"
+        ],
         "default": "pending"
       },
       "note": {
         "type": "string",
         "description": "Optional note to attach to the status update.",
         "default": ""
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session ID for log_manager integration. Auto-injected by the engine."
       }
     },
-    "required": ["action", "project_dir"]
+    "required": [
+      "action",
+      "project_dir"
+    ]
   }
 }

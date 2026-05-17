@@ -7,7 +7,7 @@ JSON profile of the project.
 
 Usage:
     python project_scanner.py --path /path/to/project
-    python project_scanner.py --path . --depth 3
+    python project_scanner.py --path . --max_depth 3
     python project_scanner.py --path . --output scan_result.json
 """
 
@@ -145,7 +145,11 @@ def scan_project(root_path: str, max_depth: int = 5) -> dict:
     """Perform a deep scan of a project directory."""
     root = Path(root_path).resolve()
     if not root.exists():
-        return {"error": f"Path does not exist: {root}"}
+        return {
+            "status": "error",
+            "error": f"Path does not exist: {root}",
+            "hint": "Verify the path with list_directory or provide an absolute path.",
+        }
 
     start_time = time.time()
 
@@ -370,7 +374,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="Overlord11 Project Scanner")
     parser.add_argument("--path", default=".", help="Project root path to scan")
-    parser.add_argument("--depth", type=int, default=5, help="Max directory depth")
+    parser.add_argument("--max_depth", type=int, default=5, help="Max directory depth")
     parser.add_argument("--output", default=None, help="Write result to JSON file")
     parser.add_argument("--session_id", default=None, help="Session ID for logging")
     parser.add_argument("--compact", action="store_true", help="Compact JSON output")
@@ -379,14 +383,14 @@ def main():
     session_id = args.session_id or "unset"
 
     start = time.time()
-    result = scan_project(args.path, max_depth=args.depth)
+    result = scan_project(args.path, max_depth=args.max_depth)
     duration_ms = (time.time() - start) * 1000
 
     # Log the invocation
     log_tool_invocation(
         session_id=session_id,
         tool_name="project_scanner",
-        params={"path": args.path, "depth": args.depth},
+        params={"path": args.path, "max_depth": args.max_depth},
         result={"status": "error" if "error" in result else "success",
                 "files_scanned": result.get("file_stats", {}).get("total_files", 0)},
         duration_ms=duration_ms

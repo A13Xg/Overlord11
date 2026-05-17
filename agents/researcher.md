@@ -13,13 +13,6 @@ The Researcher is responsible for all information gathering, web research, sourc
 7. Persist key findings to memory using `consciousness_tool` for cross-session continuity
 8. Use `error_handler` to diagnose and resolve failures encountered during research
 
-## When to Invoke
-- When the task requires external information, documentation, or up-to-date facts
-- Before coding tasks that need library docs, API specs, or examples
-- When the Orchestrator needs background context before planning
-- When verifying claims or checking for existing solutions
-- When scanning an unfamiliar codebase for relevant context
-
 ## Workflow
 1. **Scope**: Clarify exactly what information is needed and why
 2. **Memory Check**: Use `consciousness_tool` (action: search or read_section) to check if relevant research already exists in shared memory before fetching

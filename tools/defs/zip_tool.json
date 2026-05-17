@@ -1,0 +1,47 @@
+{
+  "name": "zip_tool",
+  "description": "Create, extract, inspect, and modify ZIP archives. Use to bundle files for distribution, extract downloaded archives, or inspect archive contents without extraction. All compression methods from Python's built-in zipfile module are supported.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Operation to perform. create: create a new archive. extract: unzip to a directory. list: show archive contents with metadata. add: append files to an existing archive. remove: delete a file from an archive. info: get archive statistics.",
+        "enum": ["create", "extract", "list", "add", "remove", "info"]
+      },
+      "file": {
+        "type": "string",
+        "description": "Path to the ZIP archive file. Required for extract, list, add, remove, info."
+      },
+      "output": {
+        "type": "string",
+        "description": "Output archive path for the create action (e.g., 'dist/project.zip')."
+      },
+      "output_dir": {
+        "type": "string",
+        "description": "Directory to extract files into. Defaults to current directory. For extract action."
+      },
+      "paths": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "List of file or directory paths to include (create/add), or archive-internal filenames to delete (remove)."
+      },
+      "compression": {
+        "type": "string",
+        "description": "Compression algorithm for create/add. Defaults to deflate.",
+        "enum": ["deflate", "store", "bzip2", "lzma"],
+        "default": "deflate"
+      },
+      "overwrite": {
+        "type": "boolean",
+        "description": "Overwrite the output file if it already exists. Defaults to false.",
+        "default": false
+      },
+      "password": {
+        "type": "string",
+        "description": "Password for encrypted archives. Currently only supported for extraction."
+      }
+    },
+    "required": ["action"]
+  }
+}

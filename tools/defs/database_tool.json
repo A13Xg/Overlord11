@@ -1,0 +1,69 @@
+{
+  "name": "database_tool",
+  "description": "SQLite-backed persistent structured storage. Create tables, insert rows, run queries, update and delete data, and inspect schemas — all using a local SQLite file that persists between sessions. Ideal for structured data that needs to survive across tool calls: task lists, configuration, logs, results, state machines.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Operation to perform. create_table: define a new table. insert: add rows. select: query rows. update: modify rows. delete: remove rows. execute: run raw SQL. schema: list tables and columns. drop_table: delete a table. count: count rows.",
+        "enum": ["create_table", "insert", "select", "update", "delete", "execute", "schema", "drop_table", "count"]
+      },
+      "db": {
+        "type": "string",
+        "description": "Path to the SQLite database file. Created automatically if it does not exist. Use a consistent path across tool calls to persist data.",
+        "default": "data.db"
+      },
+      "table": {
+        "type": "string",
+        "description": "Table name to operate on. Required for most actions."
+      },
+      "columns": {
+        "type": "string",
+        "description": "Comma-separated column definitions for create_table (e.g., 'id INTEGER PRIMARY KEY, name TEXT NOT NULL, score REAL, created_at TEXT')."
+      },
+      "row": {
+        "type": "object",
+        "description": "Single row to insert as a column→value dict (e.g., {'name': 'Alice', 'score': 9.5}).",
+        "additionalProperties": {}
+      },
+      "rows": {
+        "type": "array",
+        "description": "List of row dicts for bulk insert.",
+        "items": { "type": "object" }
+      },
+      "where": {
+        "type": "string",
+        "description": "SQL WHERE clause without the 'WHERE' keyword (e.g., 'score > 8 AND name = \"Alice\"'). Used in select, update, delete, and count actions."
+      },
+      "set_values": {
+        "type": "object",
+        "description": "Column→value dict of fields to update (for update action).",
+        "additionalProperties": {}
+      },
+      "order_by": {
+        "type": "string",
+        "description": "ORDER BY clause for select (e.g., 'created_at DESC', 'score ASC')."
+      },
+      "limit": {
+        "type": "integer",
+        "description": "Maximum number of rows to return for select."
+      },
+      "sql": {
+        "type": "string",
+        "description": "Raw SQL statement for the execute action. Supports parameterized queries with ? placeholders."
+      },
+      "params": {
+        "type": "array",
+        "description": "Positional parameter list for the execute action's parameterized SQL query.",
+        "items": {}
+      },
+      "if_not_exists": {
+        "type": "boolean",
+        "description": "Use IF NOT EXISTS when creating a table to avoid errors if it already exists. Defaults to true.",
+        "default": true
+      }
+    },
+    "required": ["action"]
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "session_clean",
+  "description": "Session cleanup tool that resets Overlord11 between tasks. Purges all workspace session folders and clears active entries from Consciousness.md, while preserving Memory.md (permanent preferences/rules) and the logs/ directory (audit trail). Use at the start of a fresh task or after a completed project to ensure a clean slate. Optionally archives workspace sessions before deleting them.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Operation to perform. clean: full reset — purge workspace sessions and clear Consciousness.md active entries. purge_workspace: remove workspace session folders only. reset_consciousness: clear active entries in Consciousness.md only (keeps persistent/shared context). status: report what would be cleaned without making changes.",
+        "enum": ["clean", "purge_workspace", "reset_consciousness", "status"],
+        "default": "clean"
+      },
+      "archive": {
+        "type": "boolean",
+        "description": "Before deleting workspace sessions, move them to workspace/archive/ instead of permanently deleting. Defaults to false.",
+        "default": false
+      },
+      "older_than_days": {
+        "type": "integer",
+        "description": "Only purge workspace sessions older than this many days. Defaults to 0 (purge all sessions). Set to 7 to keep sessions from the last week.",
+        "default": 0
+      },
+      "dry_run": {
+        "type": "boolean",
+        "description": "Report what would be cleaned without making any changes. Defaults to false.",
+        "default": false
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Optional session ID for logging this cleanup to logs/master.jsonl."
+      }
+    },
+    "required": ["action"]
+  }
+}

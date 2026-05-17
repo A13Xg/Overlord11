@@ -1,0 +1,40 @@
+{
+  "name": "regex_tool",
+  "description": "Test, extract, replace, and analyze regular expressions with AI-friendly structured output. Returns full match details including capture groups, named groups, and character spans. Use to build and validate patterns iteratively, extract structured data from text, or perform targeted text substitutions.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Operation to perform. test: check if pattern matches anywhere. match: anchored match at string start. findall: all non-overlapping matches. extract: capture groups from all matches. replace: substitute matches with replacement. split: split string on pattern. validate: check pattern syntax.",
+        "enum": ["test", "match", "findall", "extract", "replace", "split", "validate"]
+      },
+      "pattern": {
+        "type": "string",
+        "description": "Regular expression pattern. Use standard Python re syntax. Named groups: (?P<name>...). Non-capturing groups: (?:...)."
+      },
+      "input": {
+        "type": "string",
+        "description": "String to search, match, or operate on. Required for all actions except validate."
+      },
+      "replacement": {
+        "type": "string",
+        "description": "Replacement string for the replace action. Supports backreferences: \\1, \\2, \\g<name>."
+      },
+      "flags": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": ["IGNORECASE", "MULTILINE", "DOTALL", "VERBOSE", "ASCII"]
+        },
+        "description": "Regex flags to apply. IGNORECASE: case-insensitive matching. MULTILINE: ^ and $ match line boundaries. DOTALL: . matches newlines. VERBOSE: allow whitespace/comments in pattern."
+      },
+      "max_matches": {
+        "type": "integer",
+        "description": "Maximum number of matches to return or process. Defaults to 100.",
+        "default": 100
+      }
+    },
+    "required": ["action", "pattern"]
+  }
+}

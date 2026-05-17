@@ -45,11 +45,13 @@ PROJECT_ROOT = SCRIPT_DIR.parent.parent
 try:
     sys.path.insert(0, str(SCRIPT_DIR))
     from log_manager import log_tool_invocation, log_error
+    from task_workspace import ensure_env_task_layout
     HAS_LOG = True
 except ImportError:
     HAS_LOG = False
     def log_tool_invocation(*a, **kw): pass
     def log_error(*a, **kw): pass
+    def ensure_env_task_layout(*a, **kw): return None
 
 # ---------------------------------------------------------------------------
 # Optional dependency probes
@@ -139,7 +141,11 @@ def screenshot(
     # Determine output path
     if output is None:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output = str(PROJECT_ROOT / "workspace" / f"screenshot_{ts}.{format}")
+        layout = ensure_env_task_layout()
+        if layout:
+            output = str(layout["tools_vision"] / f"screenshot_{ts}.{format}")
+        else:
+            output = str(PROJECT_ROOT / "workspace" / f"screenshot_{ts}.{format}")
 
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -275,12 +281,18 @@ def ocr(image_path: str) -> dict:
                 "char_count": len(text.strip()),
             }
         except Exception as exc:
-            # Fall through to base64 fallback
-            pass
+            # Tesseract failed — log and fall through to base64 fallback
+            tesseract_error = str(exc)
+            if HAS_LOG:
+                log_error("system", "vision_tool.ocr", tesseract_error)
+        else:
+            tesseract_error = None
+    else:
+        tesseract_error = None
 
     # Fallback: return base64 for LLM to perform OCR
     b64 = _image_to_b64(path)
-    return {
+    fallback = {
         "status": "ok_fallback",
         "file": str(path),
         "method": "base64_llm_fallback",
@@ -290,10 +302,13 @@ def ocr(image_path: str) -> dict:
             "Preserve formatting where possible."
         ),
         "note": (
-            "pytesseract not installed. Pass the base64 payload to a vision-capable LLM "
+            "pytesseract not installed or failed. Pass the base64 payload to a vision-capable LLM "
             "for OCR. Install: pip install pytesseract Pillow"
         ),
     }
+    if tesseract_error:
+        fallback["tesseract_error"] = tesseract_error
+    return fallback
 
 
 def list_images(directory: str, recursive: bool = False) -> dict:

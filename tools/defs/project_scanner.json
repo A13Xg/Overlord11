@@ -1,42 +1,31 @@
 {
   "name": "project_scanner",
-  "description": "Scan a project directory to produce a comprehensive structural overview: directory tree, file counts by type, detected languages and frameworks, entry points, configuration files, and dependency manifests. Essential for quickly understanding an unfamiliar codebase.",
+  "description": "Scan a project directory and return a structured summary including file tree, language breakdown, file statistics, and detected frameworks. Useful for understanding an unfamiliar codebase before making changes.",
   "parameters": {
     "type": "object",
     "properties": {
       "path": {
         "type": "string",
-        "description": "Root path of the project to scan. Defaults to the current working directory.",
+        "description": "Root directory to scan. Defaults to current working directory.",
         "default": "."
       },
       "max_depth": {
         "type": "integer",
-        "description": "Maximum directory depth to traverse. Defaults to 5.",
+        "description": "Maximum directory depth to recurse into. Default 5.",
         "default": 5
       },
-      "include_file_sizes": {
-        "type": "boolean",
-        "description": "Whether to include file sizes in the output. Defaults to true.",
-        "default": true
-      },
-      "detect_frameworks": {
-        "type": "boolean",
-        "description": "Whether to detect languages and frameworks from file contents and manifests. Defaults to true.",
-        "default": true
-      },
-      "exclude_dirs": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        },
-        "description": "Directory names to exclude from scanning. Defaults to ['.git', 'node_modules', '__pycache__', '.venv', 'dist', 'build'].",
-        "default": [".git", "node_modules", "__pycache__", ".venv", "dist", "build"]
-      },
-      "output_format": {
+      "output": {
         "type": "string",
-        "description": "Output format: 'tree' for directory tree, 'json' for structured data, 'summary' for a brief text overview.",
-        "enum": ["tree", "json", "summary"],
-        "default": "summary"
+        "description": "Optional path to write the JSON result to a file."
+      },
+      "compact": {
+        "type": "boolean",
+        "description": "If true, output compact single-line JSON instead of pretty-printed.",
+        "default": false
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session ID for log_manager integration. Auto-injected by the engine."
       }
     },
     "required": []

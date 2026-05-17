@@ -24,12 +24,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-
 sys.path.insert(0, str(Path(__file__).parent))
 from log_manager import log_tool_invocation
+from task_workspace import env_task_dir
 
 ERROR_LOG = "ErrorLog.md"
 
@@ -112,25 +109,18 @@ def log_error(project_dir: str, title: str, severity: str = "major",
     error_id = _next_error_id(content)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-    error_block = (
-        f"### {error_id}: {title}\n"
-        f"- **Severity**: {_severity_tag(severity)}\n"
-        f"- **Logged**: {timestamp}\n"
-        f"- **Source**: `{source}`\n" if source else ""
-    )
-    # Rebuild properly if source was empty
-    if not source:
+    if source:
         error_block = (
             f"### {error_id}: {title}\n"
             f"- **Severity**: {_severity_tag(severity)}\n"
             f"- **Logged**: {timestamp}\n"
+            f"- **Source**: `{source}`\n"
         )
     else:
         error_block = (
             f"### {error_id}: {title}\n"
             f"- **Severity**: {_severity_tag(severity)}\n"
             f"- **Logged**: {timestamp}\n"
-            f"- **Source**: `{source}`\n"
         )
 
     error_block += f"- **Status**: OPEN\n"
@@ -284,12 +274,17 @@ def query_errors(project_dir: str) -> dict:
 # --- CLI Interface ---
 
 def main():
-    import argparse
+    import argparse, io
+
+    if sys.platform == "win32":
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
     parser = argparse.ArgumentParser(description="Overlord11 Error Logger")
     parser.add_argument("--action", required=True,
                         choices=["log_error", "resolve_error", "add_attempt", "query", "init"])
-    parser.add_argument("--project_dir", required=True)
+    parser.add_argument("--project_dir", default=None)
+    parser.add_argument("--task_dir", default=None)
     parser.add_argument("--error_id", default=None)
     parser.add_argument("--title", default="")
     parser.add_argument("--severity", default="major",
@@ -303,17 +298,21 @@ def main():
     args = parser.parse_args()
     start = time.time()
 
+    project_dir = args.task_dir or args.project_dir or (str(env_task_dir()) if env_task_dir() else None)
+    if not project_dir:
+        parser.error("--project_dir is required when no task workspace is active")
+
     if args.action == "init":
-        result = init_log(args.project_dir)
+        result = init_log(project_dir)
     elif args.action == "log_error":
-        result = log_error(args.project_dir, args.title, args.severity,
+        result = log_error(project_dir, args.title, args.severity,
                            args.source, args.details)
     elif args.action == "add_attempt":
-        result = add_attempt(args.project_dir, args.error_id, args.attempted_fix)
+        result = add_attempt(project_dir, args.error_id, args.attempted_fix)
     elif args.action == "resolve_error":
-        result = resolve_error(args.project_dir, args.error_id, args.resolution)
+        result = resolve_error(project_dir, args.error_id, args.resolution)
     elif args.action == "query":
-        result = query_errors(args.project_dir)
+        result = query_errors(project_dir)
     else:
         result = {"error": f"Unknown action: {args.action}"}
 
@@ -323,7 +322,7 @@ def main():
         log_tool_invocation(
             session_id=args.session_id,
             tool_name="error_logger",
-            params={"action": args.action, "project_dir": args.project_dir},
+            params={"action": args.action, "project_dir": project_dir},
             result={"status": result.get("status", "unknown")},
             duration_ms=duration_ms
         )

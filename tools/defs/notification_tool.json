@@ -1,0 +1,28 @@
+{
+  "name": "notification_tool",
+  "description": "Send a real-time browser notification to the operator. Use this to surface important findings, request attention, or signal a handoff without waiting for job completion. Notifications appear as browser toasts and are logged in the event feed. Severity levels: info (teal), warning (amber), error (red), success (green).",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Short notification title displayed in bold (max 80 chars)."
+      },
+      "message": {
+        "type": "string",
+        "description": "Body text of the notification (max 300 chars)."
+      },
+      "severity": {
+        "type": "string",
+        "description": "Visual severity level of the notification.",
+        "enum": ["info", "success", "warning", "error"],
+        "default": "info"
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Optional session ID for log correlation."
+      }
+    },
+    "required": ["title", "message"]
+  }
+}
