@@ -611,7 +611,13 @@ class EngineRunner:
             if delegation_pairs:
                 ordered_pairs = delegation_pairs + ordered_pairs
             tool_results = [result for _tc, result in ordered_pairs]
-            effectful_success_count = len([result for result in tool_results if self._is_effectful_tool_result(result)])
+            effectful_success_count = len(
+                [
+                    result
+                    for tc, result in ordered_pairs
+                    if self._is_effectful_tool_result(result, tc.tool_name)
+                ]
+            )
             had_effectful_tool_success = had_effectful_tool_success or effectful_success_count > 0
             observed_dir_path, observed_dir_entries = self._update_observed_directory_snapshot(
                 ordered_pairs=ordered_pairs,
@@ -982,11 +988,13 @@ class EngineRunner:
         # Simple direct responses are often short and factual.
         return len(text) <= 120
 
-    def _is_effectful_tool_result(self, result: dict) -> bool:
+    def _is_effectful_tool_result(self, result: dict, tool_name: Optional[str] = None) -> bool:
         """
         True when a tool call appears to have produced usable output.
         """
         if not isinstance(result, dict):
+            return False
+        if tool_name and self._is_auxiliary_tool(tool_name):
             return False
         if result.get("status") != "success":
             return False
@@ -1003,6 +1011,17 @@ class EngineRunner:
         if isinstance(payload, (list, tuple, set, dict)):
             return len(payload) > 0
         return True
+
+    def _contains_unexecuted_tool_intent(self, text: str) -> bool:
+        lowered = (text or "").lower()
+        if "```json" in lowered and "\"tool\"" in lowered and "\"params\"" in lowered:
+            return True
+        if "tool_call:" in lowered or "tool_code:" in lowered:
+            return True
+        if re.search(r"[\"']tool[\"']\s*:\s*[\"'][a-z0-9_\\-]+[\"']", text or "", re.IGNORECASE):
+            if re.search(r"[\"']params[\"']\s*:", text or "", re.IGNORECASE):
+                return True
+        return False
 
     def _try_parse_json(self, text: str) -> Optional[dict]:
         try:
@@ -1272,6 +1291,8 @@ class EngineRunner:
             return False
         if self._detect_tool_format_issue(text):
             return False
+        if self._contains_unexecuted_tool_intent(text):
+            return False
         # Prevent claiming repository-root verification when only scripts/ was observed.
         lowered = text.lower()
         claimed_dirs = self._extract_claimed_directories(lowered)
@@ -1293,7 +1314,7 @@ class EngineRunner:
             "report",
             "result",
         )
-        return any(sig in lowered for sig in completion_signals) or len(text) >= 80
+        return any(sig in lowered for sig in completion_signals)
 
     def _extract_claimed_directories(self, lowered_text: str) -> set[str]:
         claimed: set[str] = set()

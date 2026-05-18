@@ -23,6 +23,26 @@ class ToolPathPolicyTests(unittest.TestCase):
             self.assertIsNone(violation)
             self.assertIn(str(Path(td).resolve() / "output"), params["path"])
 
+    def test_task_manager_project_dir_is_sandboxed_to_task_root(self):
+        ex = self._executor()
+        with tempfile.TemporaryDirectory() as td:
+            ex.set_runtime_context(session_id="test", task_dir=Path(td))
+            suffix = uuid.uuid4().hex[:8]
+            rel = f"output/sim_{suffix}"
+            leaked = Path(__file__).resolve().parent.parent / "scripts" / rel / "TaskingLog.md"
+            if leaked.exists():
+                leaked.unlink()
+            result = ex.execute(
+                ToolCall(
+                    tool_name="task_manager",
+                    params={"action": "add_task", "project_dir": rel, "title": "Sandboxed task"},
+                )
+            )
+            self.assertEqual(result.get("status"), "success")
+            expected = Path(td).resolve() / rel / "TaskingLog.md"
+            self.assertTrue(expected.exists())
+            self.assertFalse(leaked.exists())
+
     def test_write_file_output_prefix_not_duplicated(self):
         ex = self._executor()
         with tempfile.TemporaryDirectory() as td:

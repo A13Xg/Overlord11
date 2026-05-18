@@ -1207,6 +1207,21 @@ class ToolExecutor:
                 params[key] = str(resolved)
             return None
 
+        if tool_name == "task_manager":
+            raw_dir = params.get("task_dir") or params.get("project_dir") or ""
+            resolved = self._resolve_path_for_task(str(raw_dir), prefer_output=False)
+            if not self._ensure_within(resolved, self._task_root):
+                return self._deny(
+                    "task_manager_project_dir_outside_task_root",
+                    project_dir=str(resolved),
+                    task_root=str(self._task_root),
+                )
+            if "task_dir" in params and params.get("task_dir") is not None:
+                params["task_dir"] = str(resolved)
+            else:
+                params["project_dir"] = str(resolved)
+            return None
+
         if tool_name == "run_shell_command":
             # Force execution in task output dir unless caller requests a dir under task root.
             requested_dir = params.get("dir_path") or params.get("working_dir") or "."

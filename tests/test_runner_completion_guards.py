@@ -165,6 +165,50 @@ class RunnerCompletionGuardTests(unittest.TestCase):
         self.assertEqual(result.get("status"), "complete")
         self.assertEqual(result.get("completion_mode"), "tool_driven")
 
+    def test_non_trivial_aux_only_progress_does_not_complete(self):
+        runner = self._runner()
+        responses = [
+            "```json\n{\"tool\":\"task_manager\",\"params\":{\"action\":\"add_task\",\"title\":\"Track only\"}}\n```",
+            "Completed. Here is a long narrative summary that still has no real artifact work.",
+            "Completed. Still no real artifact work was performed.",
+        ]
+
+        def fake_call(**kwargs):
+            return responses.pop(0) if responses else "No additional actions."
+
+        runner._bridge.call_provider_streaming = fake_call  # type: ignore[method-assign]
+        runner._parallel_executor.execute_all = lambda *args, **kwargs: [  # type: ignore[method-assign]
+            (
+                ToolCall(tool_name="task_manager", params={"action": "add_task"}, raw=""),
+                {"status": "success", "result": {"status": "added", "task_id": "T-001"}, "tool": "task_manager", "duration_ms": 1.0},
+            )
+        ]
+        result = runner.run("Create multiple artifacts and package them.")
+        self.assertEqual(result.get("status"), "failed")
+        self.assertEqual(result.get("completion_mode"), "no_effect_fail")
+
+    def test_non_trivial_unexecuted_tool_intent_does_not_complete(self):
+        runner = self._runner()
+        responses = [
+            "```json\n{\"tool\":\"dummy_tool\",\"params\":{\"x\":1}}\n```",
+            "```json\n{\"tool\":\"execute_python\",\"params\":{\"code\":\"print('next step')\"}}\n```",
+            "```json\n{\"tool\":\"execute_python\",\"params\":{\"code\":\"print('still next step')\"}}\n```",
+        ]
+
+        def fake_call(**kwargs):
+            return responses.pop(0) if responses else "```json\n{\"tool\":\"execute_python\",\"params\":{\"code\":\"print('loop')\"}}\n```"
+
+        runner._bridge.call_provider_streaming = fake_call  # type: ignore[method-assign]
+        runner._parallel_executor.execute_all = lambda *args, **kwargs: [  # type: ignore[method-assign]
+            (
+                ToolCall(tool_name="dummy_tool", params={"x": 1}, raw=""),
+                {"status": "success", "result": {"changed_files": ["a.py"]}, "tool": "dummy_tool", "duration_ms": 1.0},
+            )
+        ]
+        result = runner.run("Build artifacts and package output.")
+        self.assertEqual(result.get("status"), "failed")
+        self.assertEqual(result.get("completion_mode"), "no_effect_fail")
+
     def test_auxiliary_tool_failures_become_warnings_after_core_progress(self):
         runner = self._runner()
         responses = [

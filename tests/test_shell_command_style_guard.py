@@ -39,6 +39,23 @@ class ShellCommandStyleGuardTests(unittest.TestCase):
         self.assertIn("/f", info.get("ignored_flags", []))
         self.assertIn("/q", info.get("ignored_flags", []))
 
+    def test_powershell_tokenizer_does_not_treat_content_as_paths(self):
+        cmd = (
+            '$artifacts = @{"release_checklist.md" = "# Release Checklist"}; '
+            'foreach ($name in $artifacts.Keys) { '
+            '$path = Join-Path "artifacts" $name; '
+            'Set-Content -Path $path -Value $artifacts[$name] -Encoding utf8 }'
+        )
+        info = _tokenize_path_candidates(cmd)
+        self.assertEqual(info.get("command_family"), "powershell")
+        parsed = info.get("parsed_targets", [])
+        self.assertIn("$path", parsed)
+        self.assertNotIn("# Release Checklist", parsed)
+        self.assertNotIn("Release", parsed)
+        self.assertIn("-Path", info.get("ignored_flags", []))
+        self.assertIn("-Value", info.get("ignored_flags", []))
+        self.assertIn("-Encoding", info.get("ignored_flags", []))
+
 
 if __name__ == "__main__":
     unittest.main()

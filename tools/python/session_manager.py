@@ -18,6 +18,7 @@ import os
 import sys
 import time
 import tempfile
+import errno
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -59,6 +60,14 @@ def _file_lock(lock_path: Path):
         except FileExistsError:
             if (time.time() - start) >= _LOCK_TIMEOUT_S:
                 raise TimeoutError(f"Timed out waiting for lock: {lock_path}")
+            time.sleep(_LOCK_POLL_S)
+        except PermissionError as exc:
+            # On Windows, rapid concurrent create/delete can intermittently raise
+            # EACCES/EPERM during lock turnover; treat it as transient contention.
+            if exc.errno not in {errno.EACCES, errno.EPERM}:
+                raise
+            if (time.time() - start) >= _LOCK_TIMEOUT_S:
+                raise TimeoutError(f"Timed out waiting for lock: {lock_path}") from exc
             time.sleep(_LOCK_POLL_S)
     try:
         yield

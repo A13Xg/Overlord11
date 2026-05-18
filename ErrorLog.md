@@ -630,3 +630,105 @@ zip_tool.py: error: unrecognized arguments: true
 - **Message**: simulated deterministic failure
 - **Attempt**: 1
 - **Session**: 20260517_192736_v02
+
+## [2026-05-18T17:43:18.898636+00:00] LOGIC_ERROR
+- **Tool**: dummy_tool
+- **Message**: simulated deterministic failure
+- **Attempt**: 1
+- **Session**: 20260518_104318_v05
+
+## [2026-05-18T17:43:18.909139+00:00] LOGIC_ERROR
+- **Tool**: dummy_tool
+- **Message**: simulated deterministic failure
+- **Attempt**: 1
+- **Session**: 20260518_104318_v05
+
+## [2026-05-18T17:43:50.567534+00:00] LOGIC_ERROR
+- **Tool**: dummy_tool
+- **Message**: simulated deterministic failure
+- **Attempt**: 1
+- **Session**: 20260518_104350_v03
+
+## [2026-05-18T17:43:50.578576+00:00] LOGIC_ERROR
+- **Tool**: dummy_tool
+- **Message**: simulated deterministic failure
+- **Attempt**: 1
+- **Session**: 20260518_104350_v03
+
+## [2026-05-18T18:50:40.996122+00:00] LOGIC_ERROR
+- **Tool**: dummy_tool
+- **Message**: simulated deterministic failure
+- **Attempt**: 1
+- **Session**: 20260518_115040_v03
+
+## [2026-05-18T18:50:41.013792+00:00] LOGIC_ERROR
+- **Tool**: dummy_tool
+- **Message**: simulated deterministic failure
+- **Attempt**: 1
+- **Session**: 20260518_115040_v03
+
+## [2026-05-18T18:51:13.551217+00:00] LOGIC_ERROR
+- **Tool**: dummy_tool
+- **Message**: simulated deterministic failure
+- **Attempt**: 1
+- **Session**: 20260518_115113_v02
+
+## [2026-05-18T18:51:13.571641+00:00] LOGIC_ERROR
+- **Tool**: dummy_tool
+- **Message**: simulated deterministic failure
+- **Attempt**: 1
+- **Session**: 20260518_115113_v02
+
+## [2026-05-18T18:56:54.178780+00:00] TOOL_FAILURE
+- **Tool**: json_tool
+- **Message**: {'status': 'error', 'error': 'param_preflight_failed', 'reason': 'unknown_parameters', 'tool': 'json_tool', 'unknown_parameters': ['input_file', 'output_file'], 'missing_required': [], 'invalid_type': [], 'invalid_value': [], 'hint': 'Remove unsupported parameter(s): input_file, output_file.', 'corrections': [], 'suggested_payload': {'action': 'format'}}
+- **Attempt**: 1
+- **Session**: 20260518_115410_7575b28c
+
+## [2026-05-18T18:58:42.819211+00:00] TOOL_FAILURE
+- **Tool**: json_tool
+- **Message**: {'status': 'error', 'error': 'param_preflight_failed', 'reason': 'unknown_parameters', 'tool': 'json_tool', 'unknown_parameters': ['json'], 'missing_required': [], 'invalid_type': [], 'invalid_value': [], 'hint': 'Remove unsupported parameter(s): json.', 'corrections': [], 'suggested_payload': {'action': 'format'}}
+- **Attempt**: 1
+- **Session**: 20260518_115410_7575b28c
+
+## [2026-05-18T18:59:00.973607+00:00] LOGIC_ERROR
+- **Tool**: json_tool
+- **Message**: {'status': 'error', 'action': 'format', 'error': "Either 'input' string or 'input_file' path is required", 'hint': "Provide valid JSON in the 'input' parameter or a path in 'file'."}
+- **Attempt**: 1
+- **Session**: 20260518_115410_7575b28c
+
+## [2026-05-18T18:59:13.055007+00:00] TOOL_FAILURE
+- **Tool**: json_tool
+- **Message**: {'status': 'error', 'action': 'format', 'error': 'input file not found: output/sim/incident_events.json', 'hint': "Provide valid JSON in the 'input' parameter or a path in 'file'."}
+- **Attempt**: 1
+- **Session**: 20260518_115410_7575b28c
+
+## [2026-05-18T19:00:02.735673+00:00] TOOL_FAILURE
+- **Tool**: regex_tool
+- **Message**: {'status': 'error', 'error': 'param_preflight_failed', 'reason': 'unknown_parameters', 'tool': 'regex_tool', 'unknown_parameters': ['text'], 'missing_required': [], 'invalid_type': [], 'invalid_value': [], 'hint': 'Remove unsupported parameter(s): text.', 'corrections': [], 'suggested_payload': {'action': 'count', 'pattern': '"severity": "critical"'}}
+- **Attempt**: 1
+- **Session**: 20260518_115410_7575b28c
+
+## [2026-05-18T19:00:02.736369+00:00] API_ERROR
+- **Tool**: regex_tool
+- **Message**: {'status': 'error', 'error': 'param_preflight_failed', 'reason': 'unknown_parameters', 'tool': 'regex_tool', 'unknown_parameters': ['text'], 'missing_required': [], 'invalid_type': [], 'invalid_value': [], 'hint': 'Remove unsupported parameter(s): text.', 'corrections': [], 'suggested_payload': {'action': 'count', 'pattern': '"service": "payment-api"'}}
+- **Attempt**: 1
+- **Session**: 20260518_115410_7575b28c
+
+## [2026-05-18T19:00:07.449222+00:00] TOOL_FAILURE
+- **Tool**: regex_tool
+- **Message**: {'status': 'error', 'error': 'param_preflight_failed', 'reason': 'unknown_parameters', 'tool': 'regex_tool', 'unknown_parameters': ['file'], 'missing_required': [], 'invalid_type': [], 'invalid_value': [], 'hint': 'Remove unsupported parameter(s): file.', 'corrections': [], 'suggested_payload': {'action': 'count', 'pattern': '"severity": "critical"'}}
+- **Attempt**: 1
+- **Session**: 20260518_115410_7575b28c
+
+## [2026-05-18T19:00:07.449860+00:00] API_ERROR
+- **Tool**: regex_tool
+- **Message**: {'status': 'error', 'error': 'param_preflight_failed', 'reason': 'unknown_parameters', 'tool': 'regex_tool', 'unknown_parameters': ['file'], 'missing_required': [], 'invalid_type': [], 'invalid_value': [], 'hint': 'Remove unsupported parameter(s): file.', 'corrections': [], 'suggested_payload': {'action': 'count', 'pattern': '"service": "payment-api"'}}
+- **Attempt**: 1
+- **Session**: 20260518_115410_7575b28c
+
+## [2026-05-18T19:00:07.450411+00:00] TOOL_FAILURE
+- **Tool**: regex_tool
+- **Message**: {'status': 'error', 'error': 'param_preflight_failed', 'reason': 'unknown_parameters', 'tool': 'regex_tool', 'unknown_parameters': ['file'], 'missing_required': [], 'invalid_type': [], 'invalid_value': [], 'hint': 'Remove unsupported parameter(s): file.', 'corrections': [], 'suggested_payload': {'action': 'count', 'pattern': '"status": "resolved"'}}
+- **Attempt**: 1
+- **Session**: 20260518_115410_7575b28c

@@ -358,6 +358,87 @@ def _tokenize_posix_mutation_operands(command: str) -> tuple[list[str], list[str
     return parsed, ignored
 
 
+def _tokenize_powershell_mutation_operands(command: str) -> tuple[list[str], list[str]]:
+    tokens = _split_shell_tokens(command)
+    if not tokens:
+        return [], []
+    mutators = {
+        "set-content",
+        "add-content",
+        "out-file",
+        "new-item",
+        "copy-item",
+        "move-item",
+        "remove-item",
+        "rename-item",
+        "clear-content",
+        "mkdir",
+        "md",
+        "del",
+        "erase",
+        "copy",
+        "move",
+        "ren",
+        "rename",
+        "rmdir",
+        "rd",
+    }
+    path_params = {
+        "-path",
+        "-literalpath",
+        "-destination",
+        "-filepath",
+        "-outfilepath",
+        "-target",
+    }
+    parsed: list[str] = []
+    ignored: list[str] = []
+    i = 0
+    while i < len(tokens):
+        tok = tokens[i]
+        low = tok.lower()
+        if low in path_params:
+            ignored.append(tok)
+            if i + 1 < len(tokens):
+                nxt = tokens[i + 1]
+                if nxt not in {"|", "||", "&", "&&", ";"} and not nxt.startswith("-"):
+                    parsed.append(nxt)
+                    i += 2
+                    continue
+            i += 1
+            continue
+        if tok.startswith("-"):
+            ignored.append(tok)
+            i += 1
+            continue
+        if low in mutators:
+            j = i + 1
+            while j < len(tokens):
+                operand = tokens[j]
+                if operand in {"|", "||", "&", "&&", ";"}:
+                    break
+                op_low = operand.lower()
+                if op_low in path_params:
+                    ignored.append(operand)
+                    if j + 1 < len(tokens):
+                        val = tokens[j + 1]
+                        if val not in {"|", "||", "&", "&&", ";"} and not val.startswith("-"):
+                            parsed.append(val)
+                            j += 2
+                            continue
+                    j += 1
+                    continue
+                if operand.startswith("-"):
+                    ignored.append(operand)
+                else:
+                    parsed.append(operand)
+                j += 1
+            i = j
+            continue
+        i += 1
+    return parsed, ignored
+
+
 def _tokenize_path_candidates(command: str) -> dict:
     """
     Extract potential filesystem targets and parser diagnostics from command text.
@@ -373,7 +454,11 @@ def _tokenize_path_candidates(command: str) -> dict:
     for m in _REDIRECT_TARGET_RE.finditer(command or ""):
         parsed.append(_strip_quotes(m.group(1)))
 
-    if family == "cmd":
+    if family == "powershell":
+        ops, ig = _tokenize_powershell_mutation_operands(command)
+        parsed.extend(ops)
+        ignored.extend(ig)
+    elif family == "cmd":
         ops, ig = _tokenize_cmd_mutation_operands(command)
         parsed.extend(ops)
         ignored.extend(ig)
@@ -386,7 +471,7 @@ def _tokenize_path_candidates(command: str) -> dict:
         # but never treat plain flags as write targets.
         for m in re.finditer(r'"([^"]+)"|\'([^\']+)\'', command or ""):
             q = (m.group(1) or m.group(2) or "").strip()
-            if q:
+            if q and _looks_like_path_token(q):
                 parsed.append(q)
         for tok in re.findall(r"(?:^|\s)([^\s|&;]+)", command or ""):
             t = _strip_quotes(tok.strip())
@@ -395,7 +480,8 @@ def _tokenize_path_candidates(command: str) -> dict:
             if re.match(r"^[-/][A-Za-z][\w-]*$", t):
                 ignored.append(t)
                 continue
-            parsed.append(t)
+            if _looks_like_path_token(t):
+                parsed.append(t)
 
     seen = set()
     ordered: list[str] = []
