@@ -1,0 +1,53 @@
+{
+  "name": "delegate_task",
+  "description": "Delegate a bounded sub-task to a specific agent runtime and return a structured result envelope.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "agent_id": {
+        "type": "string",
+        "description": "Target agent ID from config.json (for example OVR_PUB_07)."
+      },
+      "task": {
+        "type": "string",
+        "description": "Precise sub-task prompt for the target agent."
+      },
+      "inputs": {
+        "description": "Structured inputs passed to the sub-agent handoff context."
+      },
+      "expected_outputs": {
+        "description": "Structured expected outputs used for orchestration contracts and merge safety."
+      },
+      "allow_parallel": {
+        "type": "boolean",
+        "description": "If true, request parallel execution with other independent delegation calls.",
+        "default": false
+      },
+      "timeout_s": {
+        "type": "integer",
+        "description": "Maximum runtime budget in seconds for the delegated step.",
+        "default": 300
+      },
+      "retry_policy": {
+        "description": "Optional retry policy overrides."
+      },
+      "step_id": {
+        "type": "string",
+        "description": "Optional deterministic step identifier for DAG orchestration."
+      },
+      "depends_on": {
+        "type": "array",
+        "description": "Optional list of step_id dependencies that must complete first.",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": [
+      "agent_id",
+      "task",
+      "inputs",
+      "expected_outputs"
+    ]
+  }
+}

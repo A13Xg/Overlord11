@@ -10,6 +10,7 @@ import os
 import platform
 import shutil
 import sys
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -24,7 +25,6 @@ try:
     _spec.loader.exec_module(_tools_sm)  # type: ignore[union-attr]
     create_session = _tools_sm.create_session
     close_session = _tools_sm.close_session
-    log_change = _tools_sm.log_change
     get_session = _tools_sm.get_session
 except Exception as _e:
     raise ImportError(
@@ -48,7 +48,13 @@ from task_workspace import ensure_task_layout
 class EngineSession:
     """Wraps the existing session functions with an engine-friendly interface."""
 
-    def __init__(self, session_id: Optional[str] = None, job_id: Optional[str] = None, description: str = ""):
+    def __init__(
+        self,
+        session_id: Optional[str] = None,
+        job_id: Optional[str] = None,
+        description: str = "",
+        auto_update_consciousness_profile: bool = False,
+    ):
         self._session_id: Optional[str] = session_id
         self._job_id: Optional[str] = job_id
         self._description = description
@@ -56,6 +62,8 @@ class EngineSession:
         self._logs: list = []
         self._closed = False
         self._trace_counter = 0
+        self._auto_update_consciousness_profile = bool(auto_update_consciousness_profile)
+        self._io_lock = threading.RLock()
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -104,11 +112,12 @@ class EngineSession:
 
     def close(self, status: str = "complete") -> dict:
         """Close the session."""
-        if self._closed or not self._session_id:
-            return {}
-        self._closed = True
-        self._persist_logs()
-        return close_session(self._session_id, summary=status)
+        with self._io_lock:
+            if self._closed or not self._session_id:
+                return {}
+            self._closed = True
+            self._persist_logs()
+            return close_session(self._session_id, summary=status)
 
     # ------------------------------------------------------------------
     # Logging helpers
@@ -121,43 +130,36 @@ class EngineSession:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "data": data,
         }
-        self._logs.append(entry)
-        self._persist_logs()
+        with self._io_lock:
+            self._logs.append(entry)
+            self._persist_logs()
         if self._session_id:
             _log_event_entry(self._session_id, event_type, {"data": data})
 
     def log_tool_call(self, tool_name: str, params: dict, result: Any = None) -> dict:
         """Log a tool invocation."""
-        trace_path = self.write_trace(
-            category="tools",
-            payload={
+        with self._io_lock:
+            trace_path = self.write_trace(
+                category="tools",
+                payload={
+                    "tool": tool_name,
+                    "params": params,
+                    "result": result,
+                },
+                stem=f"tool_{tool_name.lower()}",
+            )
+            entry = {
+                "type": "tool_call",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "tool": tool_name,
                 "params": params,
                 "result": result,
-            },
-            stem=f"tool_{tool_name.lower()}",
-        )
-        entry = {
-            "type": "tool_call",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "tool": tool_name,
-            "params": params,
-            "result": result,
-            "trace_path": trace_path,
-        }
-        self._logs.append(entry)
-        self._persist_logs()
+                "trace_path": trace_path,
+            }
+            self._logs.append(entry)
+            self._persist_logs()
         # Also register in the underlying session
         if self._session_id:
-            try:
-                log_change(
-                    self._session_id,
-                    tool_name,         # file_path
-                    "tool_call",       # action
-                    summary=str(result)[:200],
-                )
-            except Exception:
-                pass
             _log_tool_invocation(
                 session_id=self._session_id,
                 tool_name=tool_name,
@@ -169,26 +171,27 @@ class EngineSession:
 
     def log_agent(self, agent_id: str, input_text: str, output_text: str) -> dict:
         """Log an agent invocation."""
-        trace_path = self.write_trace(
-            category="agents",
-            payload={
+        with self._io_lock:
+            trace_path = self.write_trace(
+                category="agents",
+                payload={
+                    "agent_id": agent_id,
+                    "input_text": input_text,
+                    "output_text": output_text,
+                },
+                stem=f"agent_{agent_id.lower()}",
+            )
+            entry = {
+                "type": "agent",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "agent_id": agent_id,
-                "input_text": input_text,
-                "output_text": output_text,
-            },
-            stem=f"agent_{agent_id.lower()}",
-        )
-        entry = {
-            "type": "agent",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "agent_id": agent_id,
-            "input_len": len(input_text),
-            "output_len": len(output_text),
-            "output_preview": output_text[:300],
-            "trace_path": trace_path,
-        }
-        self._logs.append(entry)
-        self._persist_logs()
+                "input_len": len(input_text),
+                "output_len": len(output_text),
+                "output_preview": output_text[:300],
+                "trace_path": trace_path,
+            }
+            self._logs.append(entry)
+            self._persist_logs()
         if self._session_id:
             _log_llm_decision(
                 session_id=self._session_id,
@@ -245,7 +248,8 @@ class EngineSession:
         }
         self.write_trace(category="system", payload=profile, stem="system_profile")
         self.write_artifact("artifacts/agent/system_profile.json", json.dumps(profile, indent=2, ensure_ascii=False))
-        self._update_consciousness_environment(profile)
+        if self._auto_update_consciousness_profile:
+            self._update_consciousness_environment(profile)
         self.log_event("system_profile", profile)
         return profile
 
@@ -331,40 +335,42 @@ class EngineSession:
 
     def _persist_logs(self) -> None:
         """Write events.json into artifacts/logs/."""
-        if not self._session_dir:
-            return
-        logs_path = self._session_dir / "artifacts" / "logs" / "events.json"
-        try:
-            logs_path.write_text(
-                json.dumps(self._logs, indent=2, ensure_ascii=False, default=str),
-                encoding="utf-8",
-            )
-        except OSError:
-            pass
+        with self._io_lock:
+            if not self._session_dir:
+                return
+            logs_path = self._session_dir / "artifacts" / "logs" / "events.json"
+            try:
+                logs_path.write_text(
+                    json.dumps(self._logs, indent=2, ensure_ascii=False, default=str),
+                    encoding="utf-8",
+                )
+            except OSError:
+                pass
 
     def write_trace(self, category: str, payload: Any, stem: str) -> str:
         """Write a structured trace file and append a JSONL timeline entry."""
-        self._ensure_runtime_dirs()
-        self._trace_counter += 1
-        if category == "agents":
-            relative_path = f"artifacts/logs/agents/{self._trace_counter:03d}_{stem}.json"
-        elif category == "tools":
-            relative_path = f"artifacts/logs/tools/{self._trace_counter:03d}_{stem}.json"
-        else:
-            relative_path = f"artifacts/logs/system/{self._trace_counter:03d}_{stem}.json"
-        self.write_artifact(relative_path, json.dumps(payload, indent=2, ensure_ascii=False, default=str))
-        timeline_entry = {
-            "index": self._trace_counter,
-            "category": category,
-            "path": relative_path,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "summary": stem,
-        }
-        timeline_path = self._session_dir / "artifacts" / "logs" / "timeline.jsonl" if self._session_dir else None
-        if timeline_path:
-            with timeline_path.open("a", encoding="utf-8") as handle:
-                handle.write(json.dumps(timeline_entry, ensure_ascii=False) + "\n")
-        return relative_path
+        with self._io_lock:
+            self._ensure_runtime_dirs()
+            self._trace_counter += 1
+            if category == "agents":
+                relative_path = f"artifacts/logs/agents/{self._trace_counter:03d}_{stem}.json"
+            elif category == "tools":
+                relative_path = f"artifacts/logs/tools/{self._trace_counter:03d}_{stem}.json"
+            else:
+                relative_path = f"artifacts/logs/system/{self._trace_counter:03d}_{stem}.json"
+            self.write_artifact(relative_path, json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+            timeline_entry = {
+                "index": self._trace_counter,
+                "category": category,
+                "path": relative_path,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "summary": stem,
+            }
+            timeline_path = self._session_dir / "artifacts" / "logs" / "timeline.jsonl" if self._session_dir else None
+            if timeline_path:
+                with timeline_path.open("a", encoding="utf-8") as handle:
+                    handle.write(json.dumps(timeline_entry, ensure_ascii=False) + "\n")
+            return relative_path
 
     def write_artifact(self, relative_path: str, content: str) -> str:
         self._ensure_runtime_dirs()

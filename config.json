@@ -249,6 +249,10 @@
       "def": "tools/defs/run_shell_command.json",
       "impl": "tools/python/run_shell_command.py"
     },
+    "delegate_task": {
+      "def": "tools/defs/delegate_task.json",
+      "impl": "tools/python/delegate_task.py"
+    },
     "sandbox_runner": {
       "def": "tools/defs/sandbox_runner.json",
       "impl": "tools/python/sandbox_runner.py"
@@ -424,7 +428,14 @@
       "ttl_seconds": 3600,
       "max_entries": 500,
       "cache_file": "workspace/tool_cache.json",
-      "excluded_tools": []
+      "excluded_tools": [
+        "glob",
+        "list_directory",
+        "publisher_tool",
+        "read_file",
+        "search_file_content",
+        "zip_tool"
+      ]
     },
     "parallel": {
       "max_concurrent_jobs": 3,
@@ -442,6 +453,61 @@
       "action": "pause",
       "initial_wait_s": 300,
       "max_wait_s": 28800
+    },
+    "shell_policy": {
+      "verification_outside_write_allowlist": [
+        "workspace/**",
+        "logs/**"
+      ],
+      "block_tracked_repo_writes": true
+    },
+    "delegation": {
+      "max_retries_per_step": 2,
+      "immutable_core_paths": [
+        "engine/",
+        "backend/core/",
+        "engine/runner.py",
+        "engine/tool_executor.py",
+        "engine/orchestrator_bridge.py"
+      ]
+    },
+    "loop_governor": {
+      "enabled": true,
+      "max_parent_loops": 30,
+      "max_subagent_loops_total": 90,
+      "max_subagent_loops_per_agent": 30,
+      "max_retry_loops": 30,
+      "max_effective_loops": 60,
+      "progress_credit_enabled": true,
+      "max_credit_per_epoch": 1,
+      "progress_threshold": 2.0,
+      "stall_threshold": 2.0,
+      "stall_consecutive_limit": 3
+    },
+    "completion": {
+      "non_blocking_aux_tools": [
+        "task_manager",
+        "session_manager",
+        "save_memory",
+        "log_manager"
+      ],
+      "require_core_objective_before_aux_downgrade": true,
+      "require_artifact_integrity_for_packaging": true,
+      "tool_failure_warning_threshold": 8,
+      "repeat_param_failure_hard_stop": 6
+    },
+    "self_healing": {
+      "repeat_signature_suppress_after": 2,
+      "repeat_signature_hard_stop_after": 4
+    },
+    "memory": {
+      "auto_update_consciousness_profile": false
+    },
+    "tools": {
+      "execution_mode": "python_only",
+      "require_execute_contract": true,
+      "strict_param_validation": true,
+      "alias_policy": "curated_strict"
     }
   },
   "notifications": {

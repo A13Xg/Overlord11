@@ -17,8 +17,13 @@ import json
 import os
 import sys
 import time
+import tempfile
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 sys.path.insert(0, str(Path(__file__).parent))
 from log_manager import log_tool_invocation, log_event
@@ -27,6 +32,8 @@ from task_workspace import WORKSPACE_ROOT, ensure_task_layout
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 WORKSPACE_DIR = WORKSPACE_ROOT
 SESSION_INDEX = WORKSPACE_DIR / "session_index.json"
+_LOCK_TIMEOUT_S = 8.0
+_LOCK_POLL_S = 0.05
 
 
 def _session_manifest_path(session_dir: Path) -> Path:
@@ -38,6 +45,52 @@ def _session_manifest_path(session_dir: Path) -> Path:
     if legacy_modern.exists():
         return legacy_modern
     return session_dir / "session.json"
+
+
+@contextmanager
+def _file_lock(lock_path: Path):
+    """Cross-process lock using lock-file create/delete semantics."""
+    fd = None
+    start = time.time()
+    while True:
+        try:
+            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_RDWR)
+            break
+        except FileExistsError:
+            if (time.time() - start) >= _LOCK_TIMEOUT_S:
+                raise TimeoutError(f"Timed out waiting for lock: {lock_path}")
+            time.sleep(_LOCK_POLL_S)
+    try:
+        yield
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        try:
+            lock_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def _atomic_write_text(path: Path, content: str):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f"{path.name}.",
+        suffix=".tmp",
+        dir=str(path.parent),
+    )
+    os.close(fd)
+    tmp_path = Path(tmp_name)
+    try:
+        tmp_path.write_text(content, encoding="utf-8")
+        os.replace(tmp_path, path)
+    finally:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def _load_index() -> dict:
@@ -52,8 +105,10 @@ def _load_index() -> dict:
 
 def _save_index(index: dict):
     """Save the session index."""
-    WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
-    SESSION_INDEX.write_text(json.dumps(index, indent=2, default=str), encoding="utf-8")
+    lock_path = SESSION_INDEX.with_suffix(".lock")
+    payload = json.dumps(index, indent=2, default=str)
+    with _file_lock(lock_path):
+        _atomic_write_text(SESSION_INDEX, payload)
 
 
 def create_session(description: str = "", tags: list = None, job_id: str = "") -> dict:
@@ -110,18 +165,20 @@ def create_session(description: str = "", tags: list = None, job_id: str = "") -
 
     # Save session manifest in artifacts/logs/
     manifest_path = layout["logs"] / "session.json"
-    manifest_path.write_text(json.dumps(session, indent=2, default=str), encoding="utf-8")
+    _atomic_write_text(manifest_path, json.dumps(session, indent=2, default=str))
 
     # Update index
-    index = _load_index()
-    index["sessions"][session_id] = {
-        "description": description,
-        "status": "active",
-        "created_at": session["created_at"],
-        "workspace": str(layout["root"]),
-        "task_dir": str(layout["root"]),
-    }
-    _save_index(index)
+    lock_path = SESSION_INDEX.with_suffix(".lock")
+    with _file_lock(lock_path):
+        index = _load_index()
+        index["sessions"][session_id] = {
+            "description": description,
+            "status": "active",
+            "created_at": session["created_at"],
+            "workspace": str(layout["root"]),
+            "task_dir": str(layout["root"]),
+        }
+        _atomic_write_text(SESSION_INDEX, json.dumps(index, indent=2, default=str))
 
     log_event(session_id, "session_created", {"description": description})
 
@@ -135,7 +192,9 @@ def get_session(session_id: str) -> dict:
     if not manifest.exists():
         return {"error": f"Session not found: {session_id}"}
     try:
-        return json.loads(manifest.read_text(encoding="utf-8"))
+        lock_path = manifest.with_suffix(".lock")
+        with _file_lock(lock_path):
+            return json.loads(manifest.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as e:
         return {"error": f"Could not read session: {e}"}
 
@@ -145,7 +204,10 @@ def _save_session(session_id: str, session: dict):
     session_dir = WORKSPACE_DIR / session_id
     layout = ensure_task_layout(session_dir)
     manifest = layout["logs"] / "session.json"
-    manifest.write_text(json.dumps(session, indent=2, default=str), encoding="utf-8")
+    lock_path = manifest.with_suffix(".lock")
+    payload = json.dumps(session, indent=2, default=str)
+    with _file_lock(lock_path):
+        _atomic_write_text(manifest, payload)
 
 
 def log_change(session_id: str, file_path: str, action: str,
@@ -231,11 +293,13 @@ def close_session(session_id: str, summary: str = "") -> dict:
     _save_session(session_id, session)
 
     # Update index
-    index = _load_index()
-    if session_id in index["sessions"]:
-        index["sessions"][session_id]["status"] = "closed"
-        index["sessions"][session_id]["closed_at"] = session["closed_at"]
-    _save_index(index)
+    lock_path = SESSION_INDEX.with_suffix(".lock")
+    with _file_lock(lock_path):
+        index = _load_index()
+        if session_id in index["sessions"]:
+            index["sessions"][session_id]["status"] = "closed"
+            index["sessions"][session_id]["closed_at"] = session["closed_at"]
+        _atomic_write_text(SESSION_INDEX, json.dumps(index, indent=2, default=str))
 
     log_event(session_id, "session_closed", {
         "summary": summary,
@@ -262,6 +326,52 @@ def get_active_session() -> dict:
     if active:
         return get_session(active[0]["session_id"])
     return {"status": "no_active_session"}
+
+
+class ParamsModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action: str
+    session_id: Optional[str] = None
+    job_id: str = ""
+    description: str = ""
+    data: dict = Field(default_factory=dict)
+    status_filter: Optional[str] = None
+
+
+def execute(params: dict, context: Optional[dict] = None) -> dict | list:
+    parsed = ParamsModel.model_validate(params)
+    p = parsed.model_dump()
+    action = str(p.get("action", "")).strip().lower()
+    data = p.get("data") if isinstance(p.get("data"), dict) else {}
+    if action == "create":
+        return create_session(
+            description=p.get("description", "") or data.get("description", ""),
+            tags=data.get("tags", []),
+            job_id=p.get("job_id", "") or data.get("job_id", ""),
+        )
+    if action == "status":
+        return get_session(p.get("session_id"))
+    if action == "log_change":
+        return log_change(
+            session_id=p.get("session_id"),
+            file_path=data.get("file", ""),
+            action=data.get("action", "modified"),
+            summary=data.get("summary", ""),
+            diff_preview=data.get("diff_preview"),
+        )
+    if action == "log_agent":
+        return log_agent_usage(p.get("session_id"), data.get("agent_id", ""))
+    if action == "log_tool":
+        return log_tool_usage(p.get("session_id"), data.get("tool_name", ""))
+    if action == "add_note":
+        return add_note(p.get("session_id"), data.get("note", ""))
+    if action == "close":
+        return close_session(session_id=p.get("session_id"), summary=data.get("summary", p.get("description", "")))
+    if action == "list":
+        return list_sessions(status=p.get("status_filter"))
+    if action == "active":
+        return get_active_session()
+    return {"status": "error", "error": f"Unknown action: {action}"}
 
 
 # --- CLI Interface ---

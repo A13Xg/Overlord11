@@ -18,8 +18,8 @@ Thread safety:
   - The _sys_path_lock on ToolExecutor serializes the brief window where
     sys.path is mutated and a module is imported; the module object is then
     fully owned by the calling thread.
-  - session_log_fn (session.log_tool_call) writes to per-session files with
-    its own internal lock — safe from multiple threads.
+  - session_log_fn writes to per-session files. Thread-safety depends on the
+    session manager's locking implementation and should not be assumed blindly.
 """
 
 from __future__ import annotations
@@ -193,7 +193,7 @@ class ParallelToolExecutor:
         This method is designed to be safe when called from multiple threads:
           - All emit callbacks are thread-safe (EventStream lock).
           - ToolExecutor.execute() is reentrant.
-          - session_log_fn writes to isolated per-session files.
+          - session_log_fn behavior is delegated to session manager locking.
         """
         on_call(tool=tc.tool_name, params=tc.params, loop=loop, call_index=call_index)
 
@@ -227,6 +227,13 @@ class ParallelToolExecutor:
                 call_index=call_index,
                 cached=result.get("cached", False),
                 trace_path=tool_log.get("trace_path"),
+                invocation_mode=result.get("invocation_mode"),
+                serialization_mode=result.get("serialization_mode"),
+                validation_stage=result.get("validation_stage"),
+                param_error_code=result.get("param_error_code"),
+                corrections=result.get("corrections"),
+                suggested_payload=result.get("suggested_payload"),
+                failure_signature=result.get("failure_signature"),
             )
         else:
             on_error(
@@ -236,6 +243,13 @@ class ParallelToolExecutor:
                 loop=loop,
                 call_index=call_index,
                 trace_path=tool_log.get("trace_path"),
+                invocation_mode=result.get("invocation_mode"),
+                serialization_mode=result.get("serialization_mode"),
+                validation_stage=result.get("validation_stage"),
+                param_error_code=result.get("param_error_code"),
+                corrections=result.get("corrections"),
+                suggested_payload=result.get("suggested_payload"),
+                failure_signature=result.get("failure_signature"),
             )
 
         return result

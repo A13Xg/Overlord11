@@ -8,6 +8,8 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+from pydantic import BaseModel, ConfigDict
+
 
 _MUTATING_KEYWORD_RE = re.compile(
     r"(?i)\b("
@@ -294,33 +296,128 @@ def _is_mutating_command(command: str) -> bool:
     return False
 
 
-def _tokenize_path_candidates(command: str) -> list[str]:
-    """
-    Extract potential filesystem target tokens from command text.
+def _split_shell_tokens(command: str) -> list[str]:
+    return [_strip_quotes(tok) for tok in re.findall(r'"[^"]*"|\'[^\']*\'|[^\s]+', command or "")]
 
-    This is a conservative lexer that prioritizes explicit path-bearing forms.
+
+def _tokenize_cmd_mutation_operands(command: str) -> tuple[list[str], list[str]]:
+    tokens = _split_shell_tokens(command)
+    if not tokens:
+        return [], []
+    cmd_mutators = {"del", "erase", "copy", "move", "ren", "rename", "rmdir", "rd", "mkdir", "md"}
+    parsed: list[str] = []
+    ignored: list[str] = []
+    i = 0
+    while i < len(tokens):
+        tok = tokens[i]
+        low = tok.lower()
+        if low in cmd_mutators:
+            j = i + 1
+            while j < len(tokens):
+                operand = tokens[j]
+                if operand in {"|", "||", "&", "&&", ";"}:
+                    break
+                if operand.startswith("/"):
+                    ignored.append(operand)
+                elif operand.startswith("-"):
+                    ignored.append(operand)
+                else:
+                    parsed.append(operand)
+                j += 1
+            i = j
+            continue
+        i += 1
+    return parsed, ignored
+
+
+def _tokenize_posix_mutation_operands(command: str) -> tuple[list[str], list[str]]:
+    tokens = _split_shell_tokens(command)
+    if not tokens:
+        return [], []
+    mutators = {"rm", "mv", "cp", "touch", "mkdir", "truncate", "tee", "sed", "chmod", "chown"}
+    parsed: list[str] = []
+    ignored: list[str] = []
+    i = 0
+    while i < len(tokens):
+        tok = tokens[i]
+        low = tok.lower()
+        if low in mutators:
+            j = i + 1
+            while j < len(tokens):
+                operand = tokens[j]
+                if operand in {"|", "||", "&", "&&", ";"}:
+                    break
+                if operand.startswith("-"):
+                    ignored.append(operand)
+                else:
+                    parsed.append(operand)
+                j += 1
+            i = j
+            continue
+        i += 1
+    return parsed, ignored
+
+
+def _tokenize_path_candidates(command: str) -> dict:
     """
-    tokens: list[str] = []
-    for m in _PS_PATH_PARAM_RE.finditer(command):
-        tokens.append(_strip_quotes(m.group(2)))
-    for m in _REDIRECT_TARGET_RE.finditer(command):
-        tokens.append(_strip_quotes(m.group(1)))
-    for m in re.finditer(r'"([^"]+)"|\'([^\']+)\'', command):
-        tokens.append((m.group(1) or m.group(2) or "").strip())
-    # Fallback path-ish tokens
-    for tok in re.findall(r"(?:^|\s)([^\s|&;]+)", command):
-        t = _strip_quotes(tok.strip())
-        if t:
-            tokens.append(t)
-    # Preserve order but dedupe.
+    Extract potential filesystem targets and parser diagnostics from command text.
+    """
+    style = _detect_command_style(command or "")
+    family = style.get("style", "unknown")
+    parsed: list[str] = []
+    ignored: list[str] = []
+
+    # Path-bearing explicit PowerShell params are high confidence.
+    for m in _PS_PATH_PARAM_RE.finditer(command or ""):
+        parsed.append(_strip_quotes(m.group(2)))
+    for m in _REDIRECT_TARGET_RE.finditer(command or ""):
+        parsed.append(_strip_quotes(m.group(1)))
+
+    if family == "cmd":
+        ops, ig = _tokenize_cmd_mutation_operands(command)
+        parsed.extend(ops)
+        ignored.extend(ig)
+    elif family == "posix":
+        ops, ig = _tokenize_posix_mutation_operands(command)
+        parsed.extend(ops)
+        ignored.extend(ig)
+    else:
+        # Conservative fallback: keep quoted values and path-like bare tokens,
+        # but never treat plain flags as write targets.
+        for m in re.finditer(r'"([^"]+)"|\'([^\']+)\'', command or ""):
+            q = (m.group(1) or m.group(2) or "").strip()
+            if q:
+                parsed.append(q)
+        for tok in re.findall(r"(?:^|\s)([^\s|&;]+)", command or ""):
+            t = _strip_quotes(tok.strip())
+            if not t:
+                continue
+            if re.match(r"^[-/][A-Za-z][\w-]*$", t):
+                ignored.append(t)
+                continue
+            parsed.append(t)
+
     seen = set()
     ordered: list[str] = []
-    for t in tokens:
+    for t in parsed:
         if t in seen:
             continue
         seen.add(t)
         ordered.append(t)
-    return ordered
+
+    ignored_seen = set()
+    ignored_ordered: list[str] = []
+    for t in ignored:
+        if t in ignored_seen:
+            continue
+        ignored_seen.add(t)
+        ignored_ordered.append(t)
+
+    return {
+        "command_family": family,
+        "parsed_targets": ordered,
+        "ignored_flags": ignored_ordered,
+    }
 
 
 def _looks_like_path_token(token: str) -> bool:
@@ -360,6 +457,7 @@ def _build_write_policy_violation(
     reason: str,
     detail: str,
     candidates: Optional[list[str]] = None,
+    diagnostics: Optional[dict] = None,
 ) -> dict:
     return {
         "status": "error",
@@ -379,6 +477,7 @@ def _build_write_policy_violation(
         "write_policy": {
             "task_root": str(task_root),
             "candidates": candidates or [],
+            "diagnostics": diagnostics or {},
         },
     }
 
@@ -404,6 +503,7 @@ def _enforce_workspace_write_policy(command: str, execution_dir: Path) -> Option
             task_root=task_root,
             reason="forbidden_global_mutation_pattern",
             detail="Command matches a globally destructive mutation pattern.",
+            diagnostics=_tokenize_path_candidates(command),
         )
 
     if re.search(r"(^|[\\/\s])\.\.([\\/\s]|$)", command):
@@ -413,9 +513,11 @@ def _enforce_workspace_write_policy(command: str, execution_dir: Path) -> Option
             task_root=task_root,
             reason="parent_traversal_not_allowed",
             detail="Parent-directory traversal is not allowed for mutating shell commands.",
+            diagnostics=_tokenize_path_candidates(command),
         )
 
-    tokens = _tokenize_path_candidates(command)
+    parser_info = _tokenize_path_candidates(command)
+    tokens = list(parser_info.get("parsed_targets", []) or [])
     if not tokens:
         return _build_write_policy_violation(
             command=command,
@@ -426,6 +528,7 @@ def _enforce_workspace_write_policy(command: str, execution_dir: Path) -> Option
                 "Mutating command has no explicit path targets; refusing to execute because "
                 "write destination cannot be verified."
             ),
+            diagnostics=parser_info,
         )
 
     outside: list[str] = []
@@ -456,6 +559,7 @@ def _enforce_workspace_write_policy(command: str, execution_dir: Path) -> Option
                 "Mutating command uses environment-variable path targets that cannot be safely verified."
             ),
             candidates=unresolved_dynamic[:20],
+            diagnostics=parser_info,
         )
 
     if outside:
@@ -466,6 +570,7 @@ def _enforce_workspace_write_policy(command: str, execution_dir: Path) -> Option
             reason="write_target_outside_task_root",
             detail="One or more write targets resolve outside the allowed task workspace.",
             candidates=outside[:20],
+            diagnostics=parser_info,
         )
 
     if not resolved_any:
@@ -478,6 +583,7 @@ def _enforce_workspace_write_policy(command: str, execution_dir: Path) -> Option
                 "Mutating command did not expose any verifiable filesystem target paths. "
                 "Use explicit relative paths to proceed."
             ),
+            diagnostics=parser_info,
         )
     return None
 
@@ -632,29 +738,35 @@ def run_shell_command(
     }
 
 
+class ParamsModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    command: str
+    working_dir: str = "."
+    timeout_seconds: int = 60
+    env: Optional[dict] = None
+    dir_path: Optional[str] = None
+    shell_preference: str = "auto"
+    reject_on_shell_mismatch: bool = True
+    auto_switch_shell: bool = True
+    enforce_workspace_write_policy: Optional[bool] = None
+    describe_environment: bool = False
+
+
+def execute(params: dict, context: Optional[dict] = None) -> dict:
+    parsed = ParamsModel.model_validate(params)
+    payload = parsed.model_dump()
+    include_env = bool(payload.pop("describe_environment", False))
+    result = run_shell_command(**payload)
+    if include_env:
+        result["environment"] = describe_environment()
+    return result
+
+
 def main(**kwargs):
     # ToolExecutor calls main(**params) directly. Never invoke argparse in this path.
     if kwargs is not None:
         direct_kwargs = dict(kwargs)
-        include_env = bool(direct_kwargs.pop("describe_environment", False))
-        command = direct_kwargs.get("command")
-        if not command:
-            return {
-                "status": "error",
-                "command": "",
-                "directory": str(Path(direct_kwargs.get("working_dir", ".")).resolve()),
-                "stdout": "(empty)",
-                "stderr": "Missing required parameter: command",
-                "error": "MissingCommand",
-                "hint": "Provide the 'command' parameter with the shell command to execute.",
-                "exit_code": 2,
-                "shell": _detect_shell(),
-                "environment": describe_environment(),
-            }
-        result = run_shell_command(**direct_kwargs)
-        if include_env:
-            result["environment"] = describe_environment()
-        return result
+        return execute(direct_kwargs, context=None)
 
 
 def cli_main():

@@ -17,6 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal, Optional
 
+from pydantic import BaseModel, ConfigDict
 
 VALID_CATEGORIES = ("context", "finding", "decision", "error", "config", "wip", "handoff")
 VALID_TTLS = ("session", "24h", "7d", "30d", "persistent")
@@ -102,6 +103,20 @@ def save_memory(
         "ttl": ttl,
         "file": str(file_path),
     }
+
+
+class ParamsModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    key: str
+    value: str
+    category: str = "context"
+    ttl: str = "7d"
+    target_file: str = DEFAULT_TARGET
+
+
+def execute(params: dict, context: Optional[dict] = None) -> dict:
+    parsed = ParamsModel.model_validate(params)
+    return save_memory(**parsed.model_dump())
 
 
 def main():

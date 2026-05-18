@@ -27,6 +27,8 @@ import zipfile
 from pathlib import Path
 from typing import List, Optional
 
+from pydantic import BaseModel, ConfigDict
+
 
 def _collect_files(source_path: Path, base: Optional[Path] = None) -> list:
     """Collect (disk_path, arcname) pairs from a path (file or directory)."""
@@ -351,6 +353,48 @@ def zip_tool(
             }
 
     return {"status": "error", "action": action, "error": "Internal error"}
+
+
+class ParamsModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action: str
+    file: Optional[str] = None
+    output: Optional[str] = None
+    output_dir: Optional[str] = None
+    paths: Optional[List[str]] = None
+    compression: str = "deflate"
+    overwrite: bool = False
+    password: Optional[str] = None
+
+
+def execute(params: dict, context: Optional[dict] = None) -> dict:
+    parsed = ParamsModel.model_validate(params)
+    payload = parsed.model_dump()
+    ctx = context or {}
+    task_root = Path(str(ctx.get("task_root", "")).strip()) if str(ctx.get("task_root", "")).strip() else None
+    output_root = Path(str(ctx.get("output_root", "")).strip()) if str(ctx.get("output_root", "")).strip() else None
+
+    def _resolve(raw: Optional[str], *, prefer_output: bool) -> Optional[str]:
+        if not raw:
+            return raw
+        p = Path(str(raw))
+        if p.is_absolute():
+            return str(p.resolve())
+        rel = str(raw).replace("\\", "/").lstrip("./")
+        if task_root is None:
+            return str(Path(rel).resolve())
+        if rel.startswith("output/"):
+            return str((task_root / rel).resolve())
+        base = output_root if prefer_output and output_root is not None else task_root
+        return str((base / rel).resolve())
+
+    action = str(payload.get("action", "")).lower()
+    payload["file"] = _resolve(payload.get("file"), prefer_output=True)
+    payload["output"] = _resolve(payload.get("output"), prefer_output=True)
+    payload["output_dir"] = _resolve(payload.get("output_dir"), prefer_output=True)
+    if action in {"create", "add"} and isinstance(payload.get("paths"), list):
+        payload["paths"] = [_resolve(str(p), prefer_output=True) or str(p) for p in payload["paths"]]
+    return zip_tool(**payload)
 
 
 # ---------------------------------------------------------------------------

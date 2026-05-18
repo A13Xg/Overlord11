@@ -22,7 +22,9 @@ import re
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
+from pydantic import BaseModel, ConfigDict, Field
 sys.path.insert(0, str(Path(__file__).parent))
 try:
     from log_manager import log_tool_invocation, log_error
@@ -918,6 +920,53 @@ def generate_report(
         if HAS_LOG and session_id:
             log_error(session_id=session_id, source="publisher_tool", error=str(exc))
         return error_result
+
+
+class ParamsModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str
+    content: str
+    subtitle: str = ""
+    theme: str = "auto"
+    sections: list = Field(default_factory=list)
+    metrics: list = Field(default_factory=list)
+    sources: list = Field(default_factory=list)
+    output_path: str = ""
+    author: str = ""
+    session_id: str = ""
+
+
+def execute(params: dict, context: Optional[dict] = None) -> dict:
+    parsed = ParamsModel.model_validate(params)
+    payload = parsed.model_dump()
+    ctx = context or {}
+    task_root = Path(str(ctx.get("task_root", "")).strip()) if str(ctx.get("task_root", "")).strip() else None
+    output_root = Path(str(ctx.get("output_root", "")).strip()) if str(ctx.get("output_root", "")).strip() else None
+
+    def _resolve(raw: str, *, prefer_output: bool) -> str:
+        if not raw:
+            return raw
+        p = Path(str(raw))
+        if p.is_absolute():
+            return str(p.resolve())
+        rel = str(raw).replace("\\", "/").lstrip("./")
+        if task_root is None:
+            return str(Path(rel).resolve())
+        if rel.startswith("output/"):
+            return str((task_root / rel).resolve())
+        base = output_root if prefer_output and output_root is not None else task_root
+        return str((base / rel).resolve())
+
+    out = str(payload.get("output_path") or "").strip()
+    if out:
+        payload["output_path"] = _resolve(out, prefer_output=True)
+
+    content = str(payload.get("content") or "")
+    if content and ("\n" not in content and "\r" not in content):
+        candidate = _resolve(content, prefer_output=True)
+        if Path(candidate).exists():
+            payload["content"] = candidate
+    return generate_report(**payload)
 
 
 # ---------------------------------------------------------------------------

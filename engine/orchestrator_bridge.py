@@ -74,13 +74,13 @@ class OrchestratorBridge:
     # Prompt building
     # ------------------------------------------------------------------
 
-    def build_system_prompt(self, agent_id: str) -> str:
-        """Build system prompt from agent markdown file + ONBOARDING.md."""
+    def build_system_prompt(self, agent_id: str, *, include_onboarding: bool = True) -> str:
+        """Build system prompt from agent markdown file and optional ONBOARDING.md."""
         parts: List[str] = []
 
         # Read ONBOARDING.md
         onboarding_path = _BASE_DIR / "ONBOARDING.md"
-        if onboarding_path.exists():
+        if include_onboarding and onboarding_path.exists():
             parts.append(onboarding_path.read_text(encoding="utf-8"))
 
         # Find the agent config by id

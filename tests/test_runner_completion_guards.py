@@ -1,4 +1,6 @@
 import unittest
+import zipfile
+from pathlib import Path
 
 from engine.runner import EngineRunner
 from engine.tool_executor import ToolCall
@@ -132,6 +134,168 @@ class RunnerCompletionGuardTests(unittest.TestCase):
         ]
         result = runner.run("Analyze repository structure and generate a verification report with metadata.")
         self.assertEqual(result.get("status"), "failed")
+
+    def test_max_loops_exhaustion_sets_explicit_error_reason(self):
+        runner = self._runner()
+        runner._config["orchestration"]["max_loops"] = 1
+        runner._loop_governor.max_parent_loops = 1
+        runner._bridge.call_provider_streaming = lambda **kwargs: "I will keep planning without tool calls."  # type: ignore[method-assign]
+        result = runner.run("Build a complex module with tests and docs.")
+        self.assertEqual(result.get("status"), "failed")
+        self.assertTrue(result.get("error"))
+
+    def test_non_trivial_completion_allows_incidental_tools_path_mentions(self):
+        runner = self._runner()
+        responses = [
+            "```json\n{\"tool\":\"dummy_tool\",\"params\":{\"x\":1}}\n```",
+            "Completed successfully. Updated references in tools/python/publisher_tool.py and produced the final report.",
+        ]
+
+        def fake_call(**kwargs):
+            return responses.pop(0) if responses else "Completed successfully."
+
+        runner._bridge.call_provider_streaming = fake_call  # type: ignore[method-assign]
+        runner._parallel_executor.execute_all = lambda *args, **kwargs: [  # type: ignore[method-assign]
+            (
+                ToolCall(tool_name="dummy_tool", params={"x": 1}, raw=""),
+                {"status": "success", "result": {"changed_files": ["a.py"]}, "tool": "dummy_tool", "duration_ms": 1.0},
+            )
+        ]
+        result = runner.run("Run checks and produce a final report.")
+        self.assertEqual(result.get("status"), "complete")
+        self.assertEqual(result.get("completion_mode"), "tool_driven")
+
+    def test_auxiliary_tool_failures_become_warnings_after_core_progress(self):
+        runner = self._runner()
+        responses = [
+            (
+                "```json\n{\"tool\":\"dummy_tool\",\"params\":{\"x\":1}}\n```\n"
+                "```json\n{\"tool\":\"session_manager\",\"params\":{\"action\":\"close\",\"summary\":\"done\"}}\n```"
+            ),
+            "Completed successfully. Final output has been produced.",
+        ]
+
+        def fake_call(**kwargs):
+            return responses.pop(0) if responses else "Completed successfully."
+
+        runner._bridge.call_provider_streaming = fake_call  # type: ignore[method-assign]
+        runner._parallel_executor.execute_all = lambda *args, **kwargs: [  # type: ignore[method-assign]
+            (
+                ToolCall(tool_name="dummy_tool", params={"x": 1}, raw=""),
+                {"status": "success", "result": {"changed_files": ["a.py"]}, "tool": "dummy_tool", "duration_ms": 1.0},
+            ),
+            (
+                ToolCall(tool_name="session_manager", params={"action": "close"}, raw=""),
+                {"status": "error", "result": "simulated close failure", "tool": "session_manager", "duration_ms": 1.0, "error": "simulated close failure"},
+            ),
+        ]
+        result = runner.run("Perform non-trivial work and provide final output.")
+        self.assertEqual(result.get("status"), "complete")
+        warnings = result.get("bookkeeping_warnings") or []
+        self.assertGreaterEqual(len(warnings), 1)
+
+    def test_packaging_claim_with_empty_zip_fails_completion_contract(self):
+        runner = self._runner()
+        empty_zip = Path(__file__).resolve().parent / "_empty_test_bundle.zip"
+        if empty_zip.exists():
+            empty_zip.unlink()
+        with zipfile.ZipFile(empty_zip, "w"):
+            pass
+        responses = [
+            "```json\n{\"tool\":\"zip_tool\",\"params\":{\"action\":\"create\",\"output\":\"output/bundle.zip\",\"paths\":[\"output/artifacts\"]}}\n```",
+            "Completed successfully. I created the final zip archive package for delivery.",
+        ]
+
+        def fake_call(**kwargs):
+            return responses.pop(0) if responses else "Completed successfully."
+
+        runner._bridge.call_provider_streaming = fake_call  # type: ignore[method-assign]
+        runner._parallel_executor.execute_all = lambda *args, **kwargs: [  # type: ignore[method-assign]
+            (
+                ToolCall(tool_name="zip_tool", params={"action": "create"}, raw=""),
+                {
+                    "status": "success",
+                    "result": {"status": "success", "file": str(empty_zip), "file_count": 0},
+                    "tool": "zip_tool",
+                    "duration_ms": 1.0,
+                },
+            ),
+        ]
+        result = runner.run("Create a zip package and confirm it is ready.")
+        self.assertEqual(result.get("status"), "failed")
+        self.assertEqual(result.get("error"), "completion_contract_violation")
+        failed = result.get("failed_checks") or []
+        self.assertTrue(any(item.get("id") == "zip_non_empty" for item in failed))
+        if empty_zip.exists():
+            empty_zip.unlink()
+
+    def test_repeated_nonconvergent_tool_failure_stops_early(self):
+        runner = self._runner()
+        runner._heal_repeat_suppress_after = 1
+        runner._heal_repeat_hard_stop_after = 2
+        responses = [
+            "```json\n{\"tool\":\"dummy_tool\",\"params\":{\"x\":1}}\n```",
+            "```json\n{\"tool\":\"dummy_tool\",\"params\":{\"x\":1}}\n```",
+            "```json\n{\"tool\":\"dummy_tool\",\"params\":{\"x\":1}}\n```",
+        ]
+
+        def fake_call(**kwargs):
+            return responses.pop(0) if responses else "```json\n{\"tool\":\"dummy_tool\",\"params\":{\"x\":1}}\n```"
+
+        runner._bridge.call_provider_streaming = fake_call  # type: ignore[method-assign]
+        runner._parallel_executor.execute_all = lambda *args, **kwargs: [  # type: ignore[method-assign]
+            (
+                ToolCall(tool_name="dummy_tool", params={"x": 1}, raw=""),
+                {"status": "error", "result": "simulated deterministic failure", "tool": "dummy_tool", "duration_ms": 1.0, "error": "simulated deterministic failure"},
+            ),
+        ]
+        result = runner.run("Run a non-trivial tool flow.")
+        self.assertEqual(result.get("status"), "failed")
+        self.assertEqual(result.get("error"), "repeated_nonconvergent_tool_failure")
+
+    def test_packaging_check_unwraps_nested_cached_zip_payload(self):
+        runner = self._runner()
+        zip_path = Path(__file__).resolve().parent / "_nested_zip_bundle.zip"
+        if zip_path.exists():
+            zip_path.unlink()
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            zf.writestr("a.txt", "ok")
+        responses = [
+            "```json\n{\"tool\":\"zip_tool\",\"params\":{\"action\":\"list\",\"file\":\"output/release-kit.zip\"}}\n```",
+            "Completed successfully. I created the final zip archive package for delivery.",
+        ]
+
+        def fake_call(**kwargs):
+            return responses.pop(0) if responses else "Completed successfully."
+
+        runner._bridge.call_provider_streaming = fake_call  # type: ignore[method-assign]
+        runner._parallel_executor.execute_all = lambda *args, **kwargs: [  # type: ignore[method-assign]
+            (
+                ToolCall(tool_name="zip_tool", params={"action": "list"}, raw=""),
+                {
+                    "status": "success",
+                    "result": {
+                        "status": "success",
+                        "result": {
+                            "status": "success",
+                            "action": "list",
+                            "file": str(zip_path),
+                            "file_count": 1,
+                        },
+                        "tool": "zip_tool",
+                        "duration_ms": 1.0,
+                        "cached": True,
+                    },
+                    "tool": "zip_tool",
+                    "duration_ms": 0.0,
+                    "cached": True,
+                },
+            ),
+        ]
+        result = runner.run("Create a zip package and confirm it is ready.")
+        self.assertEqual(result.get("status"), "complete")
+        if zip_path.exists():
+            zip_path.unlink()
 
 
 if __name__ == "__main__":

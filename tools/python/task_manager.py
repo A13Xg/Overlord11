@@ -28,6 +28,9 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
 
 sys.path.insert(0, str(Path(__file__).parent))
 from log_manager import log_tool_invocation
@@ -341,6 +344,46 @@ def query_tasks(project_dir: str) -> dict:
         "completed_count": len(completed),
         "tasks": tasks
     }
+
+
+class ParamsModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action: str
+    project_dir: Optional[str] = None
+    task_dir: Optional[str] = None
+    task_id: Optional[str] = None
+    subtask_id: Optional[str] = None
+    title: str = ""
+    description: str = ""
+    priority: str = "medium"
+    assigned_agent: str = ""
+    status: str = "pending"
+    note: str = ""
+    session_id: Optional[str] = None
+
+
+def execute(params: dict, context: Optional[dict] = None) -> dict:
+    parsed = ParamsModel.model_validate(params)
+    p = parsed.model_dump()
+    action = str(p.get("action", "")).strip().lower()
+    project_dir = p.get("task_dir") or p.get("project_dir") or (str(env_task_dir()) if env_task_dir() else None)
+    if not project_dir:
+        return {"status": "error", "error": "project_dir_required"}
+    if action == "init":
+        return init_log(project_dir)
+    if action == "add_task":
+        return add_task(project_dir, p.get("title", ""), p.get("description", ""), p.get("priority", "medium"), p.get("assigned_agent", ""))
+    if action == "add_subtask":
+        return add_subtask(project_dir, p.get("task_id"), p.get("title", ""), p.get("description", ""))
+    if action == "complete_task":
+        return complete_task(project_dir, p.get("task_id"), p.get("note", ""))
+    if action == "complete_subtask":
+        return complete_subtask(project_dir, p.get("subtask_id"))
+    if action == "update_status":
+        return update_status(project_dir, p.get("task_id"), p.get("status", "pending"), p.get("note", ""))
+    if action == "query":
+        return query_tasks(project_dir)
+    return {"status": "error", "error": f"Unknown action: {action}"}
 
 
 # --- CLI Interface ---

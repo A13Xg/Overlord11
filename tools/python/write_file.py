@@ -14,6 +14,9 @@ import argparse
 import json
 import os
 import sys
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
 
 
 def write_file(
@@ -101,6 +104,19 @@ def write_file(
         "bytes_written": len(encoded),
         "encoding": encoding,
     }
+
+
+class ParamsModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    path: str
+    content: str
+    mode: str = "overwrite"
+    encoding: str = "utf-8"
+
+
+def execute(params: dict, context: Optional[dict] = None) -> dict:
+    parsed = ParamsModel.model_validate(params)
+    return write_file(**parsed.model_dump())
 
 
 def main(**kwargs):

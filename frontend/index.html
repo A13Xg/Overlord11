@@ -983,6 +983,10 @@ body::after {
               <div id="exec-result-summary" style="color:var(--txt3)">No resolved output yet.</div>
             </div>
             <div class="exec-section">
+              <h3>◼ STATISTICS</h3>
+              <div id="exec-stats" style="font-size:12px;color:var(--txt2);line-height:1.8">No statistics yet.</div>
+            </div>
+            <div class="exec-section">
               <h3>◼ ENGINE EVENTS</h3>
               <div id="event-feed"></div>
             </div>
@@ -1798,6 +1802,15 @@ function renderExecutionPanel(job) {
   const loops = evts.filter(e => e.type === 'AGENT_START').length;
   const toolCalls = evts.filter(e => e.type === 'TOOL_CALL').length;
   const toolErrors = evts.filter(e => e.type === 'TOOL_ERROR').length;
+  const subStarts = evts.filter(e => e.type === 'SUBAGENT_START').length;
+  const subDone = evts.filter(e => e.type === 'SUBAGENT_COMPLETE').length;
+  const subFail = evts.filter(e => e.type === 'SUBAGENT_FAIL').length;
+  const subRetry = evts.filter(e => e.type === 'SUBAGENT_RETRY').length;
+  const subDurMs = evts
+    .filter(e => e.type === 'SUBAGENT_COMPLETE' && typeof e.duration_ms === 'number')
+    .reduce((acc, e) => acc + e.duration_ms, 0);
+  const govTicks = evts.filter(e => e.type === 'LOOP_GOVERNOR_TICK' && e.snapshot);
+  const gov = govTicks.length ? govTicks[govTicks.length - 1].snapshot : null;
   const agents = [...new Set(evts.filter(e => e.agent_id).map(e => e.agent_id))];
 
   // Duration
@@ -1834,6 +1847,26 @@ function renderExecutionPanel(job) {
   `;
 
   renderEventFeed(job.events || []);
+  const statsEl = document.getElementById('exec-stats');
+  if (statsEl) {
+    const avg = subDone > 0 ? Math.round(subDurMs / subDone) : 0;
+    statsEl.innerHTML = `
+      <div><span style="color:var(--txt3)">SUBAGENT STARTS: </span>${subStarts}</div>
+      <div><span style="color:var(--txt3)">SUBAGENT SUCCESS:</span> <span style="color:var(--green)">${subDone}</span></div>
+      <div><span style="color:var(--txt3)">SUBAGENT FAIL:   </span> <span style="color:var(--red)">${subFail}</span></div>
+      <div><span style="color:var(--txt3)">SUBAGENT RETRIES:</span> ${subRetry}</div>
+      <div><span style="color:var(--txt3)">SUBAGENT AVG MS: </span>${avg}</div>
+      <div><span style="color:var(--txt3)">SUBAGENT TOTAL MS:</span> ${Math.round(subDurMs)}</div>
+      ${gov ? `<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px">
+        <div><span style="color:var(--txt3)">PARENT LOOPS:</span> ${gov.parent_loops_used}/${gov.limits.max_parent_loops}</div>
+        <div><span style="color:var(--txt3)">SUBAGENT LOOPS:</span> ${gov.subagent_loops_used_total}/${gov.limits.max_subagent_loops_total}</div>
+        <div><span style="color:var(--txt3)">RETRY LOOPS:</span> ${gov.retry_loops_used}/${gov.limits.max_retry_loops}</div>
+        <div><span style="color:var(--txt3)">EFFECTIVE LOOPS:</span> ${gov.effective_loops_used}/${gov.limits.max_effective_loops}</div>
+        <div><span style="color:var(--txt3)">CREDITS:</span> ${gov.credits_applied_total} | <span style="color:var(--txt3)">STALL:</span> ${gov.stall_streak}</div>
+        ${gov.terminal_reason ? `<div><span style="color:var(--red)">LOOP GOV REASON:</span> ${escHtml(gov.terminal_reason)}</div>` : ''}
+      </div>` : ''}
+    `;
+  }
   renderPrimaryOutputPanel(job).catch((e) => {
     const el = document.getElementById('exec-result-summary');
     if (el) el.innerHTML = `<span style="color:var(--red)">RESULT RESOLVE ERROR: ${escHtml(e.message || String(e))}</span>`;
@@ -1978,10 +2011,7 @@ function collapseAllExpandedBranches() {
 }
 
 function appendEventLine(ev) {
-  // Collapse all previously expanded branches when a new agent loop starts
-  if (ev.type === 'AGENT_START' && (ev.loop || 0) > 1) {
-    collapseAllExpandedBranches();
-  }
+  // Preserve expanded tree state across agent loops so the log view stays stable.
   const feed = document.getElementById('event-feed');
   const div = document.createElement('div');
   const meta = getTreeMeta(ev);
@@ -2598,7 +2628,7 @@ function handleEvent(ev) {
 
 function isEventCollapsible(ev) {
   const type = ev.type || '';
-  return type === 'SESSION_START' || type === 'AGENT_START' || type === 'TOOL_CALL' || type === 'PROVIDER_TRACE';
+  return type === 'SESSION_START' || type === 'AGENT_START' || type === 'TOOL_CALL' || type === 'PROVIDER_TRACE' || type === 'SUBAGENT_START';
 }
 
 function getEventKey(ev) {
@@ -2689,6 +2719,12 @@ function getTreeMeta(ev) {
   if (type === 'AGENT_START' || type === 'AGENT_COMPLETE') {
     return {depth: 1, branch: buildTreeBranch(1, type === 'AGENT_COMPLETE'), kind: type === 'AGENT_COMPLETE' ? 'complete' : 'agent'};
   }
+  if (type === 'SUBAGENT_START') {
+    return {depth: 2, branch: buildTreeBranch(2, false), kind: 'agent'};
+  }
+  if (type === 'SUBAGENT_COMPLETE' || type === 'SUBAGENT_FAIL' || type === 'SUBAGENT_RETRY') {
+    return {depth: 3, branch: buildTreeBranch(3, true), kind: type === 'SUBAGENT_COMPLETE' ? 'complete' : (type === 'SUBAGENT_RETRY' ? 'status' : 'error')};
+  }
   if (type === 'AGENT_MESSAGE') {
     return {depth: 2, branch: buildTreeBranch(2, true), kind: 'agent'};
   }
@@ -2752,6 +2788,18 @@ function formatEventBody(ev) {
   }
   if (ev.type === 'AGENT_COMPLETE') {
     return `agent ${ev.agent_id || 'unknown'} completed loop ${ev.loop || '?'} with ${ev.response_len || 0} chars`;
+  }
+  if (ev.type === 'SUBAGENT_START') {
+    return `spawn ${ev.subagent_id || 'unknown'} from ${ev.parent_agent_id || 'unknown'} (timeout ${ev.timeout_s || '?'}s)`;
+  }
+  if (ev.type === 'SUBAGENT_COMPLETE') {
+    return `${ev.subagent_id || 'unknown'} complete in ${Math.round(ev.duration_ms || 0)}ms (attempt ${ev.attempt_count || 1})`;
+  }
+  if (ev.type === 'SUBAGENT_RETRY') {
+    return `${ev.subagent_id || 'unknown'} retry ${ev.attempt || 1}/${ev.max_attempts || '?'} after error: ${ev.error || 'unknown'}`;
+  }
+  if (ev.type === 'SUBAGENT_FAIL') {
+    return `${ev.subagent_id || 'unknown'} failed after ${ev.attempt_count || '?'} attempt(s): ${ev.error || 'unknown'}`;
   }
   if (ev.type === 'RATE_LIMITED') {
     const wait   = ev.wait_s ? `${ev.wait_s}s` : '?';

@@ -1,6 +1,6 @@
 import unittest
 
-from tools.python.run_shell_command import _detect_command_style, run_shell_command
+from tools.python.run_shell_command import _detect_command_style, _tokenize_path_candidates, run_shell_command
 
 
 class ShellCommandStyleGuardTests(unittest.TestCase):
@@ -31,6 +31,13 @@ class ShellCommandStyleGuardTests(unittest.TestCase):
         )
         self.assertEqual(result.get("status"), "error")
         self.assertEqual(result.get("error"), "InvalidShellPreference")
+
+    def test_cmd_flags_are_not_misclassified_as_paths(self):
+        info = _tokenize_path_candidates('del /f /q output\\kickoff-kit.zip')
+        self.assertEqual(info.get("command_family"), "cmd")
+        self.assertIn("output\\kickoff-kit.zip", info.get("parsed_targets", []))
+        self.assertIn("/f", info.get("ignored_flags", []))
+        self.assertIn("/q", info.get("ignored_flags", []))
 
 
 if __name__ == "__main__":

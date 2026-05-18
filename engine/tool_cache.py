@@ -136,7 +136,10 @@ class ToolCache:
             self._dirty = True
 
             log.debug("Cache hit: %s (hits=%d)", tool_name, entry["hits"])
-            return {**entry["result"], "cached": True, "cache_age_s": round(time.time() - entry["stored_at"])}
+            return {
+                "payload": entry["result_payload"],
+                "cache_age_s": round(time.time() - entry["stored_at"]),
+            }
 
     def put(self, tool_name: str, params: dict, result: dict) -> None:
         """
@@ -148,6 +151,9 @@ class ToolCache:
         if not self.is_cacheable(tool_name):
             return
         if result.get("status") != "success":
+            return
+        payload = result.get("result")
+        if payload is None:
             return
 
         key = self._make_key(tool_name, params)
@@ -163,7 +169,7 @@ class ToolCache:
 
             self._store[key] = {
                 "tool": tool_name,
-                "result": result,
+                "result_payload": payload,
                 "stored_at": time.time(),
                 "hits": 0,
             }
@@ -221,7 +227,27 @@ class ToolCache:
             return
         try:
             data = json.loads(self._cache_file.read_text(encoding="utf-8"))
-            self._store = data.get("entries", {})
+            raw = data.get("entries", {})
+            normalized: dict[str, dict] = {}
+            for key, entry in (raw or {}).items():
+                if not isinstance(entry, dict):
+                    continue
+                if "result_payload" in entry:
+                    normalized[key] = entry
+                    continue
+                # Backward compatibility: old shape stored full executor result under "result".
+                legacy = entry.get("result")
+                if isinstance(legacy, dict) and "result" in legacy:
+                    payload = legacy.get("result")
+                else:
+                    payload = legacy
+                normalized[key] = {
+                    "tool": entry.get("tool"),
+                    "result_payload": payload,
+                    "stored_at": entry.get("stored_at", time.time()),
+                    "hits": entry.get("hits", 0),
+                }
+            self._store = normalized
             log.info("Tool cache loaded: %d entries from %s", len(self._store), self._cache_file)
         except Exception as exc:
             log.warning("Tool cache load failed (%s) — starting empty", exc)
