@@ -60,7 +60,7 @@ class Job:
     # Conflict info: which jobs this was sequenced behind and why
     conflict_info: dict = field(default_factory=dict)
     # Terminal quality metadata (set by engine bridge from runner result)
-    completion_mode: Optional[str] = None  # tool_driven | direct_answer | empty_response_fail | no_effect_fail
+    completion_mode: Optional[str] = None  # direct_provider | failed
     tool_call_count: int = 0
     artifact_count: int = 0
 

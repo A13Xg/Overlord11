@@ -51,6 +51,7 @@ from .api.setup import router as setup_router
 from .api.templates import router as templates_router
 from .core.engine_bridge import bridge
 from .core.session_store import store
+from .strict_runtime.conformance import check_tools_report_only
 
 _CONFIG_FILE = _BASE_DIR / "config.json"
 
@@ -65,6 +66,12 @@ async def lifespan(app: FastAPI):
         config = json.loads(_CONFIG_FILE.read_text(encoding="utf-8"))
     except Exception:
         config = {}
+    issues = check_tools_report_only(config.get("tools", {}))
+    if issues:
+        logging.getLogger("overlord11.webui").info(
+            "Strict runtime conformance report-only: %d issue(s) detected",
+            len(issues),
+        )
     bridge.start_worker(config=config)
     try:
         yield

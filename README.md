@@ -1,6 +1,6 @@
-# Overlord11 WebUI (Minimal Baseline)
+# Overlord11 WebUI (Shell Runtime Reset)
 
-Minimal runtime baseline for the Overlord11 WebUI stack.
+Clean-slate WebUI runtime baseline for prompt-to-provider execution.
 
 ## Run
 
@@ -21,9 +21,8 @@ playwright install chromium
 
 - `backend/` FastAPI + APIs + SSE
 - `frontend/` WebUI pages
-- `engine/` orchestration runner + provider bridge + tool execution
-- `tools/` tool schemas + implementations
-- `agents/` runtime agent prompts
+- `backend/core/provider_runtime.py` direct provider execution
+- `backend/strict_runtime/` strict tool-runtime skeleton (report-only, disabled)
 - `config.json` provider/orchestration/tool config
 
 ## Diagnostics
@@ -35,7 +34,7 @@ playwright install chromium
 
 ## Completion Semantics
 
-Non-trivial tasks must execute parseable tool calls. Prose-only non-trivial responses are treated as invalid completion and fail with explicit reason metadata.
+Jobs complete when the provider returns a non-empty response and canonical output artifacts are written.
 
 ## Output Visibility
 
@@ -48,10 +47,9 @@ Non-trivial tasks must execute parseable tool calls. Prose-only non-trivial resp
 
 ## Runtime Defaults
 
-- New jobs default to `TRY DIFFERENT MODEL` rate-limit behavior.
-- New jobs default to auto-start enabled; when disabled, jobs are created queued for manual start.
-- Shell execution defaults to strict style guards with environment-aware shell preference (`reject_on_shell_mismatch=true`, `auto_switch_shell=true`).
-- In task context, mutating shell commands are pre-validated so write targets must resolve inside `OVERLORD11_TASK_DIR` before execution (`enforce_workspace_write_policy=true`).
+- Runtime mode is `shell_only`.
+- No agent orchestration or tool execution path is active.
+- Jobs default to auto-start enabled; when disabled, jobs are queued for manual start.
 
 ## Stabilization Gate
 
@@ -70,25 +68,19 @@ Before starting feature work or preparing a release, complete this gate in order
 python -m unittest discover -s tests -v
 ```
 
-2. Validate tool contracts (schema ↔ implementation ↔ CLI):
+2. Compile critical modules:
 
 ```bash
-python -m unittest tests/test_tool_contracts.py -v
+python -m py_compile backend/core/provider_runtime.py backend/core/engine_bridge.py
 ```
 
-3. Compile critical modules:
-
-```bash
-python -m py_compile engine/tool_executor.py engine/runner.py engine/session_manager.py backend/core/engine_bridge.py
-```
-
-4. Start WebUI and run the interactive matrix:
+3. Start WebUI and run the interactive matrix:
 
 ```bash
 python scripts/run_webui.py
 ```
 
-5. Verify each target session contains a job summary:
+4. Verify each target session contains a provider response log:
 
 ```bash
 python - <<'PY'
@@ -98,20 +90,15 @@ missing = []
 for d in sorted([p for p in root.iterdir() if p.is_dir()]):
     if d.name == "archive":
         continue
-    p = d / "artifacts" / "logs" / "job_summary.json"
+    p = d / "artifacts" / "logs" / "provider_response.json"
     if not p.exists():
         missing.append(d.name)
-print("missing_job_summary:", missing)
+print("missing_provider_response:", missing)
 raise SystemExit(1 if missing else 0)
 PY
 ```
 
-6. Pass/fail criteria:
-- No write attempts outside task workspace in normal mode.
-- No false completion for delegation-only output.
-- No false no-effect failure when valid tool execution occurred.
-- `job_summary.json` exists for each session and includes:
-  - `job_title`
-  - `completion_mode`
-  - `tool_call_count`
-  - `artifact_count`
+5. Pass/fail criteria:
+- Direct prompt-to-provider execution succeeds.
+- `provider_response.json` exists for each completed session.
+- `output/answer.md` and `final_output.md` are present for completed jobs.

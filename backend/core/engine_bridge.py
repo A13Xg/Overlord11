@@ -1,5 +1,5 @@
 """
-Engine bridge — connects FastAPI to engine/runner.py.
+Engine bridge — connects FastAPI to direct provider runtime.
 
 Parallel Job Execution
 -----------------------
@@ -24,10 +24,11 @@ Race conditions
 - N worker coroutines share a single asyncio.Queue; asyncio guarantees only
   one coroutine receives each item from a Queue.get() call.
 - SessionStore mutations are protected by its own threading.Lock.
-- EngineRunner events are emitted through a thread-safe EventStream.
+- Provider runtime events are emitted through a thread-safe EventStream.
 """
 
 import asyncio
+import json
 import logging
 import sys
 import threading
@@ -39,8 +40,6 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from engine.runner import EngineRunner
-
 from .conflict_detector import (
     ConflictResult,
     DomainSet,
@@ -50,6 +49,7 @@ from .conflict_detector import (
     extract_domains,
 )
 from .event_stream import EventBroadcaster, broadcaster as default_broadcaster
+from .provider_runtime import ProviderRuntime
 from .session_store import Job, JobStatus, SessionStore, store as default_store
 
 log = logging.getLogger("overlord11.engine_bridge")
@@ -59,7 +59,7 @@ _DEPENDENCY_TIMEOUT_S = 3600  # 1 hour
 
 
 class EngineBridge:
-    """Wraps EngineRunner and drives job execution with a parallel worker pool."""
+    """Wraps provider runtime and drives job execution with a parallel worker pool."""
 
     def __init__(self) -> None:
         self.job_queue: asyncio.Queue = asyncio.Queue()
@@ -78,9 +78,8 @@ class EngineBridge:
         self._completion_events: dict[str, asyncio.Event] = {}
         self._MAX_COMPLETION_EVENTS = 1000
 
-        # Maps job_id → threading.Event passed into the EngineRunner for that
-        # job.  Allows external callers (stop/pause API) to interrupt an
-        # in-progress rate-limit wait without waiting for it to expire.
+        # Maps job_id → threading.Event passed into the runtime loop for that
+        # job. Allows stop/pause API to interrupt queued/running work.
         self._job_stop_events: dict[str, threading.Event] = {}
 
         # Maps job_id → DomainSet for jobs that are currently RUNNING or QUEUED.
@@ -441,55 +440,81 @@ class EngineBridge:
             "status": JobStatus.RUNNING.value,
         })
 
-        # stop_event lets the runner abort a rate-limit wait early when the
-        # job is paused, cancelled, or the server is shutting down.
         stop_event = threading.Event()
         self._job_stop_events[job_id] = stop_event
 
-        def _event_callback(event: dict) -> None:
-            """Sync callback invoked from EngineRunner (may be on a thread-pool thread)."""
-            store.append_event(job_id, event)
-            broadcaster.publish(job_id, {**event, "job_id": job_id})
+        def _session_id() -> str:
+            now = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            return f"{now}_{job_id}"
 
-            # Drive job status transitions triggered by engine events.
-            event_type = event.get("type", "")
-            if event_type == "RATE_LIMITED":
-                store.update_job(job_id, status=JobStatus.RATE_LIMITED)
-                broadcaster.publish(job_id, {
-                    "type": "STATUS",
-                    "job_id": job_id,
-                    "status": JobStatus.RATE_LIMITED.value,
-                    "wait_s": event.get("wait_s"),
-                    "resume_at": event.get("resume_at"),
-                })
-            elif event_type == "AGENT_START":
-                j = store.get_job(job_id)
-                if j is not None and j.status == JobStatus.RATE_LIMITED:
-                    store.update_job(job_id, status=JobStatus.RUNNING)
-                    broadcaster.publish(job_id, {
-                        "type": "STATUS",
-                        "job_id": job_id,
-                        "status": JobStatus.RUNNING.value,
-                    })
-
-        runner = EngineRunner(
-            verbose=False,
-            stop_event=stop_event,
-            rate_limit_action=job.rate_limit_action,
-        )
-        runner.events.callbacks.append(_event_callback)
+        def _prepare_workspace(session_id: str) -> Path:
+            root = _PROJECT_ROOT / "workspace" / session_id
+            (root / "output").mkdir(parents=True, exist_ok=True)
+            (root / "artifacts" / "logs").mkdir(parents=True, exist_ok=True)
+            return root
 
         loop = asyncio.get_running_loop()
 
-        def _check_paused() -> bool:
+        def _check_blocked() -> bool:
             j = store.get_job(job_id)
-            return j is not None and j.status == JobStatus.PAUSED
+            return j is not None and j.status == JobStatus.PAUSED and not stop_event.is_set()
 
         def _run_sync() -> dict:
             import time
-            while _check_paused():
+            while _check_blocked():
                 time.sleep(0.5)
-            return runner.run(job.prompt, job_id=job_id, job_title=job.title)
+            if stop_event.is_set():
+                return {"status": "failed", "error": "Stopped by user", "output": ""}
+            session_id = _session_id()
+            workspace = _prepare_workspace(session_id)
+            started_at = datetime.now(timezone.utc).isoformat()
+            _event = {
+                "type": "SESSION_START",
+                "job_id": job_id,
+                "session_id": session_id,
+                "started_at": started_at,
+            }
+            store.append_event(job_id, _event)
+            broadcaster.publish(job_id, _event)
+
+            cfg = json.loads((_PROJECT_ROOT / "config.json").read_text(encoding="utf-8"))
+            runtime = ProviderRuntime(cfg)
+            provider_result = runtime.execute_prompt(job.prompt)
+            output = (provider_result.output or "").strip()
+            if not output:
+                raise RuntimeError("Provider returned empty response")
+
+            # Canonical shell-runtime deliverables
+            (workspace / "final_output.md").write_text(output, encoding="utf-8")
+            (workspace / "output" / "answer.md").write_text(output, encoding="utf-8")
+            meta = {
+                "provider": provider_result.provider,
+                "model": provider_result.model,
+                "job_id": job_id,
+                "session_id": session_id,
+                "started_at": started_at,
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+            }
+            (workspace / "artifacts" / "logs" / "provider_response.json").write_text(
+                json.dumps({"meta": meta, "raw": provider_result.raw}, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            _done_event = {
+                "type": "SESSION_END",
+                "job_id": job_id,
+                "session_id": session_id,
+                "status": "complete",
+            }
+            store.append_event(job_id, _done_event)
+            broadcaster.publish(job_id, _done_event)
+            return {
+                "status": "complete",
+                "session_id": session_id,
+                "output": output,
+                "completion_mode": "direct_provider",
+                "tool_call_count": 0,
+                "artifact_count": 3,
+            }
 
         try:
             result = await loop.run_in_executor(None, _run_sync)
