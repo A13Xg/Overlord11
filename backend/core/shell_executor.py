@@ -1,10 +1,13 @@
 """
 Constrained shell executor for per-session command execution.
+
+Supports bash (Unix/Linux/macOS) and PowerShell (Windows) with auto-detection.
 """
 
 from __future__ import annotations
 
 import os
+import platform
 import re
 import subprocess
 from dataclasses import dataclass
@@ -30,7 +33,9 @@ class ShellExecutionResult:
 
 _ABS_PATH_RE = re.compile(r"(?i)([a-z]:\\|\\\\|/)")
 _PARENT_TRAVERSAL_RE = re.compile(r"(^|[\s;|&])cd\s+\.\.([\\/\s;|&]|$)", re.IGNORECASE)
-_DESTRUCTIVE_PATTERNS = [
+
+# Windows-specific destructive patterns
+_DESTRUCTIVE_PATTERNS_WINDOWS = [
     r"(?i)\bformat\s+[a-z]:",
     r"(?i)\bshutdown\b",
     r"(?i)\breboot\b",
@@ -41,6 +46,36 @@ _DESTRUCTIVE_PATTERNS = [
     r"(?i)\brd\s+/s\s+/q\s+[a-z]:\\",
     r"(?i)\bRemove-Item\b.*-Recurse\b.*[a-z]:\\",
 ]
+
+# Unix/Linux destructive patterns
+_DESTRUCTIVE_PATTERNS_UNIX = [
+    r"\brm\s+-rf\s+/\b",
+    r"\brm\s+-rf\s+/\*",
+    r"\bdd\s+if=\S*\s+of=/\S*",
+    r":\(\)\s*{\s*:\s*\|\s*&\s*:\s*;\s*:",  # fork bomb: :() { :|&:; }
+    r"\bshutdown\s+(-h|-r)\b",
+]
+
+
+def _get_native_shell() -> str:
+    """
+    Auto-detect the native shell for the current OS.
+    Returns 'bash' for Unix/Linux/macOS, 'powershell' for Windows.
+    """
+    system = platform.system().lower()
+    if system == "windows":
+        return "powershell"
+    else:
+        # Unix-like systems: Linux, Darwin (macOS), etc.
+        return "bash"
+
+
+def _get_destructive_patterns(shell_type: str) -> list[str]:
+    """Get destructive patterns appropriate for the shell type."""
+    if shell_type in ("powershell", "pwsh"):
+        return _DESTRUCTIVE_PATTERNS_WINDOWS
+    else:  # bash
+        return _DESTRUCTIVE_PATTERNS_UNIX
 
 
 def _truncate_text(text: str, max_bytes: int) -> str:
@@ -53,10 +88,19 @@ def _truncate_text(text: str, max_bytes: int) -> str:
 
 
 class ShellExecutor:
-    def __init__(self, session_root: Path, policy: str = "balanced_limited", shell_type: str = "powershell"):
+    def __init__(self, session_root: Path, policy: str = "balanced_limited", shell_type: str = "auto"):
         self.session_root = session_root.resolve()
         self.policy = (policy or "balanced_limited").strip().lower()
-        self.shell_type = (shell_type or "powershell").strip().lower()
+        
+        # Auto-detect shell if set to "auto"
+        if shell_type.lower() == "auto":
+            self.shell_type = _get_native_shell()
+        else:
+            self.shell_type = (shell_type or "bash").strip().lower()
+        
+        # Validate shell type
+        if self.shell_type not in {"bash", "powershell", "pwsh"}:
+            raise ShellExecutionError(f"Unsupported shell type: {self.shell_type}")
 
     def _validate_command(self, command: str) -> Optional[str]:
         cmd = (command or "").strip()
@@ -74,7 +118,10 @@ class ShellExecutor:
                 root_str = str(self.session_root).lower().replace("/", "\\")
                 if root_str not in cmd.lower().replace("/", "\\"):
                     return "Absolute paths outside session root are not allowed"
-            for pattern in _DESTRUCTIVE_PATTERNS:
+            
+            # Apply shell-appropriate destructive patterns
+            destructive_patterns = _get_destructive_patterns(self.shell_type)
+            for pattern in destructive_patterns:
                 if re.search(pattern, cmd):
                     return "Command blocked by balanced_limited safety policy"
         return None
@@ -93,12 +140,12 @@ class ShellExecutor:
                 block_reason=reason,
             )
 
-        if self.shell_type not in {"powershell", "pwsh"}:
-            raise ShellExecutionError(f"Unsupported shell type: {self.shell_type}")
+        if self.shell_type in ("powershell", "pwsh"):
+            exe = "powershell" if self.shell_type == "powershell" else "pwsh"
+            args = [exe, "-NoProfile", "-NonInteractive", "-Command", command]
+        else:  # bash
+            args = ["bash", "-c", command]
 
-        exe = "powershell" if self.shell_type == "powershell" else "pwsh"
-        # Always run in session root and avoid profile side effects.
-        args = [exe, "-NoProfile", "-NonInteractive", "-Command", command]
         env = os.environ.copy()
         proc = None
         try:

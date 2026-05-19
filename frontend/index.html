@@ -1110,8 +1110,14 @@ body::after {
       <div class="form-group">
         <label>SHELL TYPE</label>
         <select id="new-job-shell-type">
-          <option value="powershell" selected>POWERSHELL</option>
+          <option value="auto" selected>AUTO (native shell for this system)</option>
+          <option value="bash">BASH</option>
+          <option value="powershell">POWERSHELL</option>
+          <option value="pwsh">PWSH (PowerShell Core)</option>
         </select>
+        <div style="margin-top: 4px; font-size: 11px; color: var(--txt3);">
+          <span id="shell-detection-hint"></span>
+        </div>
       </div>
     </div>
     <div id="modal-footer">
@@ -1243,6 +1249,34 @@ let _streamIncoming = '';   // chunks received from provider (raw buffer)
 let _streamRendered = '';   // chars shown to user
 let _streamTick = null;     // typing loop timer
 let _streamActive = false;  // true while provider is generating
+
+// Shell auto-detection — detected native shell for this platform
+let _nativeShell = 'bash';  // default; updated on page load via OS detection
+
+/* ═══════════════════════════════════════════════════════
+   SHELL DETECTION
+   Detect the native shell for the current operating system.
+═══════════════════════════════════════════════════════ */
+function detectNativeShell() {
+  // Detect OS from user agent
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes('win')) {
+    _nativeShell = 'powershell';
+  } else if (ua.includes('mac') || ua.includes('linux') || ua.includes('unix')) {
+    _nativeShell = 'bash';
+  } else {
+    _nativeShell = 'bash'; // default fallback
+  }
+  return _nativeShell;
+}
+
+function updateShellHint() {
+  const hint = document.getElementById('shell-detection-hint');
+  if (!hint) return;
+  const capitalizedShell = _nativeShell.charAt(0).toUpperCase() + _nativeShell.slice(1);
+  hint.textContent = `Auto will use ${capitalizedShell} (detected for this system)`;
+  hint.style.color = 'var(--teal)';
+}
 
 /* ═══════════════════════════════════════════════════════
    NOTIFICATIONS
@@ -1482,6 +1516,8 @@ async function init() {
   }
 
   requestNotificationPermission();
+  detectNativeShell();
+  updateShellHint();
   startClock();
   spinnerOn();
   await Promise.all([loadProviders(), loadJobs()]);
@@ -1765,7 +1801,7 @@ function closeNewJobModal(e) {
   document.getElementById('new-job-rl-action').value = 'try_different_model';
   document.getElementById('new-job-auto-start').checked = true;
   document.getElementById('new-job-shell-policy').value = 'balanced_limited';
-  document.getElementById('new-job-shell-type').value = 'powershell';
+  document.getElementById('new-job-shell-type').value = 'auto';
 }
 async function submitNewJob() {
   const title           = document.getElementById('new-job-title').value.trim();
@@ -1796,7 +1832,7 @@ async function submitNewJob() {
     document.getElementById('new-job-rl-action').value = 'try_different_model';
     document.getElementById('new-job-auto-start').checked = true;
     document.getElementById('new-job-shell-policy').value = 'balanced_limited';
-    document.getElementById('new-job-shell-type').value = 'powershell';
+    document.getElementById('new-job-shell-type').value = 'auto';
 
     // Handle conflict info from auto-start
     const conflict = job._conflict;

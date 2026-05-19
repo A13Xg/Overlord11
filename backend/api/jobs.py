@@ -51,7 +51,7 @@ class CreateJobRequest(BaseModel):
     depends_on: List[str] = []         # explicit prerequisite job IDs (optional)
     priority: int = 0                  # 0=normal, -1=high, 1=low
     shell_policy: str = "balanced_limited"
-    shell_type: str = "powershell"
+    shell_type: str = "auto"           # "auto" | "bash" | "powershell" | "pwsh"
 
 
 # ------------------------------------------------------------------

@@ -706,9 +706,21 @@ class EngineBridge:
                         }
                         for t in tools
                     ], ensure_ascii=False, indent=2)
+                    
+                    # Build MCP-specific shell information
+                    import platform as plat
+                    from .shell_executor import _get_native_shell
+                    native_shell = _get_native_shell()
+                    system_os = plat.system()
+                    shell_note = (
+                        f"System shell: {native_shell} ({system_os}). "
+                        f"If tools include shell commands, use {native_shell}-compatible syntax. "
+                    )
+                    
                     planner_prompt = (
                         f"Task:\n{job.prompt}\n\n"
                         f"Session workspace:\n{workspace}\n\n"
+                        f"{shell_note}\n"
                         "Decide next action and reply in strict JSON only:\n"
                         "{\"action\":\"tool\",\"tool\":\"<server.tool>\",\"arguments\":{}}\n"
                         "or\n"
@@ -884,7 +896,7 @@ class EngineBridge:
             shell_enabled = bool(shell_cfg.get("enabled", False))
             if shell_enabled:
                 shell_policy = (job.shell_policy or shell_cfg.get("default_policy", "balanced_limited") or "balanced_limited")
-                shell_type = (job.shell_type or shell_cfg.get("default_shell", "powershell") or "powershell")
+                shell_type = (job.shell_type or shell_cfg.get("default_shell", "auto") or "auto")
                 timeout_s = int(shell_cfg.get("command_timeout_s", 120) or 120)
                 max_output_bytes = int(shell_cfg.get("max_output_bytes", 200000) or 200000)
                 max_steps = int(shell_cfg.get("max_steps", 10) or 10)
@@ -896,6 +908,8 @@ class EngineBridge:
                 stop_on_blocked = bool(self_heal_cfg.get("stop_on_blocked_command", True))
                 orchestrator_prompt = _load_orchestrator_system_prompt()
                 shell_executor = ShellExecutor(workspace, policy=shell_policy, shell_type=shell_type)
+                # After creating the executor, get the actual resolved shell type (auto-detected if needed)
+                actual_shell_type = shell_executor.shell_type
                 trace: list[dict] = []
                 history_lines: list[str] = []
                 final_message = ""
@@ -904,12 +918,21 @@ class EngineBridge:
                 same_failure_streak = 0
                 last_failure_signature = ""
 
+                # Build shell-specific instructions for the LLM
+                shell_instructions = ""
+                if actual_shell_type == "bash":
+                    shell_instructions = "Use bash/sh commands (POSIX shell syntax).\n"
+                elif actual_shell_type in ("powershell", "pwsh"):
+                    shell_instructions = "Use PowerShell commands.\n"
+
                 for step in range(1, max_steps + 1):
                     if stop_event.is_set():
                         return {"status": "failed", "error": "Stopped by user", "output": ""}
                     planner_prompt = (
                         f"Task:\n{job.prompt}\n\n"
                         f"Session workspace:\n{workspace}\n\n"
+                        f"Shell environment: {actual_shell_type} (auto-detected native shell for this system)\n"
+                        f"{shell_instructions}\n"
                         "Decide next action and reply in strict JSON only:\n"
                         "{\"action\":\"run\",\"command\":\"<shell command>\"}\n"
                         "or\n"
@@ -949,7 +972,7 @@ class EngineBridge:
                             "job_id": job_id,
                             "session_id": session_id,
                             "step": step,
-                            "shell": shell_type,
+                            "shell": actual_shell_type,
                             "shell_policy": shell_policy,
                             "command": cmd,
                         }

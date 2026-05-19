@@ -10,7 +10,7 @@ from .app import mcp
 
 @mcp.tool(
     name="run_command",
-    description="Execute a shell command and return stdout/stderr/exit_code/timed_out in `data`. Prefer this only when dedicated tools are insufficient.",
+    description="Execute a shell command and return stdout/stderr/exit_code/timed_out in `data`. The shell used depends on the platform: bash on Unix/Linux/macOS, PowerShell on Windows. Use platform-appropriate syntax for the target environment. Prefer this only when dedicated tools are insufficient.",
 )
 def run_command(
     command: str,
