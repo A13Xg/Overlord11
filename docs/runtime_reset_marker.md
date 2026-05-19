@@ -8,7 +8,6 @@ This marker documents the hard-cut reset to a shell-only runtime.
 - No runtime agent orchestration paths.
 - Job execution sends user prompt directly to configured provider API.
 - Session workspace output is deterministic:
-  - `final_output.md`
   - `output/answer.md`
   - `artifacts/logs/provider_response.json`
 

@@ -202,7 +202,7 @@ body::after {
 
 /* ── Streaming output panel ── */
 #stream-panel {
-  display: none;
+  display: block;
   background: rgba(0,255,65,0.03);
   border: 1px solid rgba(0,255,65,0.2);
   padding: 10px 12px;
@@ -224,9 +224,16 @@ body::after {
   white-space: pre-wrap; word-break: break-word;
   max-height: 260px; overflow-y: auto;
 }
-#stream-text::after {
-  content: '▋';
+#stream-tail {
+  display: none;
   color: var(--green);
+}
+#stream-panel.is-streaming #stream-tail {
+  display: inline;
+}
+.stream-cursor {
+  display: inline-block;
+  margin-left: 2px;
   animation: blink .75s step-end infinite;
 }
 @keyframes blink { 50% { opacity: 0; } }
@@ -976,7 +983,7 @@ body::after {
                 <span>LIVE OUTPUT</span>
                 <span id="stream-token-count" style="color:var(--txt3);margin-left:auto"></span>
               </div>
-              <div id="stream-text"></div>
+              <div id="stream-text"></div><span id="stream-tail">...<span class="stream-cursor">▋</span></span>
             </div>
             <div class="exec-section">
               <h3>◼ RESULT</h3>
@@ -1092,6 +1099,19 @@ body::after {
           <input type="checkbox" id="new-job-auto-start" checked>
           AUTO START JOB IMMEDIATELY AFTER CREATION
         </label>
+      </div>
+      <div class="form-group">
+        <label>SHELL POLICY</label>
+        <select id="new-job-shell-policy">
+          <option value="balanced_limited" selected>BALANCED LIMITED — session confined + dangerous host-level blocklist</option>
+          <option value="full_access">FULL ACCESS — session confined with minimal command blocking</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>SHELL TYPE</label>
+        <select id="new-job-shell-type">
+          <option value="powershell" selected>POWERSHELL</option>
+        </select>
       </div>
     </div>
     <div id="modal-footer">
@@ -1219,6 +1239,10 @@ let collapsedEventKeys = new Set();
 // Streaming state — tracks the current live token stream
 let _streamJobId = null;    // which job is currently streaming
 let _streamTokens = 0;      // total tokens received this stream session
+let _streamIncoming = '';   // chunks received from provider (raw buffer)
+let _streamRendered = '';   // chars shown to user
+let _streamTick = null;     // typing loop timer
+let _streamActive = false;  // true while provider is generating
 
 /* ═══════════════════════════════════════════════════════
    NOTIFICATIONS
@@ -1332,31 +1356,57 @@ function showToast(title, body, severity = 'info') {
 function streamStart(jobId) {
   _streamJobId = jobId;
   _streamTokens = 0;
+  _streamIncoming = '';
+  _streamRendered = '';
+  _streamActive = true;
   const panel = document.getElementById('stream-panel');
   const textEl = document.getElementById('stream-text');
+  const countEl = document.getElementById('stream-token-count');
   if (!panel || !textEl) return;
   textEl.textContent = '';
-  panel.classList.add('active');
+  if (countEl) countEl.textContent = '0 chars';
+  panel.classList.add('active', 'is-streaming');
+  _streamStartTypingLoop();
 }
 
 function streamAppend(text) {
-  const textEl = document.getElementById('stream-text');
   const countEl = document.getElementById('stream-token-count');
-  if (!textEl) return;
-  textEl.textContent += text;
-  // Auto-scroll to bottom of streaming window
-  textEl.scrollTop = textEl.scrollHeight;
+  if (!text) return;
+  _streamIncoming += text;
   _streamTokens += text.length;
   if (countEl) countEl.textContent = _streamTokens + ' chars';
+  _streamStartTypingLoop();
 }
 
 function streamEnd() {
-  _streamJobId = null;
   const panel = document.getElementById('stream-panel');
-  if (!panel) return;
-  panel.classList.remove('active');
+  _streamActive = false;
+  if (panel) panel.classList.remove('is-streaming');
+  _streamJobId = null;
+  _streamStartTypingLoop();
+}
+
+function _streamStartTypingLoop() {
+  if (_streamTick) return;
+  _streamTick = setTimeout(_streamTypingStep, 16);
+}
+
+function _streamTypingStep() {
   const textEl = document.getElementById('stream-text');
-  if (textEl) textEl.textContent = '';
+  _streamTick = null;
+  if (!textEl) return;
+
+  if (_streamIncoming.length > 0) {
+    const chunkSize = Math.min(3, _streamIncoming.length);
+    _streamRendered += _streamIncoming.slice(0, chunkSize);
+    _streamIncoming = _streamIncoming.slice(chunkSize);
+    textEl.textContent = _streamRendered;
+    textEl.scrollTop = textEl.scrollHeight;
+  }
+
+  if (_streamIncoming.length > 0 || _streamActive) {
+    _streamTick = setTimeout(_streamTypingStep, 16);
+  }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1714,18 +1764,22 @@ function closeNewJobModal(e) {
   document.getElementById('new-job-prompt').value = '';
   document.getElementById('new-job-rl-action').value = 'try_different_model';
   document.getElementById('new-job-auto-start').checked = true;
+  document.getElementById('new-job-shell-policy').value = 'balanced_limited';
+  document.getElementById('new-job-shell-type').value = 'powershell';
 }
 async function submitNewJob() {
   const title           = document.getElementById('new-job-title').value.trim();
   const prompt          = document.getElementById('new-job-prompt').value.trim();
   const rate_limit_action = document.getElementById('new-job-rl-action').value;
   const auto_start        = !!document.getElementById('new-job-auto-start').checked;
+  const shell_policy      = document.getElementById('new-job-shell-policy').value;
+  const shell_type        = document.getElementById('new-job-shell-type').value;
   if (!title || !prompt) { alert('Title and prompt are required.'); return; }
   try {
     const res = await apiFetch('/api/jobs', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({title, prompt, rate_limit_action, auto_start})
+      body: JSON.stringify({title, prompt, rate_limit_action, auto_start, shell_policy, shell_type})
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({detail: res.statusText}));
@@ -1741,6 +1795,8 @@ async function submitNewJob() {
     document.getElementById('new-job-prompt').value = '';
     document.getElementById('new-job-rl-action').value = 'try_different_model';
     document.getElementById('new-job-auto-start').checked = true;
+    document.getElementById('new-job-shell-policy').value = 'balanced_limited';
+    document.getElementById('new-job-shell-type').value = 'powershell';
 
     // Handle conflict info from auto-start
     const conflict = job._conflict;
@@ -1819,6 +1875,8 @@ function renderExecutionPanel(job) {
     ${job.conflict_info && job.conflict_info.sequenced_after ? `<div><span style="color:var(--txt3)">SEQUENCED: </span><span style="color:#f59e0b">After [${escHtml(job.conflict_info.sequenced_after.join(', '))}]</span></div>` : ''}
     ${job.conflict_info && job.conflict_info.overlap ? `<div><span style="color:var(--txt3)">CONFLICT:  </span><span style="color:var(--txt3);font-size:10px">${escHtml(Object.values(job.conflict_info.overlap).flat().join(', '))}</span></div>` : ''}
     ${job.priority !== undefined && job.priority !== 0 ? `<div><span style="color:var(--txt3)">PRIORITY:  </span>${job.priority < 0 ? '<span style="color:var(--teal)">HIGH</span>' : '<span style="color:var(--txt2)">LOW</span>'}</div>` : ''}
+    ${job.shell_policy ? `<div><span style="color:var(--txt3)">SHELL POLICY:</span> ${escHtml(String(job.shell_policy).toUpperCase())}</div>` : ''}
+    ${job.shell_type ? `<div><span style="color:var(--txt3)">SHELL TYPE:  </span> ${escHtml(String(job.shell_type).toUpperCase())}</div>` : ''}
     ${job.completion_mode ? `<div><span style="color:var(--txt3)">COMPLETION:</span> ${escHtml(String(job.completion_mode).toUpperCase())}</div>` : ''}
     ${job.artifact_count !== undefined ? `<div><span style="color:var(--txt3)">ARTIFACTS:  </span>${job.artifact_count}</div>` : ''}
     ${['completed','failed'].includes(job.status) ? `<div><span style="color:var(--txt3)">RESULT:     </span><button class="meta-link-btn" onclick="openPrimaryOutputForJob('${job.job_id}')">OPEN RESULT</button></div>` : ''}
@@ -2044,17 +2102,13 @@ let _ftArtifacts = [];
 let _ftSelectedPath = null;
 let _ftCollapsed = {};   // section key → bool
 
-const _FT_SECTION_ORDER  = ['product','outputs','output','artifacts','logs','traces'];
+const _FT_SECTION_ORDER  = ['output','artifacts'];
 const _FT_SECTION_LABELS = {
-  product:   'DELIVERABLES',
-  logs:      'LOGS',
-  outputs:   'OUTPUTS',
-  output:    'OUTPUT',
+  output:    'OUTPUT (DELIVERABLES)',
   artifacts: 'ARTIFACTS',
-  traces:    'TRACES',
 };
 const _FT_SECTION_CLASS = {
-  product: 'sec-product',
+  output: 'sec-product',
   logs:    'sec-logs',
 };
 
@@ -2095,9 +2149,9 @@ async function renderFilesPanel(jobIdOrJob) {
     artifactCache[jobId] = list;
     _ftBuildTree(jobId, list);
 
-    // Auto-select first product file if nothing currently selected for this job
+    // Auto-select first output deliverable if nothing currently selected for this job
     if (!_ftSelectedPath || _ftJobId !== jobId) {
-      const first = list.find(a => a.category === 'product') || list[0];
+      const first = list.find(a => (a.category === 'output' || a.category === 'outputs' || (a.relative_path || '').startsWith('output/'))) || list[0];
       if (first) _ftSelectFile(jobId, first.relative_path, false);
     }
   } catch (e) {
@@ -2117,10 +2171,14 @@ function _ftBuildTree(jobId, artifacts) {
     return;
   }
 
-  // Group by category preserving section order
+  // Group into two sections only: output deliverables + artifacts.
   const bySection = {};
   artifacts.forEach(a => {
-    const cat = a.category || 'artifacts';
+    const raw = (a.category || '').toLowerCase();
+    const rel = (a.relative_path || '').toLowerCase();
+    const cat = (raw === 'output' || raw === 'outputs' || rel.startsWith('output/') || rel.startsWith('outputs/'))
+      ? 'output'
+      : 'artifacts';
     (bySection[cat] = bySection[cat] || []).push(a);
   });
 
@@ -2156,7 +2214,7 @@ function _ftBuildTree(jobId, artifacts) {
       const ext = fileExt(a.relative_path || a.name);
       const isNew = (now - (a.mtime || 0)) < recentCutoff;
       const row = document.createElement('div');
-      row.className = `ftree-item${cat === 'product' ? ' is-product' : ''}${_ftSelectedPath === a.relative_path ? ' selected' : ''}`;
+      row.className = `ftree-item${cat === 'output' ? ' is-product' : ''}${_ftSelectedPath === a.relative_path ? ' selected' : ''}`;
       row.dataset.path = a.relative_path;
       row.title = a.relative_path;
       row.innerHTML = `<span class="ftree-icon">${_ftIcon(ext)}</span><span class="ftree-name">${escHtml(a.name)}</span>${isNew ? '<span class="ftree-new-dot"></span>' : ''}<span class="ftree-size">${_ftFmtSize(a.size)}</span>`;
@@ -2528,6 +2586,15 @@ function handleEvent(ev) {
         'warning',
       );
     }
+  }
+  if (ev.type === 'SHELL_COMMAND') {
+    return `shell(${ev.shell || 'unknown'}) [${ev.shell_policy || 'policy?'}] ${ev.command || ''}`;
+  }
+  if (ev.type === 'SHELL_RESULT') {
+    return `shell result exit=${ev.exit_code} blocked=${!!ev.blocked} timeout=${!!ev.timed_out}`;
+  }
+  if (ev.type === 'SELF_HEAL') {
+    return `self-heal retry ${ev.retry_num || '?'} / ${ev.max_retries || '?'} after ${ev.reason || 'failure'}`;
   }
 
   // Update in-memory job if status event

@@ -46,10 +46,12 @@ from .api.auth import router as auth_router
 from .api.events import router as events_router
 from .api.health import router as health_router
 from .api.jobs import router as jobs_router
+from .api.mcp import router as mcp_router
 from .api.providers import router as providers_router
 from .api.setup import router as setup_router
 from .api.templates import router as templates_router
 from .core.engine_bridge import bridge
+from .core.mcp_runtime import mcp_runtime
 from .core.session_store import store
 from .strict_runtime.conformance import check_tools_report_only
 
@@ -73,9 +75,11 @@ async def lifespan(app: FastAPI):
             len(issues),
         )
     bridge.start_worker(config=config)
+    mcp_runtime.start(config)
     try:
         yield
     finally:
+        mcp_runtime.stop()
         await bridge.stop_worker()
 
 
@@ -104,6 +108,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(jobs_router)
 app.include_router(providers_router)
+app.include_router(mcp_router)
 app.include_router(artifacts_router)
 app.include_router(events_router)
 app.include_router(health_router)

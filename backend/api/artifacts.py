@@ -59,12 +59,7 @@ def _session_root(job: object) -> Path:
 
 
 def _iter_artifact_files(root: Path):
-    # Root-level files are the canonical final deliverables for a task.
-    for entry in sorted(root.iterdir()):
-        if entry.is_file():
-            yield "product", entry
-
-    for subdir in ("agent", "tools", "logs", "outputs", "output", "artifacts", "traces"):
+    for subdir in ("outputs", "output", "artifacts", "logs", "traces", "tools", "agent"):
         base = root / subdir
         if not base.exists():
             continue
@@ -100,34 +95,27 @@ _OUTPUT_EXT_PRIORITY = {
     "html": 0,
     "htm": 1,
     "pdf": 2,
-    "png": 3,
-    "jpg": 4,
-    "jpeg": 5,
-    "webp": 6,
-    "gif": 7,
-    "svg": 8,
-    "md": 9,
-    "txt": 10,
-    "json": 11,
-    "csv": 12,
-    "zip": 13,
+    "csv": 3,
+    "json": 4,
+    "py": 5,
+    "md": 6,
+    "txt": 7,
+    "png": 8,
+    "jpg": 9,
+    "jpeg": 10,
+    "webp": 11,
+    "gif": 12,
+    "svg": 13,
+    "zip": 14,
 }
 
 
 def _is_primary_output_candidate(item: dict) -> bool:
-    cat = (item.get("category") or "").lower()
     rel = (item.get("relative_path") or "").lower()
     name = (item.get("name") or "").lower()
-    ext = (item.get("ext") or "").lower()
-    if name.startswith("answer."):
+    if name.startswith("answer.") and rel.startswith(("output/", "outputs/")):
         return True
-    if name.startswith("final_output."):
-        return True
-    if cat in {"product", "output", "outputs"}:
-        return True
-    if ext in _OUTPUT_EXT_PRIORITY:
-        return True
-    if rel.startswith("output/") or rel.startswith("outputs/"):
+    if rel.startswith("output/answer.") or rel.startswith("outputs/answer."):
         return True
     return False
 
@@ -135,25 +123,12 @@ def _is_primary_output_candidate(item: dict) -> bool:
 def _output_rank(item: dict) -> tuple:
     name = (item.get("name") or "").lower()
     rel = (item.get("relative_path") or "").lower()
-    cat = (item.get("category") or "").lower()
     ext = (item.get("ext") or "").lower()
     # Lower is better
-    if name.startswith("answer."):
+    if name.startswith("answer.") and rel.startswith(("output/", "outputs/")):
         bucket = 0
-    elif name.startswith("final_output."):
-        bucket = 1
-    elif cat == "product":
-        bucket = 2
-    elif cat in {"output", "outputs"}:
-        bucket = 3
-    elif rel.startswith("output/") or rel.startswith("outputs/"):
-        bucket = 4
-    elif item.get("is_html"):
-        bucket = 5
-    elif item.get("is_image"):
-        bucket = 6
     else:
-        bucket = 7
+        bucket = 9
     ext_rank = _OUTPUT_EXT_PRIORITY.get(ext, 999)
     # Prefer newest for ties.
     mtime_rank = -float(item.get("mtime") or 0.0)
@@ -268,11 +243,9 @@ async def get_primary_output(job_id: str):
     Resolve the most user-visible result artifact for a job.
 
     Priority:
-    1) answer.* files
-    2) final_output.*
-    3) product/output(s) category files
-    4) previewable html/image/text-like artifacts
-    5) fallback to output directory hint
+    1) output/answer.* or outputs/answer.*
+    2) fallback output/answer.md when present
+    3) output directory hint when no answer.* exists
     """
     _validate_job_id(job_id)
     job = store.get_job(job_id)
@@ -297,8 +270,7 @@ async def get_primary_output(job_id: str):
 
     output_items = [
         it for it in items
-        if (it.get("category") or "").lower() in {"product", "output", "outputs"}
-        or (it.get("relative_path") or "").lower().startswith(("output/", "outputs/"))
+        if (it.get("relative_path") or "").lower().startswith(("output/answer.", "outputs/answer."))
     ]
     primary = _select_primary_output(items)
     if primary is not None:
@@ -323,7 +295,7 @@ async def get_primary_output(job_id: str):
             "output_files": sorted(output_items, key=_output_rank)[:25],
         }
 
-    # Fallback to output directory hint when no single primary file can be inferred.
+    # Fallback to output directory hint when no answer.* deliverable exists yet.
     has_output_dir = any((session_root / d).exists() for d in ("output", "outputs"))
     return {
         "status": "ok",

@@ -30,6 +30,7 @@ Race conditions
 import asyncio
 import json
 import logging
+import re
 import sys
 import threading
 from datetime import datetime, timezone
@@ -49,13 +50,17 @@ from .conflict_detector import (
     extract_domains,
 )
 from .event_stream import EventBroadcaster, broadcaster as default_broadcaster
-from .provider_runtime import ProviderRuntime
+from .mcp_runtime import mcp_runtime
+from .provider_runtime import ProviderHTTPError, ProviderRuntime
+from .shell_executor import ShellExecutor
 from .session_store import Job, JobStatus, SessionStore, store as default_store
 
 log = logging.getLogger("overlord11.engine_bridge")
 
 # Maximum seconds to wait for all prerequisites before giving up.
 _DEPENDENCY_TIMEOUT_S = 3600  # 1 hour
+_MODEL_STATE_PATH = _PROJECT_ROOT / "workspace" / ".webui_model_state.json"
+_DEFAULT_ORCH_PROMPT_PATH = _PROJECT_ROOT / "Orchestrator_systemPrompt.md"
 
 
 class EngineBridge:
@@ -92,6 +97,29 @@ class EngineBridge:
         event = self._job_stop_events.get(job_id)
         if event is not None:
             event.set()
+
+    @staticmethod
+    def _build_model_candidates(
+        selected_model: str,
+        available_models: dict,
+        fallback_models: list,
+        last_working_model: str = "",
+    ) -> list[str]:
+        candidates: list[str] = []
+
+        def _push_model(name: str) -> None:
+            if name and name not in candidates and name in available_models:
+                candidates.append(name)
+
+        _push_model(selected_model)
+        _push_model(last_working_model)
+        for m in fallback_models or []:
+            _push_model(str(m))
+        for m in (available_models or {}).keys():
+            _push_model(str(m))
+        if not candidates and selected_model:
+            candidates = [selected_model]
+        return candidates
 
     # ------------------------------------------------------------------
     # Smart enqueue with conflict detection
@@ -479,13 +507,674 @@ class EngineBridge:
 
             cfg = json.loads((_PROJECT_ROOT / "config.json").read_text(encoding="utf-8"))
             runtime = ProviderRuntime(cfg)
-            provider_result = runtime.execute_prompt(job.prompt)
-            output = (provider_result.output or "").strip()
+            runtime_cfg = cfg.get("runtime", {}) or {}
+            runtime_mode = str(runtime_cfg.get("mode", "shell_only") or "shell_only").strip().lower()
+            shell_cfg = runtime_cfg.get("shell", {}) or {}
+            mcp_cfg = cfg.get("mcp", {}) or {}
+            prompts_cfg = runtime_cfg.get("prompts", {}) or {}
+            providers_cfg = cfg.get("providers", {})
+            active_provider = str(providers_cfg.get("active", "openai")).strip()
+            provider_cfg = providers_cfg.get(active_provider, {}) or {}
+            selected_model = str(provider_cfg.get("model", "")).strip()
+            available_models = provider_cfg.get("available_models", {}) or {}
+            fallback_models = provider_cfg.get("fallback_models", []) or []
+
+            if not selected_model:
+                raise RuntimeError(f"Provider '{active_provider}' has no selected model")
+
+            def _load_model_state() -> dict:
+                try:
+                    if _MODEL_STATE_PATH.exists():
+                        return json.loads(_MODEL_STATE_PATH.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+                return {}
+
+            def _save_model_state(state: dict) -> None:
+                _MODEL_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+                _MODEL_STATE_PATH.write_text(
+                    json.dumps(state, indent=2, ensure_ascii=False) + "\n",
+                    encoding="utf-8",
+                )
+
+            model_state = _load_model_state()
+            last_working = str(model_state.get(active_provider, {}).get("last_working_model", "")).strip()
+
+            # One-time candidate chain build per job.
+            candidates = self._build_model_candidates(
+                selected_model=selected_model,
+                available_models=available_models,
+                fallback_models=fallback_models,
+                last_working_model=last_working,
+            )
+
+            output_parts: list[str] = []
+            retry_after_values: list[int] = []
+
+            def _load_orchestrator_system_prompt() -> str:
+                if not bool(prompts_cfg.get("inject_orchestrator_system_prompt", True)):
+                    return ""
+                path_str = str(prompts_cfg.get("orchestrator_system_prompt_path", str(_DEFAULT_ORCH_PROMPT_PATH)))
+                p = Path(path_str)
+                if not p.is_absolute():
+                    p = (_PROJECT_ROOT / p).resolve()
+                try:
+                    if p.exists():
+                        return p.read_text(encoding="utf-8")
+                except Exception:
+                    return ""
+                return ""
+
+            def _on_chunk(text: str) -> None:
+                if not text:
+                    return
+                output_parts.append(text)
+                token_event = {
+                    "type": "TOKEN",
+                    "job_id": job_id,
+                    "session_id": session_id,
+                    "text": text,
+                }
+                store.append_event(job_id, token_event)
+                broadcaster.publish(job_id, token_event)
+
+            def _provider_call_with_fallback(prompt_text: str, system_prompt_text: str, stream: bool = False):
+                provider_result_local = None
+                chosen_model_local = None
+                for idx, model_name in enumerate(candidates):
+                    chosen_model_local = model_name
+                    attempt_event = {
+                        "type": "PROVIDER_ATTEMPT",
+                        "job_id": job_id,
+                        "session_id": session_id,
+                        "provider": active_provider,
+                        "model": model_name,
+                        "attempt": idx + 1,
+                        "total_candidates": len(candidates),
+                    }
+                    store.append_event(job_id, attempt_event)
+                    broadcaster.publish(job_id, attempt_event)
+                    try:
+                        if stream:
+                            provider_result_local = runtime.execute_prompt_streaming_with_selection(
+                                active_provider,
+                                model_name,
+                                prompt_text,
+                                system_prompt=system_prompt_text,
+                                on_chunk=_on_chunk,
+                            )
+                        else:
+                            provider_result_local = runtime.execute_prompt_with_selection(
+                                active_provider,
+                                model_name,
+                                prompt_text,
+                                system_prompt=system_prompt_text,
+                            )
+                        return provider_result_local, model_name
+                    except ProviderHTTPError as exc:
+                        if exc.status_code == 429:
+                            if exc.retry_after_s is not None:
+                                retry_after_values.append(int(exc.retry_after_s))
+                            rl_event = {
+                                "type": "RATE_LIMITED",
+                                "job_id": job_id,
+                                "session_id": session_id,
+                                "provider": active_provider,
+                                "model": model_name,
+                                "retry_num": idx + 1,
+                                "wait_s": int(exc.retry_after_s or 0),
+                                "action": "try_different_model",
+                            }
+                            store.append_event(job_id, rl_event)
+                            broadcaster.publish(job_id, rl_event)
+                            continue
+                        if exc.status_code >= 500:
+                            err_event = {
+                                "type": "PROVIDER_ERROR",
+                                "job_id": job_id,
+                                "session_id": session_id,
+                                "provider": active_provider,
+                                "model": model_name,
+                                "status_code": exc.status_code,
+                                "message": str(exc),
+                                "retry_num": idx + 1,
+                                "action": "try_next_model",
+                            }
+                            store.append_event(job_id, err_event)
+                            broadcaster.publish(job_id, err_event)
+                            continue
+                        raise
+                return None, chosen_model_local
+
+            def _update_failure_counters(
+                signature: str,
+                previous_signature: str,
+                total_failures: int,
+                consecutive_failures: int,
+                same_failure_streak: int,
+            ) -> tuple[str, int, int, int]:
+                total_failures += 1
+                consecutive_failures += 1
+                if signature == previous_signature and signature:
+                    same_failure_streak += 1
+                else:
+                    same_failure_streak = 1
+                return signature, total_failures, consecutive_failures, same_failure_streak
+
+            mcp_enabled = bool(mcp_cfg.get("enabled", False))
+            if runtime_mode == "mcp_orchestrated" and mcp_enabled:
+                max_steps = int((mcp_cfg.get("max_steps", 10) or 10))
+                tool_timeout_s = int((mcp_cfg.get("tool_call_timeout_s", 30) or 30))
+                mcp_heal_cfg = mcp_cfg.get("self_heal", {}) or {}
+                mcp_heal_enabled = bool(mcp_heal_cfg.get("enabled", True))
+                mcp_max_consecutive_failures = max(1, int(mcp_heal_cfg.get("max_consecutive_failures", 3) or 3))
+                mcp_max_total_failures = max(1, int(mcp_heal_cfg.get("max_total_failures", 6) or 6))
+                mcp_max_same_failure_streak = max(1, int(mcp_heal_cfg.get("max_same_failure_streak", 3) or 3))
+                trace: list[dict] = []
+                history_lines: list[str] = []
+                final_message = ""
+                orchestrator_prompt = _load_orchestrator_system_prompt()
+                tool_calls = 0
+                mcp_total_failures = 0
+                mcp_consecutive_failures = 0
+                mcp_same_failure_streak = 0
+                mcp_last_failure_signature = ""
+                max_tool_calls = int((mcp_cfg.get("policy", {}) or {}).get("max_calls_per_job", 20) or 20)
+                discovery = mcp_runtime.refresh_tools()
+                discovery_ev = {
+                    "type": "MCP_DISCOVERY",
+                    "job_id": job_id,
+                    "session_id": session_id,
+                    "discovered_tool_count": int(discovery.get("discovered_tool_count", 0) or 0),
+                }
+                store.append_event(job_id, discovery_ev)
+                broadcaster.publish(job_id, discovery_ev)
+
+                for step in range(1, max_steps + 1):
+                    if stop_event.is_set():
+                        return {"status": "failed", "error": "Stopped by user", "output": ""}
+                    tools = mcp_runtime.tool_catalog()
+                    if step == 1 and not tools:
+                        final_message = "No MCP tools available from configured local servers."
+                        trace.append({"step": step, "action": "mcp_no_tools"})
+                        break
+                    tools_prompt = json.dumps([
+                        {
+                            "tool": t.get("full_name"),
+                            "description": t.get("description", ""),
+                            "input_schema": t.get("inputSchema", {}),
+                        }
+                        for t in tools
+                    ], ensure_ascii=False, indent=2)
+                    planner_prompt = (
+                        f"Task:\n{job.prompt}\n\n"
+                        f"Session workspace:\n{workspace}\n\n"
+                        "Decide next action and reply in strict JSON only:\n"
+                        "{\"action\":\"tool\",\"tool\":\"<server.tool>\",\"arguments\":{}}\n"
+                        "or\n"
+                        "{\"action\":\"final\",\"message\":\"<final user-facing answer>\"}\n\n"
+                        f"Max tool calls allowed: {max_tool_calls}\n"
+                        f"Tool calls used: {tool_calls}\n\n"
+                        "Available tools:\n"
+                        f"{tools_prompt}\n\n"
+                        "Prior execution history:\n"
+                        + ("\n".join(history_lines[-20:]) if history_lines else "(none)")
+                    )
+                    decision_result, chosen_model = _provider_call_with_fallback(planner_prompt, orchestrator_prompt, stream=False)
+                    if decision_result is None:
+                        break
+                    if decision_result.model:
+                        state_obj = model_state.get(active_provider, {})
+                        state_obj["last_working_model"] = decision_result.model
+                        state_obj["updated_at"] = datetime.now(timezone.utc).isoformat()
+                        model_state[active_provider] = state_obj
+                        _save_model_state(model_state)
+
+                    raw_text = (decision_result.output or "").strip()
+                    match = re.search(r"\{[\s\S]*\}", raw_text)
+                    payload = {}
+                    if match:
+                        try:
+                            payload = json.loads(match.group(0))
+                        except Exception:
+                            payload = {}
+                    action = str(payload.get("action", "")).strip().lower()
+                    if action == "final":
+                        final_message = str(payload.get("message", "")).strip() or raw_text
+                        trace.append({"step": step, "action": "final", "model": chosen_model, "message": final_message[:5000]})
+                        break
+                    if action == "tool":
+                        if tool_calls >= max_tool_calls:
+                            final_message = f"Tool call budget exceeded ({tool_calls}/{max_tool_calls})."
+                            trace.append({"step": step, "action": "budget_exhausted"})
+                            break
+                        tool_name = str(payload.get("tool", "")).strip()
+                        arguments = payload.get("arguments", {})
+                        if not isinstance(arguments, dict):
+                            arguments = {}
+                        call_ev = {
+                            "type": "MCP_TOOL_CALL",
+                            "job_id": job_id,
+                            "session_id": session_id,
+                            "step": step,
+                            "tool": tool_name,
+                            "arguments": arguments,
+                        }
+                        store.append_event(job_id, call_ev)
+                        broadcaster.publish(job_id, call_ev)
+                        result = mcp_runtime.call_tool(tool_name, arguments, timeout_s=tool_timeout_s)
+                        tool_calls += 1
+                        result_ev = {
+                            "type": "MCP_TOOL_RESULT",
+                            "job_id": job_id,
+                            "session_id": session_id,
+                            "step": step,
+                            "tool": tool_name,
+                            "result": result,
+                        }
+                        store.append_event(job_id, result_ev)
+                        broadcaster.publish(job_id, result_ev)
+                        if bool(result.get("success", False)):
+                            mcp_consecutive_failures = 0
+                            mcp_same_failure_streak = 0
+                            mcp_last_failure_signature = ""
+                        else:
+                            failure_sig = f"{tool_name}|{str(result.get('error', ''))[:240]}"
+                            (
+                                mcp_last_failure_signature,
+                                mcp_total_failures,
+                                mcp_consecutive_failures,
+                                mcp_same_failure_streak,
+                            ) = _update_failure_counters(
+                                failure_sig,
+                                mcp_last_failure_signature,
+                                mcp_total_failures,
+                                mcp_consecutive_failures,
+                                mcp_same_failure_streak,
+                            )
+                            err_ev = {
+                                "type": "MCP_ERROR",
+                                "job_id": job_id,
+                                "session_id": session_id,
+                                "step": step,
+                                "tool": tool_name,
+                                "error": result.get("error"),
+                                "self_heal": {
+                                    "enabled": mcp_heal_enabled,
+                                    "total_failures": mcp_total_failures,
+                                    "max_total_failures": mcp_max_total_failures,
+                                    "consecutive_failures": mcp_consecutive_failures,
+                                    "max_consecutive_failures": mcp_max_consecutive_failures,
+                                    "same_failure_streak": mcp_same_failure_streak,
+                                    "max_same_failure_streak": mcp_max_same_failure_streak,
+                                },
+                            }
+                            store.append_event(job_id, err_ev)
+                            broadcaster.publish(job_id, err_ev)
+                            if mcp_heal_enabled and (
+                                mcp_total_failures >= mcp_max_total_failures
+                                or mcp_consecutive_failures >= mcp_max_consecutive_failures
+                                or mcp_same_failure_streak >= mcp_max_same_failure_streak
+                            ):
+                                final_message = (
+                                    "MCP self-heal loop guard triggered: repeated tool failures reached the configured limit. "
+                                    f"total={mcp_total_failures}/{mcp_max_total_failures}, "
+                                    f"consecutive={mcp_consecutive_failures}/{mcp_max_consecutive_failures}, "
+                                    f"same_failure={mcp_same_failure_streak}/{mcp_max_same_failure_streak}."
+                                )
+                                trace.append({
+                                    "step": step,
+                                    "action": "self_heal_loop_guard_stop",
+                                    "mode": "mcp",
+                                    "tool": tool_name,
+                                    "error": result.get("error"),
+                                    "total_failures": mcp_total_failures,
+                                    "consecutive_failures": mcp_consecutive_failures,
+                                    "same_failure_streak": mcp_same_failure_streak,
+                                })
+                                break
+                        trace.append({
+                            "step": step,
+                            "action": "tool",
+                            "tool": tool_name,
+                            "arguments": arguments,
+                            "result": result,
+                        })
+                        history_lines.append(
+                            f"[step {step}] tool={tool_name!r}\nargs={json.dumps(arguments, ensure_ascii=False)}\nresult={json.dumps(result, ensure_ascii=False)}"
+                        )
+                        continue
+                    final_message = raw_text
+                    trace.append({"step": step, "action": "final_fallback", "model": chosen_model, "message": final_message[:5000]})
+                    break
+
+                if not final_message:
+                    final_message = "Job ended without a final response."
+                output = final_message.strip()
+                (workspace / "output" / "answer.md").write_text(output, encoding="utf-8")
+                (workspace / "artifacts" / "logs" / "mcp_trace.json").write_text(
+                    json.dumps(trace, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                meta = {
+                    "provider": active_provider,
+                    "model": model_state.get(active_provider, {}).get("last_working_model", selected_model),
+                    "job_id": job_id,
+                    "session_id": session_id,
+                    "started_at": started_at,
+                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                    "mode": "mcp_orchestrated",
+                }
+                (workspace / "artifacts" / "logs" / "provider_response.json").write_text(
+                    json.dumps({"meta": meta, "raw": {"mode": "mcp_orchestrated"}}, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                _done_event = {"type": "SESSION_END", "job_id": job_id, "session_id": session_id, "status": "complete"}
+                store.append_event(job_id, _done_event)
+                broadcaster.publish(job_id, _done_event)
+                return {
+                    "status": "complete",
+                    "session_id": session_id,
+                    "output": output,
+                    "completion_mode": "mcp_orchestrated",
+                    "tool_call_count": tool_calls,
+                    "artifact_count": 3,
+                }
+
+            shell_enabled = bool(shell_cfg.get("enabled", False))
+            if shell_enabled:
+                shell_policy = (job.shell_policy or shell_cfg.get("default_policy", "balanced_limited") or "balanced_limited")
+                shell_type = (job.shell_type or shell_cfg.get("default_shell", "powershell") or "powershell")
+                timeout_s = int(shell_cfg.get("command_timeout_s", 120) or 120)
+                max_output_bytes = int(shell_cfg.get("max_output_bytes", 200000) or 200000)
+                max_steps = int(shell_cfg.get("max_steps", 10) or 10)
+                self_heal_cfg = shell_cfg.get("self_heal", {}) or {}
+                self_heal_enabled = bool(self_heal_cfg.get("enabled", True))
+                self_heal_max_retries = max(0, int(self_heal_cfg.get("max_retries_per_step", 2) or 0))
+                self_heal_max_total_failures = max(1, int(self_heal_cfg.get("max_total_failures", 6) or 6))
+                self_heal_max_same_failure_streak = max(1, int(self_heal_cfg.get("max_same_failure_streak", 3) or 3))
+                stop_on_blocked = bool(self_heal_cfg.get("stop_on_blocked_command", True))
+                orchestrator_prompt = _load_orchestrator_system_prompt()
+                shell_executor = ShellExecutor(workspace, policy=shell_policy, shell_type=shell_type)
+                trace: list[dict] = []
+                history_lines: list[str] = []
+                final_message = ""
+                consecutive_heal_retries = 0
+                total_failures = 0
+                same_failure_streak = 0
+                last_failure_signature = ""
+
+                for step in range(1, max_steps + 1):
+                    if stop_event.is_set():
+                        return {"status": "failed", "error": "Stopped by user", "output": ""}
+                    planner_prompt = (
+                        f"Task:\n{job.prompt}\n\n"
+                        f"Session workspace:\n{workspace}\n\n"
+                        "Decide next action and reply in strict JSON only:\n"
+                        "{\"action\":\"run\",\"command\":\"<shell command>\"}\n"
+                        "or\n"
+                        "{\"action\":\"final\",\"message\":\"<final user-facing answer>\"}\n\n"
+                        f"Self-heal mode: {'enabled' if self_heal_enabled else 'disabled'}\n"
+                        f"Current heal retries on latest failure: {consecutive_heal_retries}/{self_heal_max_retries}\n\n"
+                        "Prior execution history:\n"
+                        + ("\n".join(history_lines[-25:]) if history_lines else "(none)")
+                    )
+                    decision_result, chosen_model = _provider_call_with_fallback(planner_prompt, orchestrator_prompt, stream=False)
+                    if decision_result is None:
+                        break
+                    if decision_result.model:
+                        state_obj = model_state.get(active_provider, {})
+                        state_obj["last_working_model"] = decision_result.model
+                        state_obj["updated_at"] = datetime.now(timezone.utc).isoformat()
+                        model_state[active_provider] = state_obj
+                        _save_model_state(model_state)
+
+                    raw_text = (decision_result.output or "").strip()
+                    match = re.search(r"\{[\s\S]*\}", raw_text)
+                    payload = {}
+                    if match:
+                        try:
+                            payload = json.loads(match.group(0))
+                        except Exception:
+                            payload = {}
+                    action = str(payload.get("action", "")).strip().lower()
+                    if action == "final":
+                        final_message = str(payload.get("message", "")).strip() or raw_text
+                        trace.append({"step": step, "action": "final", "model": chosen_model, "message": final_message[:5000]})
+                        break
+                    if action == "run":
+                        cmd = str(payload.get("command", "")).strip()
+                        cmd_ev = {
+                            "type": "SHELL_COMMAND",
+                            "job_id": job_id,
+                            "session_id": session_id,
+                            "step": step,
+                            "shell": shell_type,
+                            "shell_policy": shell_policy,
+                            "command": cmd,
+                        }
+                        store.append_event(job_id, cmd_ev)
+                        broadcaster.publish(job_id, cmd_ev)
+                        res = shell_executor.execute(cmd, timeout_s=timeout_s, max_output_bytes=max_output_bytes)
+                        res_ev = {
+                            "type": "SHELL_RESULT",
+                            "job_id": job_id,
+                            "session_id": session_id,
+                            "step": step,
+                            "shell": res.shell,
+                            "exit_code": res.exit_code,
+                            "timed_out": res.timed_out,
+                            "blocked": res.blocked,
+                            "stdout": res.stdout,
+                            "stderr": res.stderr,
+                        }
+                        store.append_event(job_id, res_ev)
+                        broadcaster.publish(job_id, res_ev)
+                        trace.append({
+                            "step": step,
+                            "action": "run",
+                            "command": cmd,
+                            "exit_code": res.exit_code,
+                            "timed_out": res.timed_out,
+                            "blocked": res.blocked,
+                            "stdout": res.stdout,
+                            "stderr": res.stderr,
+                        })
+                        history_lines.append(
+                            f"[step {step}] cmd={cmd!r} exit={res.exit_code} blocked={res.blocked} timed_out={res.timed_out}\n"
+                            f"stdout:\n{res.stdout}\n\nstderr:\n{res.stderr}"
+                        )
+                        if res.exit_code == 0 and not res.blocked and not res.timed_out:
+                            consecutive_heal_retries = 0
+                            same_failure_streak = 0
+                            last_failure_signature = ""
+                            continue
+
+                        # Failure path
+                        if res.blocked and stop_on_blocked:
+                            final_message = (
+                                "Command blocked by shell safety policy. "
+                                "Job stopped to avoid unsafe host impact."
+                            )
+                            trace.append({
+                                "step": step,
+                                "action": "self_heal_stop",
+                                "reason": "blocked_command",
+                                "shell_policy": shell_policy,
+                            })
+                            break
+
+                        if not self_heal_enabled:
+                            final_message = (
+                                f"Command failed (exit={res.exit_code}) and self-heal is disabled."
+                            )
+                            trace.append({
+                                "step": step,
+                                "action": "self_heal_disabled_stop",
+                                "exit_code": res.exit_code,
+                                "blocked": res.blocked,
+                                "timed_out": res.timed_out,
+                            })
+                            break
+
+                        consecutive_heal_retries += 1
+                        failure_sig = f"{res.exit_code}|{res.blocked}|{res.timed_out}|{(res.stderr or '')[:240]}"
+                        (
+                            last_failure_signature,
+                            total_failures,
+                            _,
+                            same_failure_streak,
+                        ) = _update_failure_counters(
+                            failure_sig,
+                            last_failure_signature,
+                            total_failures,
+                            0,
+                            same_failure_streak,
+                        )
+                        heal_ev = {
+                            "type": "SELF_HEAL",
+                            "job_id": job_id,
+                            "session_id": session_id,
+                            "step": step,
+                            "retry_num": consecutive_heal_retries,
+                            "max_retries": self_heal_max_retries,
+                            "total_failures": total_failures,
+                            "max_total_failures": self_heal_max_total_failures,
+                            "same_failure_streak": same_failure_streak,
+                            "max_same_failure_streak": self_heal_max_same_failure_streak,
+                            "reason": "blocked" if res.blocked else ("timeout" if res.timed_out else "nonzero_exit"),
+                        }
+                        store.append_event(job_id, heal_ev)
+                        broadcaster.publish(job_id, heal_ev)
+
+                        if consecutive_heal_retries > self_heal_max_retries:
+                            final_message = (
+                                f"Self-heal retry budget exhausted ({self_heal_max_retries}). "
+                                f"Last command exit={res.exit_code}."
+                            )
+                            trace.append({
+                                "step": step,
+                                "action": "self_heal_exhausted",
+                                "exit_code": res.exit_code,
+                                "retries": consecutive_heal_retries,
+                            })
+                            break
+                        if total_failures >= self_heal_max_total_failures:
+                            final_message = (
+                                "Self-heal loop guard triggered: total command failures reached "
+                                f"{total_failures}/{self_heal_max_total_failures}."
+                            )
+                            trace.append({
+                                "step": step,
+                                "action": "self_heal_total_failure_limit",
+                                "total_failures": total_failures,
+                                "max_total_failures": self_heal_max_total_failures,
+                                "exit_code": res.exit_code,
+                            })
+                            break
+                        if same_failure_streak >= self_heal_max_same_failure_streak:
+                            final_message = (
+                                "Self-heal loop guard triggered: same failure repeated "
+                                f"{same_failure_streak}/{self_heal_max_same_failure_streak} times."
+                            )
+                            trace.append({
+                                "step": step,
+                                "action": "self_heal_same_failure_limit",
+                                "same_failure_streak": same_failure_streak,
+                                "max_same_failure_streak": self_heal_max_same_failure_streak,
+                                "exit_code": res.exit_code,
+                            })
+                            break
+                        continue
+                    # Non-JSON/invalid action: treat as final answer to avoid loops.
+                    final_message = raw_text
+                    trace.append({"step": step, "action": "final_fallback", "model": chosen_model, "message": final_message[:5000]})
+                    break
+
+                if not final_message:
+                    final_message = "Job ended without a final response."
+                output = final_message.strip()
+                (workspace / "output" / "answer.md").write_text(output, encoding="utf-8")
+                (workspace / "artifacts" / "logs" / "shell_trace.json").write_text(
+                    json.dumps(trace, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                meta = {
+                    "provider": active_provider,
+                    "model": model_state.get(active_provider, {}).get("last_working_model", selected_model),
+                    "job_id": job_id,
+                    "session_id": session_id,
+                    "started_at": started_at,
+                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                    "shell_policy": shell_policy,
+                    "shell_type": shell_type,
+                }
+                (workspace / "artifacts" / "logs" / "provider_response.json").write_text(
+                    json.dumps({"meta": meta, "raw": {"mode": "shell_orchestrated"}}, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                _done_event = {"type": "SESSION_END", "job_id": job_id, "session_id": session_id, "status": "complete"}
+                store.append_event(job_id, _done_event)
+                broadcaster.publish(job_id, _done_event)
+                return {
+                    "status": "complete",
+                    "session_id": session_id,
+                    "output": output,
+                    "completion_mode": "shell_orchestrated",
+                    "tool_call_count": len([t for t in trace if t.get("action") == "run"]),
+                    "artifact_count": 3,
+                }
+
+            provider_result, chosen_model = _provider_call_with_fallback(job.prompt, _load_orchestrator_system_prompt(), stream=True)
+
+            if provider_result is None:
+                # All candidate models were exhausted, typically due to 429.
+                action = (job.rate_limit_action or "try_different_model").strip()
+                wait_s = min(retry_after_values) if retry_after_values else 300
+                if action == "pause":
+                    resume_at = datetime.now(timezone.utc).timestamp() + wait_s
+                    resume_iso = datetime.fromtimestamp(resume_at, tz=timezone.utc).isoformat()
+                    store.update_job(job_id, status=JobStatus.RATE_LIMITED)
+                    pause_ev = {
+                        "type": "RATE_LIMITED",
+                        "job_id": job_id,
+                        "session_id": session_id,
+                        "provider": active_provider,
+                        "model": chosen_model,
+                        "retry_num": len(candidates),
+                        "wait_s": wait_s,
+                        "resume_at": resume_iso,
+                        "action": "pause",
+                    }
+                    store.append_event(job_id, pause_ev)
+                    broadcaster.publish(job_id, pause_ev)
+                    slept = 0
+                    while slept < wait_s and not stop_event.is_set():
+                        if _check_blocked():
+                            return {"status": "rate_limited", "error": "Paused by user during rate-limit wait", "output": ""}
+                        time.sleep(1.0)
+                        slept += 1
+                    return {"status": "rate_limited", "error": f"Rate limited across models; paused wait elapsed ({wait_s}s). Use resume/start to retry.", "output": ""}
+                if action == "stop":
+                    raise RuntimeError("Rate limited across all candidate models; configured action=stop")
+                raise RuntimeError("Rate limited across all candidate models; no successful fallback model available")
+
+            # Persist sticky last-known-working model per provider.
+            if provider_result.model:
+                state_obj = model_state.get(active_provider, {})
+                state_obj["last_working_model"] = provider_result.model
+                state_obj["updated_at"] = datetime.now(timezone.utc).isoformat()
+                model_state[active_provider] = state_obj
+                _save_model_state(model_state)
+
+            streamed_output = "".join(output_parts)
+            output = (streamed_output or provider_result.output or "").strip()
             if not output:
                 raise RuntimeError("Provider returned empty response")
 
-            # Canonical shell-runtime deliverables
-            (workspace / "final_output.md").write_text(output, encoding="utf-8")
+            # Canonical shell-runtime fallback deliverable.
+            # Rich deliverables (answer.html/csv/py/...) may also be produced by
+            # future tool/orchestrator flows and should take priority in selection.
             (workspace / "output" / "answer.md").write_text(output, encoding="utf-8")
             meta = {
                 "provider": provider_result.provider,
@@ -513,7 +1202,7 @@ class EngineBridge:
                 "output": output,
                 "completion_mode": "direct_provider",
                 "tool_call_count": 0,
-                "artifact_count": 3,
+                "artifact_count": 2,
             }
 
         try:
@@ -539,7 +1228,13 @@ class EngineBridge:
 
         result_status = str(result.get("status", "") or "").lower()
         is_complete = result_status == "complete"
-        job_status = JobStatus.COMPLETED if is_complete else JobStatus.FAILED
+        is_rate_limited = result_status == "rate_limited"
+        if is_complete:
+            job_status = JobStatus.COMPLETED
+        elif is_rate_limited:
+            job_status = JobStatus.RATE_LIMITED
+        else:
+            job_status = JobStatus.FAILED
         completion_mode = result.get("completion_mode")
         tool_call_count = int(result.get("tool_call_count", 0) or 0)
         artifact_count = int(result.get("artifact_count", 0) or 0)
@@ -554,7 +1249,7 @@ class EngineBridge:
             completion_mode=completion_mode,
             tool_call_count=tool_call_count,
             artifact_count=artifact_count,
-            completed_at=datetime.now(timezone.utc).isoformat(),
+            completed_at=None if is_rate_limited else datetime.now(timezone.utc).isoformat(),
         )
         broadcaster.publish(job_id, {
             "type": "JOB_COMPLETE",

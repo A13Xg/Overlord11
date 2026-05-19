@@ -50,6 +50,8 @@ class CreateJobRequest(BaseModel):
     auto_start: bool = True            # auto-enqueue immediately after creation
     depends_on: List[str] = []         # explicit prerequisite job IDs (optional)
     priority: int = 0                  # 0=normal, -1=high, 1=low
+    shell_policy: str = "balanced_limited"
+    shell_type: str = "powershell"
 
 
 # ------------------------------------------------------------------
@@ -83,6 +85,8 @@ async def create_job(req: CreateJobRequest, _session: dict = Depends(require_aut
         resource_domains=domains_dict,
         priority=req.priority,
         auto_started=req.auto_start,
+        shell_policy=(req.shell_policy or "balanced_limited"),
+        shell_type=(req.shell_type or "powershell"),
     )
 
     conflict_result = None
@@ -203,13 +207,15 @@ async def resume_job(job_id: str, _session: dict = Depends(require_auth)):
     resumable = (JobStatus.PAUSED, JobStatus.RATE_LIMITED)
     if job.status not in resumable:
         raise HTTPException(status_code=409, detail="Job is not paused or rate-limited")
-    store.update_job(job_id, status=JobStatus.RUNNING)
+    # Re-queue on resume so a worker actually picks the job back up.
+    store.update_job(job_id, status=JobStatus.QUEUED, error=None)
+    bridge.enqueue(job_id)
     broadcaster.publish(job_id, {
         "type": "STATUS",
         "job_id": job_id,
-        "status": JobStatus.RUNNING.value,
+        "status": JobStatus.QUEUED.value,
     })
-    return {"status": "resumed", "job_id": job_id}
+    return {"status": "resumed", "job_id": job_id, "queued": True}
 
 
 @router.post("/{job_id}/restart")
@@ -220,6 +226,8 @@ async def restart_job(job_id: str, _session: dict = Depends(require_auth)):
         title=new_title,
         prompt=job.prompt,
         rate_limit_action=job.rate_limit_action,
+        shell_policy=job.shell_policy,
+        shell_type=job.shell_type,
     )
     bridge.enqueue(new_job.job_id)
     store.update_job(new_job.job_id, status=JobStatus.QUEUED)

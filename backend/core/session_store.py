@@ -63,6 +63,8 @@ class Job:
     completion_mode: Optional[str] = None  # direct_provider | failed
     tool_call_count: int = 0
     artifact_count: int = 0
+    shell_policy: str = "balanced_limited"
+    shell_type: str = "powershell"
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -93,6 +95,8 @@ class Job:
             completion_mode=d.get("completion_mode"),
             tool_call_count=int(d.get("tool_call_count", 0) or 0),
             artifact_count=int(d.get("artifact_count", 0) or 0),
+            shell_policy=d.get("shell_policy", "balanced_limited"),
+            shell_type=d.get("shell_type", "powershell"),
         )
 
 
@@ -120,6 +124,8 @@ class SessionStore:
         priority: int = 0,
         auto_started: bool = True,
         conflict_info: Optional[dict] = None,
+        shell_policy: str = "balanced_limited",
+        shell_type: str = "powershell",
     ) -> Job:
         job_id = secrets.token_hex(4)  # 8-char hex
         job = Job(
@@ -141,6 +147,8 @@ class SessionStore:
             priority=priority,
             auto_started=auto_started,
             conflict_info=conflict_info or {},
+            shell_policy=shell_policy or "balanced_limited",
+            shell_type=shell_type or "powershell",
         )
         with self._lock:
             self._jobs[job_id] = job
