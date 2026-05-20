@@ -1,7 +1,6 @@
-from __future__ import annotations
 
 import json
-from typing import Literal
+from typing import Literal, Dict, Any
 
 import requests
 
@@ -16,11 +15,11 @@ from .app import mcp
 def fetch_url(
     url: str,
     method: Literal["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"] = "GET",
-    headers: dict[str, str] = {},
+        headers: Dict[str, str] = {},
     body: str = "",
     timeout_seconds: int = 15,
     parse_as: Literal["text", "json", "auto"] = "auto",
-) -> dict:
+    ) -> Dict[str, Any]:
     """Fetch a URL.
 
     Args:

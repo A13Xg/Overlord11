@@ -1,8 +1,7 @@
-from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Dict, Any
 
 from ._common import fail, ok
 from .app import mcp
@@ -16,7 +15,7 @@ def compute_hash(
     input: str,
     input_type: Literal["string", "file"] = "string",
     algorithm: Literal["md5", "sha1", "sha256", "sha512"] = "sha256",
-) -> dict:
+) -> Dict[str, Any]:
     """Compute a hash digest.
 
     Args:

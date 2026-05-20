@@ -1,7 +1,7 @@
-from __future__ import annotations
 
 import datetime as dt
 from zoneinfo import ZoneInfo
+from typing import Dict, Any
 
 from ._common import fail, ok
 from .app import mcp
@@ -15,7 +15,7 @@ def get_datetime(
     timezone: str = "UTC",
     format: str = "%Y-%m-%d %H:%M:%S",
     offset_days: int = 0,
-) -> dict:
+) -> Dict[str, Any]:
     """Get current datetime with timezone and offset.
 
     Args:

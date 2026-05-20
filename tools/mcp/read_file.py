@@ -1,6 +1,6 @@
-from __future__ import annotations
 
 from pathlib import Path
+from typing import Dict, Any
 
 from ._common import fail, ok
 from .app import mcp
@@ -15,7 +15,7 @@ def read_file(
     encoding: str = "utf-8",
     start_line: int = 1,
     end_line: int = -1,
-) -> dict:
+) -> Dict[str, Any]:
     """Read text from a file with optional 1-indexed line slicing.
 
     Args:

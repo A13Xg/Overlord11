@@ -1,8 +1,7 @@
-from __future__ import annotations
 
 import difflib
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Dict, Any
 
 from ._common import fail, ok
 from .app import mcp
@@ -25,7 +24,7 @@ def diff_content(
     label_a: str = "a",
     label_b: str = "b",
     output_format: Literal["unified", "context", "ndiff"] = "unified",
-) -> dict:
+) -> Dict[str, Any]:
     """Compare two text inputs.
 
     Args:

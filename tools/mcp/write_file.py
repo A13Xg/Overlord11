@@ -1,7 +1,6 @@
-from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Dict, Any
 
 from ._common import fail, ok
 from .app import mcp
@@ -17,7 +16,7 @@ def write_file(
     mode: Literal["overwrite", "append", "create_only"] = "overwrite",
     encoding: str = "utf-8",
     make_dirs: bool = True,
-) -> dict:
+) -> Dict[str, Any]:
     """Write full text content to a file.
 
     Args:

@@ -1,8 +1,7 @@
-from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import Literal
+from typing import Literal, List, Dict, Any
 
 from ._common import fail, ok
 from .app import mcp
@@ -15,8 +14,8 @@ from .app import mcp
 def git_operation(
     repo_path: str,
     operation: Literal["status", "diff", "add", "commit", "log", "branch", "checkout", "pull", "push"],
-    args: list[str] = [],
-) -> dict:
+    args: List[str] = [],
+) -> Dict[str, Any]:
     """Run a git operation in a repository.
 
     Args:

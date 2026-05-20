@@ -1,8 +1,7 @@
-from __future__ import annotations
 
 import json
 import re
-from typing import Literal
+from typing import Literal, List, Any, Dict
 
 from ._common import fail, ok
 from .app import mcp
@@ -17,8 +16,8 @@ def regex_operation(
     text: str,
     operation: Literal["match", "find_all", "replace", "split", "validate"],
     replacement: str = "",
-    flags: list[Literal["IGNORECASE", "MULTILINE", "DOTALL"]] = [],
-) -> dict:
+    flags: List[Literal["IGNORECASE", "MULTILINE", "DOTALL"]] = [],
+) -> Dict[str, Any]:
     """Run a regex operation on input text.
 
     Args:

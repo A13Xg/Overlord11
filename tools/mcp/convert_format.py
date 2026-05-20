@@ -1,9 +1,8 @@
-from __future__ import annotations
 
 import csv
 import io
 import json
-from typing import Any, Literal
+from typing import Any, Literal, Dict
 
 import tomli_w
 import tomllib
@@ -62,7 +61,7 @@ def convert_format(
     from_format: Literal["json", "yaml", "toml", "csv", "markdown"],
     to_format: Literal["json", "yaml", "toml", "csv", "markdown"],
     indent: int = 2,
-) -> dict:
+) -> Dict[str, Any]:
     """Convert serialized text from one format to another.
 
     Args:

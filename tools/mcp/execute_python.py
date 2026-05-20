@@ -1,8 +1,7 @@
-from __future__ import annotations
 
 import json
 import subprocess
-from typing import Any
+from typing import Any, Dict, List
 
 from ._common import fail, ok
 from .app import mcp
@@ -14,10 +13,10 @@ from .app import mcp
 )
 def execute_python(
     code: str,
-    packages: list[str] = [],
+    packages: List[str] = [],
     timeout_seconds: int = 30,
     capture_return: bool = True,
-) -> dict:
+) -> Dict[str, Any]:
     """Execute Python source code.
 
     Args:
@@ -77,7 +76,7 @@ print(json.dumps({{'stdout': stdout_buffer.getvalue(), 'stderr': stderr_buffer.g
 
         if proc.returncode != 0:
             return fail(f"Python execution failed: {proc.stderr.strip()}")
-        payload: dict[str, Any] = json.loads(proc.stdout.strip() or "{}")
+        payload: Dict[str, Any] = json.loads(proc.stdout.strip() or "{}")
         return ok(
             {
                 "stdout": payload.get("stdout", ""),

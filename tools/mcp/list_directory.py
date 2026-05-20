@@ -1,7 +1,7 @@
-from __future__ import annotations
 
 import datetime as dt
 from pathlib import Path
+from typing import Dict, Any
 
 from ._common import fail, ok
 from .app import mcp
@@ -16,7 +16,7 @@ def list_directory(
     recursive: bool = False,
     include_hidden: bool = False,
     filter_ext: str = "",
-) -> dict:
+) -> Dict[str, Any]:
     """List directory contents.
 
     Args:

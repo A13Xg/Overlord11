@@ -1,6 +1,5 @@
-from __future__ import annotations
-
 from pathlib import Path
+from typing import Dict, Any
 
 from ._common import fail, ok
 from .app import mcp
@@ -15,7 +14,7 @@ def replace_in_file(
     old_text: str,
     new_text: str,
     replace_all: bool = False,
-) -> dict:
+) -> Dict[str, Any]:
     """Replace literal text in a file.
 
     Args:

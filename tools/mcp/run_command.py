@@ -1,8 +1,8 @@
-from __future__ import annotations
 
 import os
 import subprocess
 from pathlib import Path
+from typing import Any, Dict
 
 from ._common import fail, ok
 from .app import mcp
@@ -16,9 +16,9 @@ def run_command(
     command: str,
     working_dir: str = "",
     timeout_seconds: int = 30,
-    env_vars: dict[str, str] = {},
+    env_vars: Dict[str, str] = {},
     shell: bool = True,
-) -> dict:
+) -> Dict[str, Any]:
     """Run a shell command string.
 
     Args:

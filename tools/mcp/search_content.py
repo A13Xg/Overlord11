@@ -1,7 +1,7 @@
-from __future__ import annotations
 
 import fnmatch
 import re
+from typing import Dict, Any
 from pathlib import Path
 
 from ._common import fail, ok
@@ -19,7 +19,7 @@ def search_content(
     context_lines: int = 2,
     max_results: int = 50,
     case_sensitive: bool = True,
-) -> dict:
+) -> Dict[str, Any]:
     """Search content in files.
 
     Args:

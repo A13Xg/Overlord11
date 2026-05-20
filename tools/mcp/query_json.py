@@ -1,9 +1,8 @@
-from __future__ import annotations
 
 import json
 import re
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Dict
 
 from ._common import fail, ok
 from .app import mcp
@@ -32,7 +31,7 @@ def query_json(
     input: str,
     json_path: str,
     output_format: Literal["value", "pretty", "compact"] = "value",
-) -> dict:
+) -> Dict[str, Any]:
     """Query a value from JSON string or .json file.
 
     Args:

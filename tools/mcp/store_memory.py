@@ -1,8 +1,7 @@
-from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Dict
 
 from ._common import fail, ok
 from .app import mcp
@@ -21,7 +20,7 @@ def store_memory(
     value: Any = None,
     namespace: str = "default",
     query: str = "",
-) -> dict:
+) -> Dict[str, Any]:
     """Operate on namespaced key-value memory.
 
     Args:
