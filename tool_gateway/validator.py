@@ -181,11 +181,13 @@ def validate_arguments(model: type[BaseModel], arguments: dict, tool_name: str |
         retry_hint = "Check required fields, types, and unknown arguments"
         if tool_name and tool_name in _ALLOWED_KEYS_BY_TOOL:
             details["allowed_keys"] = _ALLOWED_KEYS_BY_TOOL[tool_name]
-            details["example"] = _EXAMPLES_BY_TOOL[tool_name]
-            retry_hint = (
-                f"Allowed keys for {tool_name}: {', '.join(_ALLOWED_KEYS_BY_TOOL[tool_name])}. "
-                f"Example: {_EXAMPLES_BY_TOOL[tool_name]}"
-            )
+            example = _EXAMPLES_BY_TOOL.get(tool_name)
+            if example:
+                details["example"] = example
+                retry_hint = (
+                    f"Allowed keys for {tool_name}: {', '.join(_ALLOWED_KEYS_BY_TOOL[tool_name])}. "
+                    f"Example: {example}"
+                )
         if allowed_values:
             details["allowed_values"] = allowed_values
             if tool_name == "run_command":

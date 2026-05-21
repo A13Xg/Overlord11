@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import re
 import textwrap
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
@@ -506,7 +507,6 @@ class HtmlReportGeneratorTool(BaseTool):
 
     def _render_html(self, title: str, css: str, toc_html: str, body_html: str, theme: str) -> str:
         color_scheme = "dark" if theme == "dark" else "light" if theme == "light" else "light dark"
-        from datetime import datetime, timezone
         generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         escaped_title = title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         return f"""<!DOCTYPE html>

@@ -99,7 +99,7 @@ def _safe_eval(node: ast.AST) -> float | int:
 # ---------------------------------------------------------------------------
 
 class CalculatorInput(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=False)
+    model_config = ConfigDict(extra="forbid", strict=True)
 
     expression: str = Field(..., description="Arithmetic expression to evaluate, e.g. '2 + 2', 'sqrt(16) * pi'")
     precision: int = Field(6, ge=0, le=15, description="Decimal places to round the result to")

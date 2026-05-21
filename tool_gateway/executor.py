@@ -89,8 +89,10 @@ class ToolGateway:
             }
             metadata.update(tool_metadata)
             if isinstance(data, dict):
-                metadata.setdefault("shell_used", data.get("shell_used"))
-                metadata.setdefault("shell_path", data.get("shell_path"))
+                if data.get("shell_used") is not None:
+                    metadata.setdefault("shell_used", data["shell_used"])
+                if data.get("shell_path") is not None:
+                    metadata.setdefault("shell_path", data["shell_path"])
 
             result = success_result(
                 tool_name,

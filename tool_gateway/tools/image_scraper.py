@@ -5,7 +5,7 @@ More thorough than web_extract_images: includes file size, MIME type, response h
 from __future__ import annotations
 
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
