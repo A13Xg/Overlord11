@@ -56,3 +56,10 @@ tests/test_workspace/
 
 # Temporary files
 *.tmp
+*.old
+*.bak
+
+# Playwright
+.playwright/
+playwright-state.json
+playwright/.local-chromium/

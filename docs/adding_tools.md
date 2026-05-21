@@ -25,8 +25,17 @@ Use Pydantic constraints for:
 
 Do not allow unknown fields unless intentionally required.
 
-## 3. Register tool
-Register tool in gateway setup via `ToolRegistry.register_tool(...)`.
+## 3. Register the tool
+
+Four places need updating:
+
+**a) `tool_gateway/tools/__init__.py`** — add import and `__all__` entry.
+
+**b) `tool_gateway/normalizer.py`** — add an entry in `ALIASES_BY_TOOL` for any argument aliases the LLM might use (e.g. shorthand names). Omit if no aliases are needed.
+
+**c) `tool_gateway/validator.py`** — add an entry in `_ALLOWED_KEYS_BY_TOOL` (list of accepted argument names) and `_EXAMPLES_BY_TOOL` (a minimal valid call payload). These power validation retry hints.
+
+**d) `engine/tool_executor.py`** — import the new tool class and call `registry.register_tool(YourNewTool())` in `ToolExecutor.__init__`.
 
 ## 4. Add tests
 At minimum:

@@ -12,7 +12,25 @@ from typing import Any, List
 
 from tool_gateway.executor import ToolGateway
 from tool_gateway.registry import ToolRegistry
-from tool_gateway.tools import ShellExecutionAdapter, WebSearchTool, WriteFileTool
+from tool_gateway.tools import (
+    CalculatorTool,
+    DynamicBrowserTool,
+    HtmlReportGeneratorTool,
+    ImageScraperTool,
+    IntelligentThemeScraperTool,
+    JsonTransformTool,
+    RssReadTool,
+    SearchAndExtractPipelineTool,
+    SemanticContentExtractorTool,
+    ShellExecutionAdapter,
+    WebCodeScraperTool,
+    WebExtractImagesTool,
+    WebExtractTextTool,
+    WebFetchTool,
+    WebImageGrabberTool,
+    WebSearchTool,
+    WriteFileTool,
+)
 
 
 @dataclass
@@ -68,6 +86,20 @@ class ToolExecutor:
         registry.register_tool(ShellExecutionAdapter())
         registry.register_tool(WriteFileTool())
         registry.register_tool(WebSearchTool())
+        registry.register_tool(WebFetchTool())
+        registry.register_tool(WebExtractTextTool())
+        registry.register_tool(WebExtractImagesTool())
+        registry.register_tool(WebImageGrabberTool())
+        registry.register_tool(RssReadTool())
+        registry.register_tool(DynamicBrowserTool())
+        registry.register_tool(IntelligentThemeScraperTool())
+        registry.register_tool(WebCodeScraperTool())
+        registry.register_tool(SemanticContentExtractorTool())
+        registry.register_tool(SearchAndExtractPipelineTool())
+        registry.register_tool(CalculatorTool())
+        registry.register_tool(ImageScraperTool())
+        registry.register_tool(HtmlReportGeneratorTool())
+        registry.register_tool(JsonTransformTool())
         self._gateway = ToolGateway(registry)
         self._runtime_context: dict[str, str] = {}
 

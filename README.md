@@ -22,9 +22,31 @@ playwright install chromium
 - `backend/` FastAPI + APIs + SSE
 - `frontend/` WebUI pages
 - `engine/` orchestration runner + provider bridge + tool execution
-- `tools/` tool schemas + implementations
-- `agents/` runtime agent prompts
+- `tool_gateway/` tool pipeline: parse → normalize → validate → execute → envelope
+- `agents/` runtime agent prompts + UI/UX skill files
 - `config.json` provider/orchestration/tool config
+
+## Available Tools (17)
+
+| Tool | Category | Description |
+|------|----------|-------------|
+| `run_command` | System | Execute shell commands with workspace-aware safeguards |
+| `write_file` | System | Write UTF-8 text files inside the active workspace |
+| `web_search` | Web | DuckDuckGo search — text, news, or images modes |
+| `web_fetch` | Web | HTTP GET with retries, redirects, and structured headers |
+| `web_extract_text` | Web | BS4 text extraction from URL, HTML string, or raw text |
+| `web_extract_images` | Web | Extract `<img>` metadata from a webpage |
+| `web_image_grabber` | Web | Search → download images into the workspace |
+| `rss_read` | Web | Fetch and normalize RSS/Atom XML feeds |
+| `dynamic_browser` | Web | Playwright render (with web_fetch fallback) |
+| `intelligent_theme_scraper` | Web | Extract CSS vars, colors, fonts, framework hints |
+| `web_code_scraper` | Web | JS bundles, CSS assets, routes, API endpoints |
+| `semantic_content_extractor` | Web | Emails, phones, prices, FAQ pairs, tables, JSON-LD |
+| `search_and_extract_pipeline` | Web | Full search → extract pipeline |
+| `calculator` | Utility | Safe AST-based arithmetic and math expression evaluator |
+| `image_scraper` | Web | Image scraper with HEAD metadata: size, MIME, alt text |
+| `html_report_generator` | Utility | Styled self-contained HTML reports from Markdown |
+| `json_transform` | Utility | Parse, query (dot-notation), flatten, pretty, minify JSON |
 
 ## Diagnostics
 
@@ -70,10 +92,10 @@ Before starting feature work or preparing a release, complete this gate in order
 python -m unittest discover -s tests -v
 ```
 
-2. Validate tool contracts (schema ↔ implementation ↔ CLI):
+2. Validate web tool schemas and alias normalization:
 
 ```bash
-python -m unittest tests/test_tool_contracts.py -v
+python -m unittest tests/test_new_web_tools_schema.py -v
 ```
 
 3. Compile critical modules:

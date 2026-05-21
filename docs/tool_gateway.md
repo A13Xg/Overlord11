@@ -41,12 +41,33 @@ LLMs are not reliable at generating raw CLI flag syntax consistently. The gatewa
 Failures use `ok=false` and structured `errors[]` (`PARSE_ERROR`, `VALIDATION_ERROR`, `UNKNOWN_TOOL`, `EXECUTION_ERROR`).
 
 ## Alias behavior
-Conservative aliases:
-- `cmd -> command`
-- `timeout -> timeout_seconds`
-- `cwd -> working_directory`
-- `env -> environment`
-- `file_path -> path` (write_file)
+Conservative aliases per tool:
+
+**run_command**: `cmd → command`, `timeout → timeout_seconds`, `cwd → working_directory`, `env → environment`
+
+**write_file**: `file_path → path`
+
+**web_search**: `q → query`, `limit → max_results`, `type → result_type`, `query_text → query`
+
+**web_fetch**: `timeout → timeout_seconds`
+
+**web_extract_text**: `query_text → raw_text`
+
+**web_extract_images**: `max → limit`
+
+**web_image_grabber**: `url → urls`, `path → output_directory`, `max → max_images`
+
+**rss_read**: `url → feed_urls`, `urls → feed_urls`, `limit → max_items`
+
+**dynamic_browser**: `timeout → timeout_seconds`, `selector → wait_selector`
+
+**intelligent_theme_scraper**: `depth → analysis_depth`
+
+**web_code_scraper**: `include_network → include_network_analysis`
+
+**semantic_content_extractor**: `query_text → raw_text`
+
+**search_and_extract_pipeline**: `query → topics`, `urls → seed_urls`
 
 Alias corrections are logged and returned in warnings/metadata. Unknown fields are rejected.
 Validation retry hints include allowed keys and a corrected example payload.

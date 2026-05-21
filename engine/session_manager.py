@@ -111,6 +111,12 @@ class EngineSession:
             return None
         ext = ".html" if "<html" in output_text.lower() else ".md"
         path = f"final_output{ext}"
+        # If the agent already wrote this file via write_file, preserve it and
+        # write the LLM's prose response to a separate file instead.
+        if self._session_dir:
+            existing = self._session_dir / path
+            if existing.exists():
+                path = f"final_response{ext}"
         self.write_artifact(path, output_text)
         return path
 

@@ -196,3 +196,57 @@
 - **Message**: [{'code': 'EXECUTION_ERROR', 'message': 'Tool execution failed', 'details': {'error': "web search failed after 3 attempts: DDGS.text() missing 1 required positional argument: 'query'"}}]
 - **Attempt**: 1
 - **Session**: f961fdda
+
+## [2026-05-21T05:25:35.390383+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: f3837d03-8cfb-49b7-b3f0-cc4ab86ab7c6
+
+## [2026-05-21T05:46:33.124794+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: e2611047-b1ee-4ce4-8ebc-bbea1c92f5c7
+
+## [2026-05-21T05:52:08.318481+00:00] API_ERROR
+- **Tool**: rss_read
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'list_type', 'loc': ('feed_urls',), 'msg': 'Input should be a valid list', 'input': 'https://tailwindcss.com/feeds/feed.xml', 'url': 'https://errors.pydantic.dev/2.12/v/list_type'}], 'allowed_keys': ['feed_urls', 'max_items', 'include_content', 'since_datetime'], 'example': {'tool_name': 'rss_read', 'arguments': {'feed_urls': ['https://planetpython.org/rss20.xml'], 'max_items': 20}}}}]
+- **Attempt**: 1
+- **Session**: ddc927b9
+
+## [2026-05-21T05:52:08.319175+00:00] API_ERROR
+- **Tool**: search_and_extract_pipeline
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('queries',), 'msg': 'Extra inputs are not permitted', 'input': ['Tailwind CSS alternatives 2026', 'CSS-in-JS vs utility CSS comparison', 'UnoCSS vs Tailwind', 'Bootstrap 5 vs Tailwind CSS'], 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['topics', 'seed_urls', 'max_results', 'deduplicate', 'freshness'], 'example': {'tool_name': 'search_and_extract_pipeline', 'arguments': {'topics': ['python packaging'], 'max_results': 10, 'freshness': 'recent'}}}}]
+- **Attempt**: 1
+- **Session**: ddc927b9
+
+## [2026-05-21T05:57:25.825277+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: 81eefc50-29d4-4697-96b9-5f11c401a438
+
+## [2026-05-21T06:03:54.315764+00:00] TOOL_FAILURE
+- **Tool**: delegate_to_agent
+- **Message**: [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: delegate_to_agent', 'details': {'tool_name': 'delegate_to_agent'}}]
+- **Attempt**: 1
+- **Session**: dda27680
+
+## [2026-05-21T06:27:00.275397+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: 28431834-68c7-4e1b-885b-a79f03773ae4
+
+## [2026-05-21T06:35:11.343566+00:00] API_ERROR
+- **Tool**: json_transform
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'literal_error', 'loc': ('transform',), 'msg': "Input should be 'pretty', 'minify', 'flatten', 'keys', 'values' or 'summary'", 'input': 'pretty_print', 'ctx': {'expected': "'pretty', 'minify', 'flatten', 'keys', 'values' or 'summary'"}, 'url': 'https://errors.pydantic.dev/2.12/v/literal_error'}], 'allowed_keys': ['data', 'query', 'transform', 'max_depth'], 'example': {'tool_name': 'json_transform', 'arguments': {'data': '{"key": "value"}', 'transform': 'pretty'}}}}]
+- **Attempt**: 1
+- **Session**: ee301c1a
+
+## [2026-05-21T06:36:23.724745+00:00] API_ERROR
+- **Tool**: web_search
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('mode',), 'msg': 'Extra inputs are not permitted', 'input': 'text', 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['query', 'max_results', 'region', 'safe_search', 'time_range', 'result_type', 'include_snippets', 'include_metadata', 'include_rank', 'include_dates', 'domain_allowlist', 'domain_blocklist'], 'example': {'tool_name': 'web_search', 'arguments': {'query': 'python release notes', 'max_results': 5, 'safe_search': 'moderate', 'time_range': 'month', 'result_type': 'text', 'include_snippets': True}}}}]
+- **Attempt**: 1
+- **Session**: 83fbc4b3

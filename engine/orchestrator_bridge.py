@@ -236,6 +236,20 @@ class OrchestratorBridge:
                     api_key,
                     model=model_name,
                 )
+                if not response or not response.strip():
+                    # Model returned an empty body — treat as a soft failure and
+                    # try the next model rather than propagating an empty string
+                    # that the runner will surface as empty_model_response.
+                    model_errors.append(f"{model_name}: empty response")
+                    self._logger.warning(
+                        "Provider '%s' model '%s' returned empty response, trying next",
+                        provider, model_name,
+                    )
+                    self._emit_provider_trace(
+                        event_callback, "model_failed",
+                        provider=provider, model=model_name, error="empty response",
+                    )
+                    continue
                 self._set_sticky_success(provider, model_name)
                 self._provider_status_detail[provider] = f"success model {model_name}"
                 self._emit_provider_trace(event_callback, "model_success", provider=provider, model=model_name)
@@ -634,6 +648,17 @@ class OrchestratorBridge:
                             provider_name, provider_cfg, messages, system,
                             api_key, model_name, token_callback,
                         )
+                        if not result or not result.strip():
+                            self._logger.warning(
+                                "Streaming model %s/%s returned empty; trying next",
+                                provider_name, model_name,
+                            )
+                            self._emit_provider_trace(
+                                event_callback, "model_failed",
+                                provider=provider_name, model=model_name, error="empty response",
+                            )
+                            last_err = RuntimeError(f"{model_name}: empty response")
+                            continue
                         self._set_sticky_success(provider_name, model_name)
                         return result
                     except urllib.error.HTTPError as exc:

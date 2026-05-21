@@ -45,10 +45,10 @@ class WebSearchToolTests(unittest.TestCase):
         self.assertEqual(res["tool_name"], "web_search")
         self.assertGreaterEqual(len(res["data"]["results"]), 1)
 
-    def test_missing_query_fails(self):
+    def test_missing_query_uses_safe_default(self):
         res = self.gw.execute_tool_call({"tool_name": "web_search", "arguments": {"max_results": 3}})
-        self.assertFalse(res["ok"])
-        self.assertEqual(res["errors"][0]["code"], "VALIDATION_ERROR")
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["tool_name"], "web_search")
 
     def test_unknown_param_fails(self):
         res = self.gw.validate_tool_call("web_search", {"query": "python", "bad_field": True})
@@ -93,7 +93,7 @@ class WebSearchToolTests(unittest.TestCase):
             }
         )
         self.assertTrue(res["ok"])
-        domains = [x["source_domain"] for x in res["data"]["results"]]
+        domains = [x["domain"] for x in res["data"]["results"]]
         self.assertNotIn("blocked.com", domains)
 
     @patch("tool_gateway.tools.web_search.DDGS", _FakeDDGS)

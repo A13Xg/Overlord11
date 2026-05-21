@@ -46,12 +46,27 @@ Every agent, every session — in this order:
 
 ## Available Tools
 
-The active runtime only exposes two tools:
+The active runtime exposes the following tools:
 
 | Tool | What It Does |
 |------|-------------|
 | `run_command` | Execute shell commands with structured arguments and workspace-aware safeguards |
 | `write_file` | Write UTF-8 text files inside the active workspace |
+| `web_search` | Search the web via DuckDuckGo (text, news, images modes) |
+| `web_fetch` | Fetch a URL and return status code, headers, and body |
+| `web_extract_text` | Extract readable text from a URL, HTML string, or raw text |
+| `web_extract_images` | Extract image metadata from a webpage |
+| `web_image_grabber` | Search for and download images into the workspace |
+| `rss_read` | Read and normalize RSS/Atom feeds |
+| `dynamic_browser` | Render JS-heavy pages via Playwright (falls back to web_fetch) |
+| `intelligent_theme_scraper` | Extract design system signals: CSS variables, colors, fonts, frameworks |
+| `web_code_scraper` | Analyze frontend source for JS bundles, CSS assets, and framework detection |
+| `semantic_content_extractor` | Extract structured data: emails, prices, FAQ pairs, tables, JSON-LD |
+| `search_and_extract_pipeline` | Orchestrated pipeline: search → fetch → extract → deduplicate → rank |
+| `calculator` | Safe arithmetic and math expression evaluator (ast-based, no eval) |
+| `image_scraper` | Scrape images from a URL with metadata: size, MIME type, alt text, optional download |
+| `html_report_generator` | Generate styled self-contained HTML reports from Markdown using the project design system |
+| `json_transform` | Parse, query (dot-notation), and transform JSON — pretty, minify, flatten, keys, summary |
 
 Any other tool name should be treated as unavailable unless the runtime explicitly reports it.
 

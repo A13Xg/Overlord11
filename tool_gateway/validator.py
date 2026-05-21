@@ -30,6 +30,53 @@ _ALLOWED_KEYS_BY_TOOL: dict[str, list[str]] = {
         "domain_allowlist",
         "domain_blocklist",
     ],
+    "web_fetch": ["url", "timeout_seconds", "follow_redirects", "headers", "user_agent"],
+    "web_extract_text": [
+        "url",
+        "html",
+        "raw_text",
+        "extraction_mode",
+        "include_links",
+        "include_metadata",
+    ],
+    "web_extract_images": ["url", "limit", "include_alt_text", "min_width", "min_height", "image_type"],
+    "web_image_grabber": [
+        "source_mode",
+        "query",
+        "urls",
+        "output_directory",
+        "max_images",
+        "matching_mode",
+        "allowed_extensions",
+        "require_https",
+        "deduplicate",
+        "overwrite_existing",
+        "create_manifest",
+        "dry_run",
+    ],
+    "rss_read": ["feed_urls", "max_items", "include_content", "since_datetime"],
+    "dynamic_browser": [
+        "url",
+        "timeout_seconds",
+        "wait_selector",
+        "viewport",
+        "user_agent",
+        "capture_screenshot",
+    ],
+    "intelligent_theme_scraper": [
+        "url",
+        "analysis_depth",
+        "extract_css_variables",
+        "detect_frameworks",
+        "include_component_summary",
+    ],
+    "web_code_scraper": ["url", "include_js", "include_css", "include_network_analysis"],
+    "semantic_content_extractor": ["url", "html", "raw_text", "extraction_targets"],
+    "search_and_extract_pipeline": ["topics", "seed_urls", "max_results", "deduplicate", "freshness"],
+    "calculator": ["expression", "precision", "scientific_notation"],
+    "image_scraper": ["url", "limit", "download", "output_directory", "min_size_kb", "require_https", "timeout_seconds"],
+    "html_report_generator": ["title", "content", "output_path", "theme", "palette_id", "style_id", "include_toc", "sections"],
+    "json_transform": ["data", "query", "transform", "max_depth"],
 }
 _EXAMPLES_BY_TOOL: dict[str, dict] = {
     "run_command": {
@@ -50,6 +97,62 @@ _EXAMPLES_BY_TOOL: dict[str, dict] = {
             "result_type": "text",
             "include_snippets": True,
         },
+    },
+    "web_fetch": {
+        "tool_name": "web_fetch",
+        "arguments": {"url": "https://example.com", "timeout_seconds": 20, "follow_redirects": True},
+    },
+    "web_extract_text": {
+        "tool_name": "web_extract_text",
+        "arguments": {"url": "https://example.com", "extraction_mode": "auto", "include_metadata": True},
+    },
+    "web_extract_images": {
+        "tool_name": "web_extract_images",
+        "arguments": {"url": "https://example.com", "limit": 20, "image_type": "auto"},
+    },
+    "web_image_grabber": {
+        "tool_name": "web_image_grabber",
+        "arguments": {"query": "mountain landscape", "max_images": 10, "source_mode": "search_query"},
+    },
+    "rss_read": {
+        "tool_name": "rss_read",
+        "arguments": {"feed_urls": ["https://planetpython.org/rss20.xml"], "max_items": 20},
+    },
+    "dynamic_browser": {
+        "tool_name": "dynamic_browser",
+        "arguments": {"url": "https://example.com", "timeout_seconds": 30, "capture_screenshot": False},
+    },
+    "intelligent_theme_scraper": {
+        "tool_name": "intelligent_theme_scraper",
+        "arguments": {"url": "https://example.com", "analysis_depth": "balanced"},
+    },
+    "web_code_scraper": {
+        "tool_name": "web_code_scraper",
+        "arguments": {"url": "https://example.com", "include_js": True, "include_css": True},
+    },
+    "semantic_content_extractor": {
+        "tool_name": "semantic_content_extractor",
+        "arguments": {"url": "https://example.com", "extraction_targets": []},
+    },
+    "search_and_extract_pipeline": {
+        "tool_name": "search_and_extract_pipeline",
+        "arguments": {"topics": ["python packaging"], "max_results": 10, "freshness": "recent"},
+    },
+    "calculator": {
+        "tool_name": "calculator",
+        "arguments": {"expression": "sqrt(16) * pi", "precision": 4},
+    },
+    "image_scraper": {
+        "tool_name": "image_scraper",
+        "arguments": {"url": "https://example.com", "limit": 20},
+    },
+    "html_report_generator": {
+        "tool_name": "html_report_generator",
+        "arguments": {"title": "My Report", "content": "## Overview\nContent here.", "theme": "dark"},
+    },
+    "json_transform": {
+        "tool_name": "json_transform",
+        "arguments": {"data": "{\"key\": \"value\"}", "transform": "pretty"},
     },
 }
 
@@ -72,7 +175,7 @@ def validate_arguments(model: type[BaseModel], arguments: dict, tool_name: str |
                 allowed_values = ["any", "day", "week", "month", "year"]
                 break
             if "result_type" in loc:
-                allowed_values = ["text", "news"]
+                allowed_values = ["auto", "text", "news", "images"]
                 break
         details = {"issues": issues}
         retry_hint = "Check required fields, types, and unknown arguments"

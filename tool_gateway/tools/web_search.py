@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 from datetime import datetime
 from typing import Any, Literal
@@ -18,14 +19,14 @@ except Exception:  # pragma: no cover - optional dependency in some test envs
 class WebSearchArgs(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
-    query: str = Field(min_length=1, max_length=500)
-    max_results: int = Field(default=8, ge=1, le=50)
+    query: str | None = Field(default=None, max_length=500)
+    max_results: int = Field(default=10, ge=1, le=50)
     region: str = Field(default="us-en", min_length=2, max_length=16)
     safe_search: Literal["off", "moderate", "strict"] = "moderate"
     time_range: Literal["any", "day", "week", "month", "year"] = "any"
-    result_type: Literal["text", "news"] = "text"
+    result_type: Literal["auto", "text", "news", "images"] = "auto"
     include_snippets: bool = True
-    include_metadata: bool = False
+    include_metadata: bool = True
     include_rank: bool = True
     include_dates: bool = True
     domain_allowlist: list[str] = Field(default_factory=list)
@@ -33,11 +34,11 @@ class WebSearchArgs(BaseModel):
 
     @field_validator("query")
     @classmethod
-    def normalize_query(cls, value: str) -> str:
+    def normalize_query(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         q = " ".join(value.split()).strip()
-        if not q:
-            raise ValueError("query cannot be empty")
-        return q
+        return q or None
 
     @field_validator("domain_allowlist", "domain_blocklist", mode="before")
     @classmethod
@@ -73,7 +74,7 @@ class WebSearchTool(BaseTool):
     supports_dry_run = False
     timeout_behavior = "Per-attempt timeout with bounded retries"
     examples = [
-        {"query": "latest python release notes", "max_results": 5},
+        {"query": "latest python release notes", "max_results": 5, "result_type": "auto"},
         {
             "query": "agentic workflows",
             "result_type": "news",
@@ -91,6 +92,20 @@ class WebSearchTool(BaseTool):
         last_error: str | None = None
         raw_results: list[dict[str, Any]] = []
         attempts = 0
+        warnings: list[str] = []
+        inferred_values: dict[str, Any] = {}
+
+        query = args.query or "latest updates"
+        if not args.query:
+            inferred_values["query"] = query
+
+        result_type = args.result_type
+        if result_type == "auto":
+            result_type = "news" if any(k in query.lower() for k in ("today", "latest", "breaking", "news")) else "text"
+            inferred_values["result_type"] = result_type
+
+        # DDGS >=8 uses single-letter timelimit codes: d/w/m/y
+        _TIMELIMIT_MAP = {"day": "d", "week": "w", "month": "m", "year": "y"}
 
         for i in range(1, retries + 1):
             attempts = i
@@ -98,19 +113,27 @@ class WebSearchTool(BaseTool):
                 if DDGS is None:
                     raise RuntimeError("ddgs dependency is not installed")
                 with DDGS(timeout=timeout_seconds) as ddgs:
-                    if args.result_type == "news":
-                        time_limit = None if args.time_range == "any" else args.time_range
+                    raw_limit = args.time_range
+                    time_limit = None if raw_limit == "any" else _TIMELIMIT_MAP.get(raw_limit, raw_limit)
+                    if result_type == "news":
                         results = ddgs.news(
-                            keywords=args.query,
+                            query=query,
+                            region=args.region,
+                            safesearch=args.safe_search,
+                            timelimit=time_limit,
+                            max_results=args.max_results * 3,
+                        )
+                    elif result_type == "images":
+                        results = ddgs.images(
+                            query=query,
                             region=args.region,
                             safesearch=args.safe_search,
                             timelimit=time_limit,
                             max_results=args.max_results * 3,
                         )
                     else:
-                        time_limit = None if args.time_range == "any" else args.time_range
                         results = ddgs.text(
-                            keywords=args.query,
+                            query=query,
                             region=args.region,
                             safesearch=args.safe_search,
                             timelimit=time_limit,
@@ -121,7 +144,8 @@ class WebSearchTool(BaseTool):
             except Exception as exc:
                 last_error = str(exc)
                 if i >= retries:
-                    raise RuntimeError(f"web search failed after {retries} attempts: {last_error}") from exc
+                    warnings.append(f"web search failed after {retries} attempts: {last_error}")
+                    break
                 time.sleep(0.3 * i)
 
         filtered = self._filter_domains(raw_results, args.domain_allowlist, args.domain_blocklist)
@@ -135,6 +159,7 @@ class WebSearchTool(BaseTool):
                 "title": item.get("title") or "",
                 "url": item.get("url") or "",
                 "snippet": (item.get("snippet") or "") if args.include_snippets else "",
+                "domain": item.get("source_domain") or "",
                 "source_domain": item.get("source_domain") or "",
                 "rank": idx if args.include_rank else None,
                 "published_date": item.get("published_date") if args.include_dates else None,
@@ -142,9 +167,10 @@ class WebSearchTool(BaseTool):
             results.append(rec)
 
         out: dict[str, Any] = {
-            "query": args.query,
-            "result_type": args.result_type,
+            "query": query,
+            "result_type": result_type,
             "results": results,
+            "_warnings": warnings,
         }
         if args.include_metadata:
             out["metadata"] = {
@@ -159,6 +185,12 @@ class WebSearchTool(BaseTool):
             }
             if last_error:
                 out["metadata"]["last_error"] = last_error
+        out["_metadata"] = {
+            "workspace": str(os.environ.get("OVERLORD11_TASK_DIR") or os.getcwd()),
+            "partial_success": bool(warnings),
+            "fallbacks_used": ["retry"] if attempts > 1 else [],
+            "inferred_values": inferred_values,
+        }
         return out
 
     def _filter_domains(self, results: list[dict[str, Any]], allow: list[str], block: list[str]) -> list[dict[str, Any]]:

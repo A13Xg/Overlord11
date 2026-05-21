@@ -73,16 +73,31 @@ class ToolGateway:
             validated = validate_arguments(tool.input_model, normalized_arguments, tool_name=tool_name)
 
             data = tool.execute(validated)
+            tool_warnings: list[str] = []
+            tool_metadata: dict[str, Any] = {}
+            if isinstance(data, dict):
+                internal_warnings = data.pop("_warnings", [])
+                if isinstance(internal_warnings, list):
+                    tool_warnings = [str(w) for w in internal_warnings]
+                internal_metadata = data.pop("_metadata", {})
+                if isinstance(internal_metadata, dict):
+                    tool_metadata = dict(internal_metadata)
             metadata = {
                 "request_id": request_id,
                 "normalization": normalization_meta,
                 "duration_seconds": round(time.monotonic() - start, 4),
             }
+            metadata.update(tool_metadata)
             if isinstance(data, dict):
                 metadata.setdefault("shell_used", data.get("shell_used"))
                 metadata.setdefault("shell_path", data.get("shell_path"))
 
-            result = success_result(tool_name, data if isinstance(data, dict) else {"value": data}, warnings=warnings, metadata=metadata)
+            result = success_result(
+                tool_name,
+                data if isinstance(data, dict) else {"value": data},
+                warnings=warnings + tool_warnings,
+                metadata=metadata,
+            )
             log_event({
                 "request_id": request_id,
                 "session_id": session_id,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -46,7 +47,7 @@ class WriteFileTool(BaseTool):
         }
 
     def _resolve_workspace_root(self) -> str:
-        base = __import__("os").environ.get("OVERLORD11_TASK_DIR") or __import__("os").getcwd()
+        base = os.environ.get("OVERLORD11_TASK_DIR") or os.getcwd()
         return str(Path(base).resolve())
 
     def _resolve_target_path(self, raw_path: str, workspace_root: Path) -> Path:

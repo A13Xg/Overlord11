@@ -21,7 +21,7 @@
       "api_base": "https://api.anthropic.com/v1"
     },
     "gemini": {
-      "model": "gemma-4-31b-it",
+      "model": "gemini-2.5-flash",
       "available_models": {
         "gemini-3.1-pro-preview": "Latest Pro Preview — advanced reasoning, tool use, 1M context, agentic workflows (Feb 2026)",
         "gemini-3-flash-preview": "Latest Flash Preview — frontier multimodal, strongest agentic/vibe-coding, 1M context (Dec 2025)",
