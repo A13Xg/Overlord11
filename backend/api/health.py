@@ -66,15 +66,17 @@ def _check_anthropic(cfg: dict) -> dict:
 
 
 def _check_gemini(cfg: dict) -> dict:
-    """Check Gemini: GET /v1beta/models with API key."""
+    """Check Gemini: GET /v1beta/models with API key in header (not URL)."""
     key = os.environ.get(cfg.get("api_key_env", ""), "")
     if not key:
         return {"status": "no_key", "latency_ms": None, "error": "API key not configured"}
     base = cfg.get("api_base", "https://generativelanguage.googleapis.com/v1beta")
-    url = f"{base}/models?key={key}&pageSize=5"
+    url = f"{base}/models?pageSize=5"
+    # Pass API key as x-goog-api-key header instead of in URL for security
+    req = urllib.request.Request(url, headers={"x-goog-api-key": key})
     t0 = time.monotonic()
     try:
-        with urllib.request.urlopen(url, timeout=_CHECK_TIMEOUT_S) as r:
+        with urllib.request.urlopen(req, timeout=_CHECK_TIMEOUT_S) as r:
             latency_ms = round((time.monotonic() - t0) * 1000)
             data = json.loads(r.read())
             model_count = len(data.get("models", []))

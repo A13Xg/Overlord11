@@ -224,6 +224,19 @@ body::after {
   white-space: pre-wrap; word-break: break-word;
   max-height: 260px; overflow-y: auto;
 }
+.stream-secondary {
+  color: #9aa3ad;
+}
+.stream-agent-tag {
+  color: #7f8a96;
+  font-size: 10px;
+  letter-spacing: .08em;
+  margin-right: 6px;
+}
+.stream-agent-block {
+  display: block;
+  margin-top: 4px;
+}
 #stream-tail {
   display: none;
   color: var(--green);
@@ -1249,6 +1262,7 @@ let _streamIncoming = '';   // chunks received from provider (raw buffer)
 let _streamRendered = '';   // chars shown to user
 let _streamTick = null;     // typing loop timer
 let _streamActive = false;  // true while provider is generating
+let _streamLastAgent = null;
 
 // Shell auto-detection — detected native shell for this platform
 let _nativeShell = 'bash';  // default; updated on page load via OS detection
@@ -1390,9 +1404,8 @@ function showToast(title, body, severity = 'info') {
 function streamStart(jobId) {
   _streamJobId = jobId;
   _streamTokens = 0;
-  _streamIncoming = '';
-  _streamRendered = '';
   _streamActive = true;
+  _streamLastAgent = null;
   const panel = document.getElementById('stream-panel');
   const textEl = document.getElementById('stream-text');
   const countEl = document.getElementById('stream-token-count');
@@ -1400,16 +1413,29 @@ function streamStart(jobId) {
   textEl.textContent = '';
   if (countEl) countEl.textContent = '0 chars';
   panel.classList.add('active', 'is-streaming');
-  _streamStartTypingLoop();
 }
 
-function streamAppend(text) {
+function streamAppend(text, tokenStyle = 'normal', agentId = 'orchestrator') {
+  const textEl = document.getElementById('stream-text');
   const countEl = document.getElementById('stream-token-count');
-  if (!text) return;
-  _streamIncoming += text;
+  if (!text || !textEl) return;
+  if (_streamLastAgent !== agentId) {
+    const tagWrap = document.createElement('span');
+    tagWrap.className = 'stream-agent-block';
+    const tag = document.createElement('span');
+    tag.className = 'stream-agent-tag';
+    tag.textContent = `[${agentId}]`;
+    tagWrap.appendChild(tag);
+    textEl.appendChild(tagWrap);
+    _streamLastAgent = agentId;
+  }
+  const span = document.createElement('span');
+  if (tokenStyle === 'secondary') span.classList.add('stream-secondary');
+  span.textContent = text;
+  textEl.appendChild(span);
   _streamTokens += text.length;
   if (countEl) countEl.textContent = _streamTokens + ' chars';
-  _streamStartTypingLoop();
+  textEl.scrollTop = textEl.scrollHeight;
 }
 
 function streamEnd() {
@@ -1417,7 +1443,6 @@ function streamEnd() {
   _streamActive = false;
   if (panel) panel.classList.remove('is-streaming');
   _streamJobId = null;
-  _streamStartTypingLoop();
 }
 
 function _streamStartTypingLoop() {
@@ -2138,13 +2163,15 @@ let _ftArtifacts = [];
 let _ftSelectedPath = null;
 let _ftCollapsed = {};   // section key → bool
 
-const _FT_SECTION_ORDER  = ['output','artifacts'];
+const _FT_SECTION_ORDER  = ['output','other','artifacts'];
 const _FT_SECTION_LABELS = {
   output:    'OUTPUT (DELIVERABLES)',
+  other:     'OTHER CREATED FILES',
   artifacts: 'ARTIFACTS',
 };
 const _FT_SECTION_CLASS = {
   output: 'sec-product',
+  other:  'sec-logs',
   logs:    'sec-logs',
 };
 
@@ -2207,14 +2234,19 @@ function _ftBuildTree(jobId, artifacts) {
     return;
   }
 
-  // Group into two sections only: output deliverables + artifacts.
+  // Group into three sections: output deliverables, other created files, artifacts.
   const bySection = {};
   artifacts.forEach(a => {
     const raw = (a.category || '').toLowerCase();
     const rel = (a.relative_path || '').toLowerCase();
-    const cat = (raw === 'output' || raw === 'outputs' || rel.startsWith('output/') || rel.startsWith('outputs/'))
-      ? 'output'
-      : 'artifacts';
+    let cat = 'other';
+    if (raw === 'output' || raw === 'outputs' || rel.startsWith('output/') || rel.startsWith('outputs/')) {
+      cat = 'output';
+    } else if (raw === 'artifacts' || rel.startsWith('artifacts/')) {
+      cat = 'artifacts';
+    } else if (raw === 'other') {
+      cat = 'other';
+    }
     (bySection[cat] = bySection[cat] || []).push(a);
   });
 
@@ -2562,7 +2594,7 @@ function handleEvent(ev) {
         // First token for this job — open the streaming panel
         streamStart(jobId);
       }
-      streamAppend(ev.text || '');
+      streamAppend(ev.text || '', ev.token_style || 'normal', ev.agent_id || 'orchestrator');
     }
     return;  // Don't process TOKEN events further
   }
@@ -2780,6 +2812,18 @@ function getTreeMeta(ev) {
   if (type === 'AGENT_START' || type === 'AGENT_COMPLETE') {
     return {depth: 1, branch: buildTreeBranch(1, type === 'AGENT_COMPLETE'), kind: type === 'AGENT_COMPLETE' ? 'complete' : 'agent'};
   }
+  if (type === 'SUBAGENT_START' || type === 'SUBAGENT_END') {
+    return {depth: 1, branch: buildTreeBranch(1, type === 'SUBAGENT_END'), kind: type === 'SUBAGENT_END' ? 'complete' : 'agent'};
+  }
+  if (type === 'SUBAGENT_TOOL_CALL') {
+    return {depth: 2, branch: buildTreeBranch(2, false), kind: 'tool'};
+  }
+  if (type === 'SUBAGENT_TOOL_RESULT') {
+    return {depth: 3, branch: buildTreeBranch(3, true), kind: 'complete'};
+  }
+  if (type === 'SUBAGENT_TOKEN') {
+    return {depth: 2, branch: buildTreeBranch(2, false), kind: 'agent'};
+  }
   if (type === 'AGENT_MESSAGE') {
     return {depth: 2, branch: buildTreeBranch(2, true), kind: 'agent'};
   }
@@ -2843,6 +2887,22 @@ function formatEventBody(ev) {
   }
   if (ev.type === 'AGENT_COMPLETE') {
     return `agent ${ev.agent_id || 'unknown'} completed loop ${ev.loop || '?'} with ${ev.response_len || 0} chars`;
+  }
+  if (ev.type === 'SUBAGENT_START') {
+    return `sub-agent ${ev.agent_id || 'unknown'} started`;
+  }
+  if (ev.type === 'SUBAGENT_END') {
+    return `sub-agent ${ev.agent_id || 'unknown'} completed with ${ev.tool_call_count || 0} tool call(s)`;
+  }
+  if (ev.type === 'SUBAGENT_TOOL_CALL') {
+    return `${ev.agent_id || 'sub-agent'} -> ${ev.tool || 'tool'} ${formatCompactJson(ev.arguments || {}, 140)}`;
+  }
+  if (ev.type === 'SUBAGENT_TOOL_RESULT') {
+    return `${ev.agent_id || 'sub-agent'} <- ${ev.tool || 'tool'} ${formatCompactJson(ev.result || {}, 140)}`;
+  }
+  if (ev.type === 'SUBAGENT_TOKEN') {
+    const preview = (ev.text || '').replace(/\n/g, '↵').slice(0, 80);
+    return `${ev.agent_id || 'sub-agent'} stream: "${preview}"`;
   }
   if (ev.type === 'RATE_LIMITED') {
     const wait   = ev.wait_s ? `${ev.wait_s}s` : '?';

@@ -21,29 +21,23 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.venv/
+venv/
 
 # Logs
 *.log
-logs/
 
-# Claude-related files
+# Claude-related files (if using Claude as a code assistant)
 claude/
 .claude/
-claude_temp/
-claude_*.tmp
-claude_*.log
-claude_*.cache
-claude_workspace/
-claude_history/
-claude_session/
-*.claude
-.claude-*
-.claude_state
-.claude_cache
-.claude_session
-.claude_history
-tmpclaude-*
-*-cwd
 
 # Overlord11 runtime directories
 workspace/
@@ -56,3 +50,4 @@ tests/test_workspace/
 
 # Temporary files
 *.tmp
+*.bak

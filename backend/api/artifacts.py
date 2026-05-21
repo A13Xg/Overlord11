@@ -59,6 +59,7 @@ def _session_root(job: object) -> Path:
 
 
 def _iter_artifact_files(root: Path):
+    indexed_roots = {"outputs", "output", "artifacts", "logs", "traces", "tools", "agent"}
     for subdir in ("outputs", "output", "artifacts", "logs", "traces", "tools", "agent"):
         base = root / subdir
         if not base.exists():
@@ -66,6 +67,17 @@ def _iter_artifact_files(root: Path):
         for entry in sorted(base.rglob("*")):
             if entry.is_file():
                 yield subdir, entry
+    # Include workspace-root and non-indexed directories as "other" so files
+    # written to session root remain visible in WebUI.
+    for entry in sorted(root.rglob("*")):
+        if not entry.is_file():
+            continue
+        rel_parts = entry.relative_to(root).parts
+        if not rel_parts:
+            continue
+        if rel_parts[0] in indexed_roots:
+            continue
+        yield "other", entry
 
 
 def _artifact_item_from_entry(root: Path, category: str, entry: Path) -> dict:

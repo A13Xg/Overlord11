@@ -174,7 +174,7 @@ async def setup_status(session: dict = Depends(require_auth)):
         try:
             meta = json.loads(setup_file.read_text(encoding="utf-8"))
             completed_at = meta.get("completed_at")
-        except Exception:
+        except (json.JSONDecodeError, OSError):
             completed_at = None
 
     return {

@@ -43,7 +43,7 @@ def fetch_url(
             try:
                 parsed = response.json()
                 body_value = json.dumps(parsed, ensure_ascii=False)
-            except Exception:
+            except json.JSONDecodeError:
                 body_value = response.text
         else:
             body_value = response.text

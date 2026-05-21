@@ -26,6 +26,8 @@ from tools.mcp import run_command  # noqa: F401
 from tools.mcp import search_content  # noqa: F401
 from tools.mcp import store_memory  # noqa: F401
 from tools.mcp import write_file  # noqa: F401
+from tools.mcp import write_html_page  # noqa: F401
+from tools.mcp import write_markdown_summary  # noqa: F401
 
 
 if __name__ == "__main__":

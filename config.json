@@ -28,7 +28,7 @@
       "api_base": "https://api.anthropic.com/v1"
     },
     "gemini": {
-      "model": "gemma-4-31b-it",
+      "model": "gemini-2.5-flash",
       "fallback_models": [
         "gemma-4-31b-it",
         "gemma-4-26b-a4b-it",
@@ -142,6 +142,11 @@
       "max_consecutive_failures": 3,
       "max_total_failures": 6,
       "max_same_failure_streak": 3
+    },
+    "subagents": {
+      "enabled": true,
+      "max_steps": 6,
+      "max_tool_calls": 10
     },
     "servers": [
       {

@@ -526,8 +526,8 @@ class EngineBridge:
                 try:
                     if _MODEL_STATE_PATH.exists():
                         return json.loads(_MODEL_STATE_PATH.read_text(encoding="utf-8"))
-                except Exception:
-                    pass
+                except Exception as exc:
+                    log.debug("Failed to load model state from %s: %s (using empty state)", _MODEL_STATE_PATH, exc)
                 return {}
 
             def _save_model_state(state: dict) -> None:
@@ -561,8 +561,8 @@ class EngineBridge:
                 try:
                     if p.exists():
                         return p.read_text(encoding="utf-8")
-                except Exception:
-                    return ""
+                except Exception as exc:
+                    log.debug("Failed to load orchestrator prompt from %s: %s (using empty prompt)", p, exc)
                 return ""
 
             def _on_chunk(text: str) -> None:
@@ -574,6 +574,20 @@ class EngineBridge:
                     "job_id": job_id,
                     "session_id": session_id,
                     "text": text,
+                }
+                store.append_event(job_id, token_event)
+                broadcaster.publish(job_id, token_event)
+
+            def _emit_live_text(text: str, token_style: str = "normal", agent_id: str = "orchestrator") -> None:
+                if not text:
+                    return
+                token_event = {
+                    "type": "TOKEN",
+                    "job_id": job_id,
+                    "session_id": session_id,
+                    "text": text,
+                    "token_style": token_style,
+                    "agent_id": agent_id,
                 }
                 store.append_event(job_id, token_event)
                 broadcaster.publish(job_id, token_event)
@@ -646,6 +660,88 @@ class EngineBridge:
                         raise
                 return None, chosen_model_local
 
+            def _extract_action_payload(raw_text: str, tool_catalog: Optional[list[dict]] = None) -> dict:
+                # Robustly extract the most relevant JSON object that includes action/tool intent.
+                text = (raw_text or "").strip()
+                if not text:
+                    return {}
+                decoder = json.JSONDecoder()
+                candidates: list[dict] = []
+
+                # Try fenced JSON blocks first (common model output pattern).
+                for match in re.finditer(r"```(?:json)?\s*([\s\S]*?)```", text, flags=re.IGNORECASE):
+                    block = (match.group(1) or "").strip()
+                    if not block:
+                        continue
+                    for idx, ch in enumerate(block):
+                        if ch != "{":
+                            continue
+                        try:
+                            obj, _end = decoder.raw_decode(block[idx:])
+                        except Exception as exc:
+                            log.debug("Failed to decode JSON object at position %d in response block: %s", idx, str(exc)[:80])
+                            continue
+                        if isinstance(obj, dict):
+                            candidates.append(obj)
+
+                # Fallback: scan full response for JSON objects.
+                for idx, ch in enumerate(text):
+                    if ch != "{":
+                        continue
+                    try:
+                        obj, _end = decoder.raw_decode(text[idx:])
+                    except Exception as exc:
+                        log.debug("Failed to decode JSON object at position %d in full response: %s", idx, str(exc)[:80])
+                        continue
+                    if isinstance(obj, dict):
+                        candidates.append(obj)
+
+                if not candidates:
+                    return {}
+
+                # Prefer latest object that looks actionable.
+                best: dict = {}
+                for obj in candidates:
+                    if "action" in obj or "tool" in obj:
+                        best = obj
+                if not best:
+                    best = candidates[-1]
+
+                if isinstance(best, dict):
+                    if "action" not in best and "tool" in best:
+                        best["action"] = "tool"
+                    # Normalize common malformed variant:
+                    # {"action":"server.tool","arguments":{...}}
+                    # into:
+                    # {"action":"tool","tool":"server.tool","arguments":{...}}
+                    raw_action = str(best.get("action", "")).strip()
+                    if raw_action and "." in raw_action and raw_action.lower() not in {"tool", "final", "run"}:
+                        if not best.get("tool"):
+                            best["tool"] = raw_action
+                        best["action"] = "tool"
+
+                    # If tool call has top-level args but missing `arguments`, lift schema-known keys.
+                    if str(best.get("action", "")).strip().lower() == "tool":
+                        tool_name = str(best.get("tool", "")).strip()
+                        if tool_name and not isinstance(best.get("arguments"), dict):
+                            args: dict = {}
+                            schema_props: set[str] = set()
+                            if tool_catalog:
+                                for t in tool_catalog:
+                                    if str(t.get("full_name", "")).strip() == tool_name:
+                                        schema = t.get("inputSchema") or {}
+                                        schema_props = set((schema.get("properties") or {}).keys())
+                                        break
+                            reserved = {"action", "tool", "arguments", "message", "agent", "goal", "context", "command"}
+                            for k, v in best.items():
+                                if k in reserved:
+                                    continue
+                                if schema_props and k not in schema_props:
+                                    continue
+                                args[k] = v
+                            best["arguments"] = args
+                return best
+
             def _update_failure_counters(
                 signature: str,
                 previous_signature: str,
@@ -661,6 +757,185 @@ class EngineBridge:
                     same_failure_streak = 1
                 return signature, total_failures, consecutive_failures, same_failure_streak
 
+            def _emit_agent_event(event_type: str, agent_id: str, **extra: object) -> None:
+                payload = {
+                    "type": event_type,
+                    "job_id": job_id,
+                    "session_id": session_id,
+                    "agent_id": agent_id,
+                }
+                payload.update(extra)
+                store.append_event(job_id, payload)
+                broadcaster.publish(job_id, payload)
+
+            def _build_tool_prompt(filtered_tools: list[dict]) -> str:
+                return json.dumps(
+                    [
+                        {
+                            "tool": t.get("full_name"),
+                            "description": t.get("description", ""),
+                            "input_schema": t.get("inputSchema", {}),
+                        }
+                        for t in filtered_tools
+                    ],
+                    ensure_ascii=False,
+                    indent=2,
+                )
+
+            def _filter_tools_by_allowlist(tools: list[dict], allowed_names: set[str]) -> list[dict]:
+                if not allowed_names:
+                    return list(tools)
+                return [t for t in tools if str(t.get("name", "")).strip() in allowed_names]
+
+            def _run_subagent(
+                *,
+                agent_id: str,
+                role_prompt: str,
+                task_prompt: str,
+                allowed_tool_names: set[str],
+                max_steps_local: int = 6,
+                max_tool_calls_local: int = 10,
+            ) -> dict[str, object]:
+                sub_history: list[str] = []
+                sub_trace: list[dict] = []
+                sub_tool_calls = 0
+                sub_mutating_tool_calls = 0
+                sub_final = ""
+                sub_task_lower = (task_prompt or "").lower()
+                expects_workspace_artifact_local = (
+                    agent_id == "web_builder"
+                    or any(tok in f" {sub_task_lower} " for tok in (" html ", ".html", "index.html", "create file", "write file"))
+                )
+                _emit_agent_event("SUBAGENT_START", agent_id, role=agent_id, max_steps=max_steps_local)
+                _emit_live_text(f"[{agent_id}] spawned\n", token_style="secondary", agent_id=agent_id)
+                for sub_step in range(1, max_steps_local + 1):
+                    _emit_live_text(
+                        f"[{agent_id}] planning step {sub_step}/{max_steps_local}\n",
+                        token_style="secondary",
+                        agent_id=agent_id,
+                    )
+                    all_tools = mcp_runtime.tool_catalog()
+                    agent_tools = _filter_tools_by_allowlist(all_tools, allowed_tool_names)
+                    if not agent_tools:
+                        sub_final = f"{agent_id}: no allowed tools available."
+                        sub_trace.append({"step": sub_step, "action": "no_tools"})
+                        break
+                    builder_guardrail = ""
+                    if agent_id == "web_builder":
+                        builder_guardrail = (
+                            "CRITICAL FOR WEB_BUILDER:\n"
+                            "Your first successful action MUST be a foundation.write_html_page tool call.\n"
+                            "Do not claim completion before that write succeeds.\n"
+                            "Return JSON only. No prose before/after JSON.\n"
+                            "Keep HTML concise enough to fit in one tool call.\n\n"
+                        )
+                    sub_prompt = (
+                        f"Agent role:\n{role_prompt}\n\n"
+                        f"Task:\n{task_prompt}\n\n"
+                        f"Session workspace:\n{workspace}\n\n"
+                        f"{builder_guardrail}"
+                        "Reply in strict JSON only:\n"
+                        "{\"action\":\"tool\",\"tool\":\"<server.tool>\",\"arguments\":{}}\n"
+                        "or\n"
+                        "{\"action\":\"final\",\"message\":\"<status/update>\"}\n\n"
+                        f"Tool calls used: {sub_tool_calls}/{max_tool_calls_local}\n\n"
+                        "Available tools:\n"
+                        f"{_build_tool_prompt(agent_tools)}\n\n"
+                        "Prior execution history:\n"
+                        + ("\n".join(sub_history[-20:]) if sub_history else "(none)")
+                    )
+                    decision_result, chosen_model = _provider_call_with_fallback(sub_prompt, orchestrator_prompt, stream=False)
+                    if decision_result is None:
+                        sub_trace.append({"step": sub_step, "action": "provider_none"})
+                        break
+                    raw = (decision_result.output or "").strip()
+                    if raw:
+                        _emit_live_text(f"[{agent_id}][planner]\n{raw}\n\n", token_style="secondary", agent_id=agent_id)
+                        _emit_agent_event("SUBAGENT_TOKEN", agent_id, text=raw[:6000], step=sub_step, model=chosen_model)
+                    payload = _extract_action_payload(raw, tool_catalog=agent_tools)
+                    action = str(payload.get("action", "")).strip().lower()
+                    if action == "final":
+                        candidate_final = str(payload.get("message", "")).strip() or raw
+                        if expects_workspace_artifact_local and sub_mutating_tool_calls == 0:
+                            sub_trace.append(
+                                {
+                                    "step": sub_step,
+                                    "action": "final_rejected_no_mutation",
+                                    "message": candidate_final[:2000],
+                                }
+                            )
+                            sub_history.append(
+                                f"[step {sub_step}] final rejected: no successful mutating tool call has executed yet."
+                            )
+                            _emit_live_text(
+                                f"[{agent_id}] final rejected: no mutating tool call executed yet\n",
+                                token_style="secondary",
+                                agent_id=agent_id,
+                            )
+                            continue
+                        sub_final = candidate_final
+                        sub_trace.append({"step": sub_step, "action": "final", "message": sub_final[:2000]})
+                        break
+                    if action != "tool":
+                        sub_trace.append({"step": sub_step, "action": "invalid_action", "raw": raw[:1200]})
+                        sub_history.append(f"[step {sub_step}] invalid action payload")
+                        continue
+                    if sub_tool_calls >= max_tool_calls_local:
+                        sub_final = f"{agent_id}: tool call budget exhausted ({sub_tool_calls}/{max_tool_calls_local})."
+                        sub_trace.append({"step": sub_step, "action": "budget_exhausted"})
+                        break
+                    tool_name = str(payload.get("tool", "")).strip()
+                    arguments = payload.get("arguments", {})
+                    if not isinstance(arguments, dict):
+                        arguments = {}
+                    leaf = tool_name.split(".")[-1].strip().lower()
+                    if allowed_tool_names and leaf not in allowed_tool_names:
+                        msg = f"{agent_id}: tool '{tool_name}' not allowed for this sub-agent."
+                        sub_trace.append({"step": sub_step, "action": "tool_blocked", "tool": tool_name, "reason": msg})
+                        sub_history.append(msg)
+                        continue
+                    _emit_agent_event("SUBAGENT_TOOL_CALL", agent_id, step=sub_step, tool=tool_name, arguments=arguments)
+                    _emit_live_text(f"[{agent_id}] calling {tool_name}\n", token_style="secondary", agent_id=agent_id)
+                    result = mcp_runtime.call_tool(
+                        tool_name,
+                        arguments,
+                        timeout_s=tool_timeout_s,
+                        allowed_root=str(workspace),
+                    )
+                    sub_tool_calls += 1
+                    tool_leaf = tool_name.split(".")[-1].strip().lower()
+                    if tool_leaf in write_tools and bool(result.get("success", False)):
+                        sub_mutating_tool_calls += 1
+                    _emit_agent_event("SUBAGENT_TOOL_RESULT", agent_id, step=sub_step, tool=tool_name, result=result)
+                    sub_trace.append({"step": sub_step, "action": "tool", "tool": tool_name, "result": result})
+                    sub_history.append(
+                        f"[step {sub_step}] tool={tool_name}\nargs={json.dumps(arguments, ensure_ascii=False)}\nresult={json.dumps(result, ensure_ascii=False)}"
+                    )
+                if not sub_final:
+                    sub_final = f"{agent_id}: completed without explicit final response."
+                sub_status = "complete"
+                if expects_workspace_artifact_local and sub_mutating_tool_calls == 0:
+                    sub_status = "failed"
+                    sub_final = (
+                        f"{agent_id}: failed to execute any mutating tool call for artifact-producing task."
+                    )
+                _emit_agent_event(
+                    "SUBAGENT_END",
+                    agent_id,
+                    status=sub_status,
+                    tool_call_count=sub_tool_calls,
+                    final_message=sub_final[:4000],
+                )
+                _emit_live_text(f"[{agent_id}] complete\n", token_style="secondary", agent_id=agent_id)
+                return {
+                    "agent_id": agent_id,
+                    "status": sub_status,
+                    "final_message": sub_final,
+                    "trace": sub_trace,
+                    "tool_call_count": sub_tool_calls,
+                    "mutating_tool_call_count": sub_mutating_tool_calls,
+                }
+
             mcp_enabled = bool(mcp_cfg.get("enabled", False))
             if runtime_mode == "mcp_orchestrated" and mcp_enabled:
                 max_steps = int((mcp_cfg.get("max_steps", 10) or 10))
@@ -673,13 +948,57 @@ class EngineBridge:
                 trace: list[dict] = []
                 history_lines: list[str] = []
                 final_message = ""
+                prompt_lower = (job.prompt or "").lower()
                 orchestrator_prompt = _load_orchestrator_system_prompt()
                 tool_calls = 0
+                mutating_tool_calls = 0
                 mcp_total_failures = 0
                 mcp_consecutive_failures = 0
                 mcp_same_failure_streak = 0
                 mcp_last_failure_signature = ""
                 max_tool_calls = int((mcp_cfg.get("policy", {}) or {}).get("max_calls_per_job", 20) or 20)
+                subagent_cfg = (mcp_cfg.get("subagents", {}) or {})
+                subagents_enabled = bool(subagent_cfg.get("enabled", True))
+                subagent_max_steps = max(1, int(subagent_cfg.get("max_steps", 6) or 6))
+                subagent_max_tool_calls = max(1, int(subagent_cfg.get("max_tool_calls", 10) or 10))
+                subagent_profiles: dict[str, dict[str, object]] = {
+                    "web_builder": {
+                        "role_prompt": (
+                            "You are an expert web developer. Build polished, valid, self-contained HTML deliverables. "
+                            "Use HTML-specific write tools and verify file presence."
+                        ),
+                        "allowed_tools": {"write_html_page", "read_file", "list_directory", "search_content"},
+                    },
+                    "web_research": {
+                        "role_prompt": (
+                            "You are a focused web research agent. Gather factual references and synthesize concise findings."
+                        ),
+                        "allowed_tools": {"fetch_url", "query_json", "convert_format", "write_file"},
+                    },
+                    "data_summarizer": {
+                        "role_prompt": (
+                            "You summarize large input into clean, structured markdown for downstream agents."
+                        ),
+                        "allowed_tools": {"write_markdown_summary", "read_file", "search_content", "query_json"},
+                    },
+                }
+                write_intent_tokens = (
+                    "create file",
+                    "write file",
+                    "save file",
+                    "generate html",
+                    "create html",
+                    ".html",
+                    "index.html",
+                    " html ",
+                    "html site",
+                    "web page",
+                    "webpage",
+                    "landing page",
+                )
+                write_tools = {"write_file", "replace_in_file", "write_html_page", "write_markdown_summary"}
+                normalized_prompt = f" {prompt_lower} "
+                expects_workspace_artifact = any(tok in normalized_prompt for tok in write_intent_tokens)
                 discovery = mcp_runtime.refresh_tools()
                 discovery_ev = {
                     "type": "MCP_DISCOVERY",
@@ -689,14 +1008,20 @@ class EngineBridge:
                 }
                 store.append_event(job_id, discovery_ev)
                 broadcaster.publish(job_id, discovery_ev)
+                _emit_live_text(
+                    f"[mcp] discovered {int(discovery.get('discovered_tool_count', 0) or 0)} tools across "
+                    f"{len(discovery.get('servers', []) or [])} server(s)\n"
+                )
 
                 for step in range(1, max_steps + 1):
                     if stop_event.is_set():
                         return {"status": "failed", "error": "Stopped by user", "output": ""}
+                    _emit_live_text(f"[mcp] planning step {step}/{max_steps}\n")
                     tools = mcp_runtime.tool_catalog()
                     if step == 1 and not tools:
                         final_message = "No MCP tools available from configured local servers."
                         trace.append({"step": step, "action": "mcp_no_tools"})
+                        _emit_live_text("[mcp] no tools discovered; ending run\n")
                         break
                     tools_prompt = json.dumps([
                         {
@@ -724,9 +1049,13 @@ class EngineBridge:
                         "Decide next action and reply in strict JSON only:\n"
                         "{\"action\":\"tool\",\"tool\":\"<server.tool>\",\"arguments\":{}}\n"
                         "or\n"
+                        "{\"action\":\"delegate\",\"agent\":\"web_builder|web_research|data_summarizer\",\"goal\":\"<sub-task>\",\"context\":{}}\n"
+                        "or\n"
                         "{\"action\":\"final\",\"message\":\"<final user-facing answer>\"}\n\n"
                         f"Max tool calls allowed: {max_tool_calls}\n"
                         f"Tool calls used: {tool_calls}\n\n"
+                        f"Sub-agent delegation: {'enabled' if subagents_enabled else 'disabled'}\n"
+                        "Use delegation for specialized execution when useful.\n\n"
                         "Available tools:\n"
                         f"{tools_prompt}\n\n"
                         "Prior execution history:\n"
@@ -743,27 +1072,43 @@ class EngineBridge:
                         _save_model_state(model_state)
 
                     raw_text = (decision_result.output or "").strip()
-                    match = re.search(r"\{[\s\S]*\}", raw_text)
-                    payload = {}
-                    if match:
-                        try:
-                            payload = json.loads(match.group(0))
-                        except Exception:
-                            payload = {}
+                    if raw_text:
+                        _emit_live_text(f"[mcp][planner]\n{raw_text}\n\n", token_style="secondary")
+                    payload = _extract_action_payload(raw_text, tool_catalog=tools)
                     action = str(payload.get("action", "")).strip().lower()
                     if action == "final":
-                        final_message = str(payload.get("message", "")).strip() or raw_text
+                        candidate_final = str(payload.get("message", "")).strip() or raw_text
+                        if expects_workspace_artifact and mutating_tool_calls == 0:
+                            warn_msg = (
+                                "[mcp] final response rejected: prompt requests file creation but no mutating "
+                                "tool call has executed yet\n"
+                            )
+                            _emit_live_text(warn_msg)
+                            trace.append({
+                                "step": step,
+                                "action": "final_rejected_no_mutation",
+                                "reason": "artifact_requested_but_no_mutating_tool_call",
+                                "candidate_message": candidate_final[:5000],
+                            })
+                            history_lines.append(
+                                f"[step {step}] final rejected because no mutating MCP tool call has run yet."
+                            )
+                            continue
+                        final_message = candidate_final
                         trace.append({"step": step, "action": "final", "model": chosen_model, "message": final_message[:5000]})
+                        _emit_live_text("[mcp] model returned final response\n")
                         break
                     if action == "tool":
                         if tool_calls >= max_tool_calls:
                             final_message = f"Tool call budget exceeded ({tool_calls}/{max_tool_calls})."
                             trace.append({"step": step, "action": "budget_exhausted"})
+                            _emit_live_text("[mcp] tool call budget exhausted\n")
                             break
                         tool_name = str(payload.get("tool", "")).strip()
                         arguments = payload.get("arguments", {})
                         if not isinstance(arguments, dict):
                             arguments = {}
+                        _emit_live_text(f"[mcp] calling {tool_name}\n")
                         call_ev = {
                             "type": "MCP_TOOL_CALL",
                             "job_id": job_id,
@@ -774,8 +1119,16 @@ class EngineBridge:
                         }
                         store.append_event(job_id, call_ev)
                         broadcaster.publish(job_id, call_ev)
-                        result = mcp_runtime.call_tool(tool_name, arguments, timeout_s=tool_timeout_s)
+                        result = mcp_runtime.call_tool(
+                            tool_name,
+                            arguments,
+                            timeout_s=tool_timeout_s,
+                            allowed_root=str(workspace),
+                        )
                         tool_calls += 1
+                        tool_leaf_name = tool_name.split(".")[-1].strip().lower()
+                        if tool_leaf_name in write_tools and bool(result.get("success", False)):
+                            mutating_tool_calls += 1
                         result_ev = {
                             "type": "MCP_TOOL_RESULT",
                             "job_id": job_id,
@@ -787,10 +1140,12 @@ class EngineBridge:
                         store.append_event(job_id, result_ev)
                         broadcaster.publish(job_id, result_ev)
                         if bool(result.get("success", False)):
+                            _emit_live_text(f"[mcp] {tool_name} succeeded\n")
                             mcp_consecutive_failures = 0
                             mcp_same_failure_streak = 0
                             mcp_last_failure_signature = ""
                         else:
+                            _emit_live_text(f"[mcp] {tool_name} failed: {str(result.get('error', 'unknown error'))[:180]}\n")
                             failure_sig = f"{tool_name}|{str(result.get('error', ''))[:240]}"
                             (
                                 mcp_last_failure_signature,
@@ -856,10 +1211,98 @@ class EngineBridge:
                             f"[step {step}] tool={tool_name!r}\nargs={json.dumps(arguments, ensure_ascii=False)}\nresult={json.dumps(result, ensure_ascii=False)}"
                         )
                         continue
+                    if action == "delegate":
+                        if not subagents_enabled:
+                            history_lines.append(f"[step {step}] delegate requested but sub-agents disabled")
+                            continue
+                        agent_name = str(payload.get("agent", "")).strip().lower()
+                        profile = subagent_profiles.get(agent_name)
+                        if not profile:
+                            history_lines.append(f"[step {step}] delegate requested unknown agent '{agent_name}'")
+                            continue
+                        goal = str(payload.get("goal", "")).strip() or job.prompt
+                        context_obj = payload.get("context", {})
+                        context_text = (
+                            json.dumps(context_obj, ensure_ascii=False, indent=2)
+                            if isinstance(context_obj, (dict, list))
+                            else str(context_obj)
+                        )
+                        _emit_live_text(f"[mcp] delegating to {agent_name}\n", token_style="secondary")
+                        delegate_result = _run_subagent(
+                            agent_id=agent_name,
+                            role_prompt=str(profile.get("role_prompt", "")),
+                            task_prompt=f"{goal}\n\nDelegation context:\n{context_text}",
+                            allowed_tool_names=set(profile.get("allowed_tools", set()) or set()),
+                            max_steps_local=subagent_max_steps,
+                            max_tool_calls_local=subagent_max_tool_calls,
+                        )
+                        tool_calls += int(delegate_result.get("tool_call_count", 0) or 0)
+                        mutating_tool_calls += int(delegate_result.get("mutating_tool_call_count", 0) or 0)
+                        if (
+                            agent_name == "web_builder"
+                            and str(delegate_result.get("status", "")) == "failed"
+                            and int(delegate_result.get("mutating_tool_call_count", 0) or 0) == 0
+                        ):
+                            _emit_live_text(
+                                "[mcp] web_builder returned without a write; retrying with strict write-first instruction\n",
+                                token_style="secondary",
+                            )
+                            strict_goal = (
+                                "MANDATORY: first perform a successful foundation.write_html_page tool call to create "
+                                "the target HTML file in workspace. Do not emit final until that tool call succeeds. "
+                                f"Original goal:\n{goal}"
+                            )
+                            delegate_result_retry = _run_subagent(
+                                agent_id=agent_name,
+                                role_prompt=str(profile.get("role_prompt", "")),
+                                task_prompt=f"{strict_goal}\n\nDelegation context:\n{context_text}",
+                                allowed_tool_names=set(profile.get("allowed_tools", set()) or set()),
+                                max_steps_local=subagent_max_steps,
+                                max_tool_calls_local=subagent_max_tool_calls,
+                            )
+                            tool_calls += int(delegate_result_retry.get("tool_call_count", 0) or 0)
+                            mutating_tool_calls += int(delegate_result_retry.get("mutating_tool_call_count", 0) or 0)
+                            delegate_result = {
+                                "initial": delegate_result,
+                                "retry": delegate_result_retry,
+                                "status": delegate_result_retry.get("status", "failed"),
+                                "mutating_tool_call_count": int(
+                                    delegate_result_retry.get("mutating_tool_call_count", 0) or 0
+                                ),
+                                "tool_call_count": int(delegate_result_retry.get("tool_call_count", 0) or 0),
+                                "final_message": delegate_result_retry.get("final_message", ""),
+                            }
+                        history_lines.append(
+                            f"[step {step}] delegated agent={agent_name}\nresult={json.dumps(delegate_result, ensure_ascii=False)[:6000]}"
+                        )
+                        trace.append({
+                            "step": step,
+                            "action": "delegate",
+                            "agent": agent_name,
+                            "goal": goal,
+                            "result": delegate_result,
+                        })
+                        continue
                     final_message = raw_text
                     trace.append({"step": step, "action": "final_fallback", "model": chosen_model, "message": final_message[:5000]})
+                    if expects_workspace_artifact and step < max_steps:
+                        _emit_live_text(
+                            "[mcp] planner response was not a valid action JSON; retrying next planning step\n",
+                            token_style="secondary",
+                        )
+                        history_lines.append(
+                            f"[step {step}] planner output was invalid/unparseable for action routing; retry requested."
+                        )
+                        final_message = ""
+                        continue
                     break
 
+                artifact_incomplete = expects_workspace_artifact and mutating_tool_calls == 0
+                if artifact_incomplete:
+                    final_message = (
+                        "The model did not execute any file-writing MCP tool call, so no workspace artifact was created. "
+                        "Please retry the job; this run has been marked as incomplete."
+                    )
                 if not final_message:
                     final_message = "Job ended without a final response."
                 output = final_message.strip()
@@ -881,11 +1324,16 @@ class EngineBridge:
                     json.dumps({"meta": meta, "raw": {"mode": "mcp_orchestrated"}}, indent=2, ensure_ascii=False),
                     encoding="utf-8",
                 )
-                _done_event = {"type": "SESSION_END", "job_id": job_id, "session_id": session_id, "status": "complete"}
+                _done_event = {
+                    "type": "SESSION_END",
+                    "job_id": job_id,
+                    "session_id": session_id,
+                    "status": "failed" if artifact_incomplete else "complete",
+                }
                 store.append_event(job_id, _done_event)
                 broadcaster.publish(job_id, _done_event)
                 return {
-                    "status": "complete",
+                    "status": "failed" if artifact_incomplete else "complete",
                     "session_id": session_id,
                     "output": output,
                     "completion_mode": "mcp_orchestrated",
@@ -953,13 +1401,7 @@ class EngineBridge:
                         _save_model_state(model_state)
 
                     raw_text = (decision_result.output or "").strip()
-                    match = re.search(r"\{[\s\S]*\}", raw_text)
-                    payload = {}
-                    if match:
-                        try:
-                            payload = json.loads(match.group(0))
-                        except Exception:
-                            payload = {}
+                    payload = _extract_action_payload(raw_text)
                     action = str(payload.get("action", "")).strip().lower()
                     if action == "final":
                         final_message = str(payload.get("message", "")).strip() or raw_text

@@ -86,7 +86,7 @@ class AuthManager:
             data = json.loads(_USERS_FILE.read_text(encoding="utf-8"))
             self._users = data.get("users", {})
             log.info("Loaded %d user(s) from %s", len(self._users), _USERS_FILE)
-        except Exception as exc:
+        except (json.JSONDecodeError, OSError) as exc:
             log.error("Failed to load users.json: %s", exc)
             self._users = {}
 

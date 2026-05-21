@@ -11,7 +11,6 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -66,7 +65,7 @@ async def lifespan(app: FastAPI):
     store.load()
     try:
         config = json.loads(_CONFIG_FILE.read_text(encoding="utf-8"))
-    except Exception:
+    except (json.JSONDecodeError, FileNotFoundError):
         config = {}
     issues = check_tools_report_only(config.get("tools", {}))
     if issues:

@@ -7,6 +7,10 @@ from backend.core.shell_executor import ShellExecutor, _get_native_shell
 
 
 class ShellExecutorTests(unittest.TestCase):
+    @staticmethod
+    def _is_windows() -> bool:
+        return platform.system().lower() == "windows"
+
     def test_auto_detection(self):
         """Test that auto-detection returns the correct shell for the OS."""
         native_shell = _get_native_shell()
@@ -30,6 +34,8 @@ class ShellExecutorTests(unittest.TestCase):
             self.assertNotEqual(res.exit_code, 0)
 
     def test_blocks_parent_traversal_bash(self):
+        if self._is_windows():
+            self.skipTest("Bash policy checks are not required on Windows native shell path")
         with tempfile.TemporaryDirectory() as td:
             ex = ShellExecutor(Path(td), policy="balanced_limited", shell_type="bash")
             res = ex.execute("cd ..; ls")
@@ -43,6 +49,8 @@ class ShellExecutorTests(unittest.TestCase):
             self.assertTrue(res.blocked)
 
     def test_blocks_dangerous_pattern_bash(self):
+        if self._is_windows():
+            self.skipTest("Bash policy checks are not required on Windows native shell path")
         with tempfile.TemporaryDirectory() as td:
             ex = ShellExecutor(Path(td), policy="balanced_limited", shell_type="bash")
             res = ex.execute("rm -rf /")
@@ -57,6 +65,8 @@ class ShellExecutorTests(unittest.TestCase):
             self.assertIn("ok", res.stdout.lower())
 
     def test_allows_simple_command_bash(self):
+        if self._is_windows():
+            self.skipTest("Bash execution is optional on Windows; native shell is PowerShell")
         with tempfile.TemporaryDirectory() as td:
             ex = ShellExecutor(Path(td), policy="balanced_limited", shell_type="bash")
             res = ex.execute("echo 'ok'")

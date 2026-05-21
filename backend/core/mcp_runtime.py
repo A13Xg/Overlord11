@@ -7,13 +7,15 @@ from __future__ import annotations
 import json
 import logging
 import os
-import queue
-import subprocess
 import threading
 import time
+import asyncio
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
 
 log = logging.getLogger("overlord11.mcp_runtime")
 
@@ -36,166 +38,6 @@ class McpServerState:
     last_heartbeat: Optional[str] = None
     last_error: Optional[str] = None
     tool_count: int = 0
-
-
-class _JsonRpcStdIoClient:
-    def __init__(self, cfg: McpServerConfig, project_root: Path) -> None:
-        self.cfg = cfg
-        self.project_root = project_root
-        self.proc: Optional[subprocess.Popen] = None
-        self._seq = 0
-        self._lock = threading.Lock()
-        self._pending: dict[int, queue.Queue] = {}
-        self._reader_thread: Optional[threading.Thread] = None
-        self._closed = False
-        self._last_error = ""
-
-    @property
-    def last_error(self) -> str:
-        return self._last_error
-
-    def start(self) -> None:
-        if self.proc and self.proc.poll() is None:
-            return
-        cwd = Path(self.cfg.cwd).resolve() if self.cfg.cwd else self.project_root
-        env = dict(**self.cfg.env) if self.cfg.env else {}
-        merged_env = dict(**env)
-        for k, v in env.items():
-            merged_env[str(k)] = str(v)
-        runtime_env = dict(**os.environ)
-        runtime_env.update(merged_env)
-        self.proc = subprocess.Popen(
-            [self.cfg.command] + list(self.cfg.args or []),
-            cwd=str(cwd),
-            env=runtime_env,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            bufsize=0,
-        )
-        self._closed = False
-        self._reader_thread = threading.Thread(target=self._reader_loop, daemon=True)
-        self._reader_thread.start()
-        self._initialize_session()
-
-    def stop(self) -> None:
-        self._closed = True
-        p = self.proc
-        if p is None:
-            return
-        try:
-            if p.poll() is None:
-                p.terminate()
-                p.wait(timeout=5)
-        except Exception:
-            try:
-                p.kill()
-            except Exception:
-                pass
-        self.proc = None
-
-    def is_running(self) -> bool:
-        return self.proc is not None and self.proc.poll() is None
-
-    def pid(self) -> Optional[int]:
-        return self.proc.pid if self.proc else None
-
-    def _next_id(self) -> int:
-        with self._lock:
-            self._seq += 1
-            return self._seq
-
-    def _write_message(self, payload: dict[str, Any]) -> None:
-        if self.proc is None or self.proc.stdin is None:
-            raise RuntimeError("MCP server is not running")
-        raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        header = f"Content-Length: {len(raw)}\r\n\r\n".encode("ascii")
-        self.proc.stdin.write(header + raw)
-        self.proc.stdin.flush()
-
-    def _read_message(self) -> Optional[dict[str, Any]]:
-        if self.proc is None or self.proc.stdout is None:
-            return None
-        stream = self.proc.stdout
-        content_length = None
-        while True:
-            line = stream.readline()
-            if not line:
-                return None
-            if line in (b"\r\n", b"\n"):
-                break
-            parts = line.decode("utf-8", errors="replace").strip().split(":", 1)
-            if len(parts) == 2 and parts[0].lower() == "content-length":
-                try:
-                    content_length = int(parts[1].strip())
-                except ValueError:
-                    content_length = None
-        if content_length is None:
-            return None
-        body = stream.read(content_length)
-        if not body:
-            return None
-        try:
-            return json.loads(body.decode("utf-8", errors="replace"))
-        except json.JSONDecodeError:
-            return None
-
-    def _reader_loop(self) -> None:
-        while not self._closed:
-            msg = self._read_message()
-            if msg is None:
-                break
-            msg_id = msg.get("id")
-            if isinstance(msg_id, int):
-                with self._lock:
-                    q = self._pending.get(msg_id)
-                if q is not None:
-                    q.put(msg)
-
-    def request(self, method: str, params: Optional[dict[str, Any]] = None, timeout_s: int = 20) -> dict[str, Any]:
-        if not self.is_running():
-            raise RuntimeError("MCP server is not running")
-        rid = self._next_id()
-        q: queue.Queue = queue.Queue(maxsize=1)
-        with self._lock:
-            self._pending[rid] = q
-        try:
-            payload = {"jsonrpc": "2.0", "id": rid, "method": method, "params": params or {}}
-            self._write_message(payload)
-            try:
-                response = q.get(timeout=max(1, timeout_s))
-            except queue.Empty:
-                raise TimeoutError(f"MCP request timed out for method '{method}'")
-            if "error" in response:
-                err = response.get("error") or {}
-                message = err.get("message", "unknown MCP error")
-                raise RuntimeError(f"MCP error: {message}")
-            return response.get("result") or {}
-        finally:
-            with self._lock:
-                self._pending.pop(rid, None)
-
-    def notify(self, method: str, params: Optional[dict[str, Any]] = None) -> None:
-        if not self.is_running():
-            raise RuntimeError("MCP server is not running")
-        payload = {"jsonrpc": "2.0", "method": method, "params": params or {}}
-        self._write_message(payload)
-
-    def _initialize_session(self) -> None:
-        try:
-            self.request(
-                "initialize",
-                {
-                    "protocolVersion": "2024-11-05",
-                    "capabilities": {"tools": {}},
-                    "clientInfo": {"name": "overlord11", "version": "2.3.0"},
-                },
-                timeout_s=20,
-            )
-            self.notify("notifications/initialized", {})
-        except Exception as exc:
-            self._last_error = str(exc)
-            raise
 
 
 class McpToolRegistry:
@@ -234,6 +76,7 @@ class ToolPolicy:
         self.max_calls_per_job = max(1, int(max_calls_per_job))
         self.per_call_timeout_s = max(1, int(per_call_timeout_s))
         self.max_argument_chars = max(500, int(max_argument_chars))
+        self.blocked_tools: set[str] = {"run_command", "execute_python"}
 
     def validate_call_budget(self, current_calls: int) -> Optional[str]:
         if current_calls >= self.max_calls_per_job:
@@ -251,7 +94,6 @@ class McpRuntime:
     def __init__(self, project_root: Path) -> None:
         self.project_root = project_root
         self.registry = McpToolRegistry()
-        self._clients: dict[str, _JsonRpcStdIoClient] = {}
         self._states: dict[str, McpServerState] = {}
         self._configs: dict[str, McpServerConfig] = {}
         self._lock = threading.Lock()
@@ -275,18 +117,52 @@ class McpRuntime:
             command = str((raw or {}).get("command", "")).strip()
             if not name or not command:
                 continue
+            normalized_command = self._normalize_command(command)
+            normalized_cwd = self._normalize_cwd(str((raw or {}).get("cwd", "") or ""))
+            normalized_args = self._normalize_args(list((raw or {}).get("args", []) or []))
             next_configs[name] = McpServerConfig(
                 name=name,
-                command=command,
-                args=list((raw or {}).get("args", []) or []),
+                command=normalized_command,
+                args=normalized_args,
                 env=dict((raw or {}).get("env", {}) or {}),
-                cwd=str((raw or {}).get("cwd", "") or ""),
+                cwd=normalized_cwd,
                 auto_start=bool((raw or {}).get("auto_start", True)),
             )
         with self._lock:
             self._configs = next_configs
             for name in next_configs:
                 self._states.setdefault(name, McpServerState(name=name))
+
+    def _normalize_command(self, command: str) -> str:
+        cmd = (command or "").strip()
+        if cmd.lower() in {"python", "python3", "py"}:
+            return sys.executable
+        p = Path(cmd)
+        if not p.is_absolute() and p.exists():
+            return str(p.resolve())
+        return cmd
+
+    def _normalize_cwd(self, cwd_value: str) -> str:
+        cwd = (cwd_value or "").strip()
+        if not cwd:
+            return str(self.project_root)
+        p = Path(cwd)
+        if not p.is_absolute():
+            p = (self.project_root / p).resolve()
+        return str(p)
+
+    def _normalize_args(self, args: list[str]) -> list[str]:
+        out: list[str] = []
+        for a in args:
+            s = str(a)
+            p = Path(s)
+            if p.suffix.lower() == ".py" and not p.is_absolute():
+                candidate = (self.project_root / p).resolve()
+                if candidate.exists():
+                    out.append(str(candidate))
+                    continue
+            out.append(s)
+        return out
 
     def start(self, cfg: dict[str, Any]) -> None:
         self.configure(cfg)
@@ -295,7 +171,6 @@ class McpRuntime:
             self.stop()
             return
         self._running = True
-        self._ensure_servers_started()
         self.refresh_tools()
         if self._refresh_thread is None or not self._refresh_thread.is_alive():
             self._refresh_thread = threading.Thread(target=self._refresh_loop, daemon=True)
@@ -303,67 +178,36 @@ class McpRuntime:
 
     def stop(self) -> None:
         self._running = False
-        with self._lock:
-            clients = list(self._clients.values())
-            self._clients = {}
-        for client in clients:
-            client.stop()
 
     def _refresh_loop(self) -> None:
         while self._running:
             try:
-                self._ensure_servers_started()
                 self.refresh_tools()
             except Exception as exc:
                 log.warning("MCP periodic refresh failed: %s", exc)
             time.sleep(self._refresh_interval_s)
 
-    def _ensure_servers_started(self) -> None:
-        with self._lock:
-            configs = dict(self._configs)
-        for name, cfg in configs.items():
-            if not cfg.auto_start:
-                continue
-            with self._lock:
-                client = self._clients.get(name)
-                if client is None:
-                    client = _JsonRpcStdIoClient(cfg, self.project_root)
-                    self._clients[name] = client
-            state = self._states.setdefault(name, McpServerState(name=name))
-            try:
-                if not client.is_running():
-                    client.start()
-                state.running = client.is_running()
-                state.pid = client.pid()
-                state.last_error = None
-            except Exception as exc:
-                state.running = False
-                state.last_error = str(exc)
-
     def refresh_tools(self) -> dict[str, Any]:
         discovered = 0
         with self._lock:
-            clients = dict(self._clients)
-        for name, client in clients.items():
+            configs = dict(self._configs)
+        for name, cfg in configs.items():
             state = self._states.setdefault(name, McpServerState(name=name))
             try:
-                if not client.is_running():
-                    state.running = False
-                    continue
-                result = client.request("tools/list", {}, timeout_s=self.policy.per_call_timeout_s)
-                tools = result.get("tools", []) if isinstance(result, dict) else []
+                tools = self._run_coro_blocking(self._sdk_list_tools(cfg))
                 if not isinstance(tools, list):
                     tools = []
                 self.registry.replace_for_server(name, tools)
                 state.tool_count = len(tools)
                 state.running = True
-                state.pid = client.pid()
+                state.pid = None
                 state.last_error = None
                 state.last_heartbeat = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                 discovered += len(tools)
             except Exception as exc:
                 state.last_error = str(exc)
-                state.running = client.is_running()
+                state.running = False
+                state.pid = None
         snapshot = {
             "discovered_tool_count": discovered,
             "servers": self.server_status(),
@@ -418,7 +262,13 @@ class McpRuntime:
                 return f"Argument '{key}' must be an object."
         return None
 
-    def call_tool(self, full_name: str, arguments: dict[str, Any], timeout_s: Optional[int] = None) -> dict[str, Any]:
+    def call_tool(
+        self,
+        full_name: str,
+        arguments: dict[str, Any],
+        timeout_s: Optional[int] = None,
+        allowed_root: Optional[str] = None,
+    ) -> dict[str, Any]:
         meta = self.registry.get(full_name)
         if meta is None:
             return {"success": False, "data": None, "error": f"Unknown MCP tool '{full_name}'."}
@@ -430,24 +280,188 @@ class McpRuntime:
             return {"success": False, "data": None, "error": schema_error}
         server_name = str(meta.get("server"))
         tool_name = str(meta.get("name"))
+        if tool_name in self.policy.blocked_tools:
+            return {
+                "success": False,
+                "data": None,
+                "error": f"Tool '{tool_name}' is blocked by safety policy in MCP mode.",
+            }
+        sandboxed_args, sandbox_error = self._sandbox_tool_arguments(
+            tool_name=tool_name,
+            arguments=arguments,
+            allowed_root=allowed_root,
+        )
+        if sandbox_error:
+            return {"success": False, "data": None, "error": sandbox_error}
         with self._lock:
-            client = self._clients.get(server_name)
-        if client is None or not client.is_running():
-            return {"success": False, "data": None, "error": f"Server '{server_name}' is not running."}
+            cfg = self._configs.get(server_name)
+        if cfg is None:
+            return {"success": False, "data": None, "error": f"Server '{server_name}' is not configured."}
         try:
-            result = client.request(
-                "tools/call",
-                {"name": tool_name, "arguments": arguments},
-                timeout_s=int(timeout_s or self.policy.per_call_timeout_s),
+            result = self._run_coro_blocking(
+                self._sdk_call_tool(
+                    cfg=cfg,
+                    tool_name=tool_name,
+                    arguments=sandboxed_args,
+                    timeout_s=int(timeout_s or self.policy.per_call_timeout_s),
+                )
             )
             data = result
-            if isinstance(result, dict) and "structuredContent" in result:
-                data = result.get("structuredContent")
             if isinstance(data, dict) and {"success", "data", "error"}.issubset(set(data.keys())):
                 return data
             return {"success": True, "data": data, "error": None}
         except Exception as exc:
             return {"success": False, "data": None, "error": f"Tool call failed: {exc}"}
+
+    def _sandbox_tool_arguments(
+        self,
+        tool_name: str,
+        arguments: dict[str, Any],
+        allowed_root: Optional[str],
+    ) -> tuple[dict[str, Any], Optional[str]]:
+        if not isinstance(arguments, dict):
+            return {}, "Tool arguments must be an object."
+        if not allowed_root:
+            return dict(arguments), None
+
+        root = Path(allowed_root).resolve()
+        if not root.exists():
+            return {}, f"Allowed workspace root does not exist: '{root}'."
+
+        # tool -> path-like argument keys that must remain inside allowed_root
+        sandbox_keys: dict[str, list[str]] = {
+            "write_file": ["path"],
+            "write_html_page": ["filename"],
+            "write_markdown_summary": ["filename"],
+            "read_file": ["path"],
+            "replace_in_file": ["path"],
+            "list_directory": ["path"],
+            "search_content": ["directory"],
+            "run_command": ["working_dir"],
+            "git_operation": ["repo_path"],
+        }
+
+        out = dict(arguments)
+
+        def _resolve_within_root(raw: Any, key: str) -> tuple[Optional[str], Optional[str]]:
+            if raw is None or raw == "":
+                return str(root), None if key == "working_dir" else (None, None)
+            if not isinstance(raw, str):
+                return None, f"Argument '{key}' must be a string path."
+            p = Path(raw)
+            target = p.resolve() if p.is_absolute() else (root / p).resolve()
+            try:
+                target.relative_to(root)
+            except ValueError:
+                return None, (
+                    f"Path '{raw}' resolves outside the job workspace. "
+                    f"Use a path under '{root}'."
+                )
+            return str(target), None
+
+        for key in sandbox_keys.get(tool_name, []):
+            if key not in out:
+                continue
+            resolved, err = _resolve_within_root(out.get(key), key)
+            if err:
+                return {}, err
+            if resolved is not None:
+                out[key] = resolved
+
+        # Special cases with conditional file-path semantics
+        if tool_name == "query_json":
+            val = out.get("input")
+            if isinstance(val, str) and val.strip().lower().endswith(".json"):
+                resolved, err = _resolve_within_root(val, "input")
+                if err:
+                    return {}, err
+                if resolved is not None:
+                    out["input"] = resolved
+        if tool_name == "compute_hash" and str(out.get("input_type", "string")) == "file":
+            resolved, err = _resolve_within_root(out.get("input"), "input")
+            if err:
+                return {}, err
+            if resolved is not None:
+                out["input"] = resolved
+
+        return out, None
+
+    def _run_coro_blocking(self, coro: Any) -> Any:
+        """
+        Run a coroutine from sync code regardless of whether an event loop
+        is already active in the current thread.
+        """
+        try:
+            asyncio.get_running_loop()
+            has_running_loop = True
+        except RuntimeError:
+            has_running_loop = False
+
+        if not has_running_loop:
+            return asyncio.run(coro)
+
+        box: dict[str, Any] = {"result": None, "error": None}
+
+        def _worker() -> None:
+            try:
+                box["result"] = asyncio.run(coro)
+            except Exception as exc:
+                box["error"] = exc
+
+        t = threading.Thread(target=_worker, daemon=True)
+        t.start()
+        t.join()
+        if box["error"] is not None:
+            raise box["error"]
+        return box["result"]
+
+    async def _sdk_list_tools(self, cfg: McpServerConfig) -> list[dict[str, Any]]:
+        env = dict(os.environ)
+        env.update({str(k): str(v) for k, v in (cfg.env or {}).items()})
+        server_params = StdioServerParameters(
+            command=cfg.command,
+            args=list(cfg.args or []),
+            env=env,
+            cwd=(cfg.cwd or str(self.project_root)),
+        )
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await asyncio.wait_for(session.initialize(), timeout=self.policy.per_call_timeout_s)
+                resp = await asyncio.wait_for(session.list_tools(), timeout=self.policy.per_call_timeout_s)
+                out: list[dict[str, Any]] = []
+                for tool in resp.tools:
+                    out.append(
+                        {
+                            "name": str(getattr(tool, "name", "")),
+                            "description": str(getattr(tool, "description", "") or ""),
+                            "inputSchema": getattr(tool, "inputSchema", None) or {"type": "object", "properties": {}},
+                        }
+                    )
+                return out
+
+    async def _sdk_call_tool(self, cfg: McpServerConfig, tool_name: str, arguments: dict[str, Any], timeout_s: int) -> Any:
+        env = dict(os.environ)
+        env.update({str(k): str(v) for k, v in (cfg.env or {}).items()})
+        server_params = StdioServerParameters(
+            command=cfg.command,
+            args=list(cfg.args or []),
+            env=env,
+            cwd=(cfg.cwd or str(self.project_root)),
+        )
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await asyncio.wait_for(session.initialize(), timeout=timeout_s)
+                result = await asyncio.wait_for(session.call_tool(tool_name, arguments=arguments), timeout=timeout_s)
+                structured = getattr(result, "structuredContent", None)
+                if structured is not None:
+                    return structured
+                content = getattr(result, "content", None)
+                if content and isinstance(content, list):
+                    first = content[0]
+                    text = getattr(first, "text", None)
+                    if text is not None:
+                        return text
+                return {"raw": str(result)}
 
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
