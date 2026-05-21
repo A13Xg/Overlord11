@@ -268,3 +268,33 @@
 - **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('extract_types',), 'msg': 'Extra inputs are not permitted', 'input': ['emails', 'phone_numbers', 'prices', 'faq_pairs'], 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['url', 'html', 'raw_text', 'extraction_targets'], 'example': {'tool_name': 'semantic_content_extractor', 'arguments': {'url': 'https://example.com', 'extraction_targets': []}}}}]
 - **Attempt**: 1
 - **Session**: b8d2a952
+
+## [2026-05-21T14:06:54.148665+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: e2d361a3-dc0b-4c64-9015-6e1695dfb31e
+
+## [2026-05-21T14:22:39.354263+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: 3659b2b3-6f49-459a-bb9f-56c7724ce7cc
+
+## [2026-05-21T14:23:48.805509+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: d45dff43-79ca-450a-9453-3c259195f095
+
+## [2026-05-21T14:30:39.105967+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: 4882dcfc-104f-461c-a81f-f7eb08d6b7e1
+
+## [2026-05-21T14:33:28.217271+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: c0c5e8a0-cd46-4270-9dbe-8997f13cd3c9

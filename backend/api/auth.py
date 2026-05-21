@@ -12,15 +12,56 @@ Endpoints:
 """
 
 import logging
+import time
+from collections import defaultdict
+from threading import Lock
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
 from ..auth.auth import auth_manager, require_auth, optional_auth, AUTH_ENABLED
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 log = logging.getLogger("overlord11.auth.api")
+
+# ---------------------------------------------------------------------------
+# Brute-force rate limiting (in-memory, resets on server restart)
+# ---------------------------------------------------------------------------
+_MAX_FAILURES = 5
+_LOCKOUT_WINDOW_S = 900  # 15 minutes
+
+_fail_counts: dict[str, int] = defaultdict(int)
+_fail_timestamps: dict[str, list[float]] = defaultdict(list)
+_rl_lock = Lock()
+
+
+def _check_rate_limit(ip: str) -> None:
+    """Raise 429 if the IP has exceeded _MAX_FAILURES attempts in the last _LOCKOUT_WINDOW_S seconds."""
+    now = time.monotonic()
+    with _rl_lock:
+        # Prune timestamps outside the rolling window
+        _fail_timestamps[ip] = [t for t in _fail_timestamps[ip] if now - t < _LOCKOUT_WINDOW_S]
+        if len(_fail_timestamps[ip]) >= _MAX_FAILURES:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={
+                    "error": "Too many failed login attempts. Please wait 15 minutes before trying again.",
+                    "retry_after": _LOCKOUT_WINDOW_S,
+                },
+                headers={"Retry-After": str(_LOCKOUT_WINDOW_S)},
+            )
+
+
+def _record_failure(ip: str) -> None:
+    now = time.monotonic()
+    with _rl_lock:
+        _fail_timestamps[ip].append(now)
+
+
+def _clear_failures(ip: str) -> None:
+    with _rl_lock:
+        _fail_timestamps.pop(ip, None)
 
 
 # ---------------------------------------------------------------------------
@@ -55,23 +96,30 @@ class VerifyResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 @router.post("/login", response_model=LoginResponse, summary="Authenticate and receive a session token")
-async def login(body: LoginRequest):
+async def login(body: LoginRequest, request: Request):
     """
     Validate username + password against the SHA-256 user table.
     Returns a session token valid for SESSION_TTL_SECONDS (default 8 hours).
 
     The token should be included in subsequent requests as:
         Authorization: Bearer <token>
+
+    Brute-force protection: max 5 failures per IP per 15 minutes.
     """
-    log.info("Login attempt for user '%s'", body.username)
+    client_ip = (request.client.host if request.client else "unknown") or "unknown"
+    log.info("Login attempt for user '%s' from %s", body.username, client_ip)
+
+    _check_rate_limit(client_ip)
 
     if not auth_manager.verify_password(body.username, body.password):
+        _record_failure(client_ip)
         # Use a generic error to avoid leaking whether the user exists
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
         )
 
+    _clear_failures(client_ip)
     token = auth_manager.create_session(body.username)
     from ..auth.auth import SESSION_TTL_SECONDS
     return LoginResponse(

@@ -82,6 +82,41 @@ ALIASES_BY_TOOL: dict[str, dict[str, str]] = {
         "operation": "transform",
         "depth": "max_depth",
     },
+    "read_file": {
+        "file": "path",
+        "file_path": "path",
+        "filename": "path",
+    },
+    "csv_processor": {
+        "file": "data",
+        "csv": "data",
+        "input": "data",
+        "filter": "filter_value",
+        "sort": "sort_column",
+        "limit": "max_rows",
+    },
+    "url_checker": {
+        "url": "urls",
+        "timeout": "timeout_seconds",
+    },
+    "text_diff": {
+        "original": "text_a",
+        "modified": "text_b",
+        "a": "text_a",
+        "b": "text_b",
+        "context": "context_lines",
+    },
+    "base64_tool": {
+        "text": "data",
+        "input": "data",
+        "action": "operation",
+    },
+    "json_schema_validator": {
+        "json": "data",
+        "input": "data",
+        "schema": "json_schema",
+        "schema_str": "json_schema",
+    },
 }
 
 
@@ -89,6 +124,8 @@ ALIASES_BY_TOOL: dict[str, dict[str, str]] = {
 _COERCE_TO_LIST: dict[str, set[str]] = {
     "rss_read": {"feed_urls"},
     "search_and_extract_pipeline": {"topics", "seed_urls"},
+    "url_checker": {"urls"},
+    "csv_processor": {"columns"},
 }
 
 

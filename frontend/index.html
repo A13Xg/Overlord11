@@ -587,8 +587,30 @@ body::after {
 }
 
 /* ─────────────────────────────────────────────
-   UTILITIES
+   TOOLS CATALOG
 ───────────────────────────────────────────── */
+.tool-card {
+  background: var(--panel); border: 1px solid var(--border);
+  padding: 10px 12px; margin-bottom: 8px;
+  transition: border-color .15s;
+}
+.tool-card:hover { border-color: var(--teal); }
+.tool-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.tool-card-name { color: var(--amber); font-size: 13px; letter-spacing: .05em; }
+.tool-card-risk {
+  font-size: 10px; letter-spacing: .1em; padding: 1px 6px;
+  border-radius: 2px; flex-shrink: 0;
+}
+.risk-low  { border: 1px solid var(--green); color: var(--green); }
+.risk-medium { border: 1px solid var(--amber); color: var(--amber); }
+.risk-high { border: 1px solid var(--red); color: var(--red); }
+.tool-card-desc { font-size: 12px; color: var(--txt2); line-height: 1.6; margin-bottom: 6px; }
+.tool-card-meta { font-size: 10px; color: var(--txt3); display: flex; gap: 12px; flex-wrap: wrap; }
+.tool-card-meta span { letter-spacing: .06em; }
+.tool-card.destructive { border-left: 3px solid rgba(255,42,42,.4); }
+
+/* JOB DURATION BADGE */
+.job-duration { font-size: 10px; color: var(--txt3); }
 .glow-green  { text-shadow: 0 0 8px var(--green); }
 .glow-teal   { text-shadow: 0 0 8px var(--teal); }
 .sep { color: var(--txt3); }
@@ -936,6 +958,16 @@ body::after {
           <span id="job-count" style="color:var(--txt3);font-size:10px">0 JOBS</span>
         </div>
       </div>
+      <div id="job-search-wrap" style="padding:4px 8px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <input type="text" id="job-search-input" placeholder="FILTER JOBS…"
+          oninput="filterJobList(this.value)"
+          style="width:100%;background:transparent;border:1px solid var(--border);color:var(--txt2);
+                 font-family:var(--font);font-size:11px;letter-spacing:.08em;padding:4px 7px;
+                 outline:none;transition:border-color .15s"
+          onfocus="this.style.borderColor='var(--teal)'"
+          onblur="this.style.borderColor='var(--border)'"
+        >
+      </div>
       <div id="job-list"></div>
       <div id="sidebar-footer">
         <button id="btn-new-job" onclick="openNewJobModal()">[ + NEW JOB ]</button>
@@ -951,6 +983,7 @@ body::after {
         <button class="ctrl-btn" id="ctrl-resume" onclick="ctrlResume()" disabled>▶ RESUME</button>
         <button class="ctrl-btn danger" id="ctrl-stop" onclick="ctrlStop()" disabled>■ STOP</button>
         <button class="ctrl-btn" id="ctrl-restart" onclick="ctrlRestart()" disabled>↺ RESTART</button>
+        <button class="ctrl-btn" id="ctrl-clone" onclick="ctrlClone()" disabled title="Clone this job">⧉ CLONE</button>
         <button class="ctrl-btn danger" id="ctrl-delete" onclick="ctrlDelete()" disabled>✕ DELETE</button>
         <span id="selected-job-title">— NO JOB SELECTED —</span>
       </div>
@@ -960,6 +993,7 @@ body::after {
         <button class="tab-btn active" onclick="switchTab('execution', this)">[ EXECUTION ]</button>
         <button class="tab-btn" onclick="switchTab('result', this)">[ RESULT ]</button>
         <button class="tab-btn" onclick="switchTab('files', this)">[ FILES ]</button>
+        <button class="tab-btn" onclick="switchTab('tools', this)" id="tab-btn-tools">[ TOOLS ]</button>
       </div>
 
       <!-- TAB PANELS -->
@@ -1029,6 +1063,25 @@ body::after {
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- TOOLS -->
+        <div id="tab-tools" class="tab-panel">
+          <div id="tools-tab-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <span style="color:var(--teal);font-size:11px;letter-spacing:.15em">◼ TOOL REGISTRY</span>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input type="text" id="tools-search-input" placeholder="SEARCH TOOLS…"
+                oninput="filterToolsCatalog(this.value)"
+                style="background:transparent;border:1px solid var(--border);color:var(--txt2);
+                       font-family:var(--font);font-size:11px;letter-spacing:.08em;padding:3px 7px;
+                       outline:none;width:180px;transition:border-color .15s"
+                onfocus="this.style.borderColor='var(--teal)'"
+                onblur="this.style.borderColor='var(--border)'"
+              >
+              <span id="tools-count" style="color:var(--txt3);font-size:10px">— tools</span>
+            </div>
+          </div>
+          <div id="tools-catalog"></div>
         </div>
 
       </div>
@@ -1637,13 +1690,17 @@ async function loadJobs() {
 
 function renderJobList() {
   const el = document.getElementById('job-list');
+  const query = (document.getElementById('job-search-input')?.value || '').toLowerCase().trim();
   el.innerHTML = '';
-  document.getElementById('job-count').textContent = jobs.length + ' JOB' + (jobs.length !== 1 ? 'S' : '');
-  if (jobs.length === 0) {
-    el.innerHTML = '<div style="color:var(--txt3);padding:16px;text-align:center;font-size:11px">NO JOBS — PRESS + NEW JOB</div>';
+  const filtered = query
+    ? jobs.filter(j => j.title.toLowerCase().includes(query) || (j.prompt || '').toLowerCase().includes(query))
+    : jobs;
+  document.getElementById('job-count').textContent = filtered.length + ' JOB' + (filtered.length !== 1 ? 'S' : '');
+  if (filtered.length === 0) {
+    el.innerHTML = '<div style="color:var(--txt3);padding:16px;text-align:center;font-size:11px">' + (query ? 'NO MATCHING JOBS' : 'NO JOBS — PRESS + NEW JOB') + '</div>';
     return;
   }
-  jobs.forEach(j => {
+  filtered.forEach(j => {
     const div = document.createElement('div');
     div.className = 'job-item' + (j.job_id === selectedJobId ? ' selected' : '');
     div.dataset.jobId = j.job_id;
@@ -1661,6 +1718,16 @@ function renderJobList() {
     const _statusLabels = {rate_limited:'RATE LIMITED', waiting_for_dependencies:'WAITING'};
     const displayStatus = _statusLabels[j.status] || j.status.toUpperCase();
 
+    // Duration badge for completed/failed jobs
+    let durationHtml = '';
+    if ((j.status === 'completed' || j.status === 'failed') && j.started_at && j.completed_at) {
+      const dur = Math.round((new Date(j.completed_at) - new Date(j.started_at)) / 1000);
+      const durStr = dur < 60 ? `${dur}s` : `${Math.floor(dur/60)}m${dur%60}s`;
+      durationHtml = `<span class="job-duration">⏱ ${durStr}</span>`;
+    } else if (j.status === 'running' && j.started_at) {
+      durationHtml = `<span class="job-duration running-timer" data-started="${j.started_at}"></span>`;
+    }
+
     // Dependency chain indicator
     let depRowHtml = '';
     if (j.depends_on && j.depends_on.length > 0 && ['queued', 'paused'].includes(j.status)) {
@@ -1676,12 +1743,17 @@ function renderJobList() {
         <div class="status-dot dot-${j.status}"></div>
         <span class="status-label s-${j.status}">${displayStatus}</span>
         ${waveform}
+        ${durationHtml}
       </div>
       <div style="font-size:10px;color:var(--txt3)">${ts}</div>
       ${depRowHtml}
       ${rlBannerHtml}`;
     el.appendChild(div);
   });
+}
+
+function filterJobList(query) {
+  renderJobList();
 }
 
 function selectJob(jobId) {
@@ -1714,6 +1786,7 @@ function updateJobControls(job) {
   document.getElementById('ctrl-resume').disabled  = !['paused', 'rate_limited'].includes(s);
   document.getElementById('ctrl-stop').disabled    = !['running','queued','paused','rate_limited','waiting_for_dependencies'].includes(s);
   document.getElementById('ctrl-restart').disabled = false;
+  document.getElementById('ctrl-clone').disabled   = false;
   document.getElementById('ctrl-delete').disabled  = false;
 }
 
@@ -1774,6 +1847,19 @@ async function ctrlDelete() {
   renderJobList();
   document.getElementById('selected-job-title').textContent = '— NO JOB SELECTED —';
   clearContentPanels();
+}
+async function ctrlClone() {
+  if (!selectedJobId) return;
+  const job = jobs.find(j => j.job_id === selectedJobId);
+  if (!job) return;
+  // Pre-fill the new job modal with the cloned job's data
+  document.getElementById('new-job-title').value = job.title + ' (clone)';
+  document.getElementById('new-job-prompt').value = job.prompt || '';
+  document.getElementById('new-job-rl-action').value = job.rate_limit_action || 'try_different_model';
+  document.getElementById('new-job-auto-start').checked = true;
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('new-job-title').focus();
+  document.getElementById('new-job-title').select();
 }
 
 async function apiPost(url) {
@@ -2530,6 +2616,71 @@ function switchTab(name, btn) {
   btn.classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'files' && selectedJobId) renderFilesPanel(selectedJobId);
+  if (name === 'tools') loadToolsCatalog();
+}
+
+/* ═══════════════════════════════════════════════════════
+   TOOLS CATALOG
+═══════════════════════════════════════════════════════ */
+let _toolsCache = null;
+
+async function loadToolsCatalog() {
+  const container = document.getElementById('tools-catalog');
+  if (_toolsCache) { renderToolsCatalog(_toolsCache, ''); return; }
+  container.innerHTML = '<div style="color:var(--txt3);padding:20px;text-align:center">LOADING TOOL REGISTRY…</div>';
+  try {
+    const res = await apiFetch('/api/tools');
+    if (!res.ok) { container.innerHTML = '<div style="color:var(--red);padding:20px">Failed to load tools: HTTP ' + res.status + '</div>'; return; }
+    const data = await res.json();
+    _toolsCache = data.tools || [];
+    const query = (document.getElementById('tools-search-input')?.value || '').toLowerCase();
+    renderToolsCatalog(_toolsCache, query);
+  } catch(e) {
+    container.innerHTML = '<div style="color:var(--red);padding:20px">ERROR: ' + escHtml(e.message) + '</div>';
+  }
+}
+
+function renderToolsCatalog(tools, query) {
+  const filtered = query
+    ? tools.filter(t => t.name.toLowerCase().includes(query) || (t.description || '').toLowerCase().includes(query))
+    : tools;
+  document.getElementById('tools-count').textContent = filtered.length + ' / ' + tools.length + ' TOOLS';
+  const container = document.getElementById('tools-catalog');
+  if (filtered.length === 0) {
+    container.innerHTML = '<div style="color:var(--txt3);padding:20px;text-align:center">NO TOOLS MATCH YOUR SEARCH</div>';
+    return;
+  }
+  container.innerHTML = filtered.map(t => {
+    const riskClass = 'risk-' + (t.risk_level || 'low');
+    const destructiveCls = t.destructive ? ' destructive' : '';
+    const schema = t.input_schema || {};
+    const props = schema.properties ? Object.keys(schema.properties) : [];
+    const required = schema.required || [];
+    const propBadges = props.map(p => {
+      const isReq = required.includes(p);
+      const pDef = schema.properties[p] || {};
+      const pType = pDef.type || (pDef.anyOf ? pDef.anyOf.map(x=>x.type||'?').join('|') : '?');
+      return `<span style="color:${isReq ? 'var(--amber)' : 'var(--txt3)'};margin-right:6px" title="${escHtml(pDef.description||'')}"><code style="font-size:10px">${escHtml(p)}</code><span style="color:var(--txt3)">:${escHtml(pType)}</span>${isReq ? '' : '?'}</span>`;
+    }).join('');
+    const exampleStr = t.examples && t.examples.length > 0
+      ? '<pre style="margin:6px 0 0;font-size:10px;color:var(--txt3);background:rgba(0,0,0,.3);padding:6px;overflow-x:auto;max-height:80px">' + escHtml(JSON.stringify(t.examples[0].arguments || t.examples[0], null, 2)) + '</pre>'
+      : '';
+    return `<div class="tool-card${destructiveCls}">
+      <div class="tool-card-header">
+        <span class="tool-card-name">${escHtml(t.name)}</span>
+        <span class="tool-card-risk ${riskClass}">${escHtml((t.risk_level||'low').toUpperCase())}</span>
+        ${t.destructive ? '<span style="color:var(--red);font-size:10px;letter-spacing:.1em">⚠ DESTRUCTIVE</span>' : ''}
+        ${t.supports_dry_run ? '<span style="color:var(--teal);font-size:10px;letter-spacing:.1em">◈ DRY-RUN</span>' : ''}
+      </div>
+      <div class="tool-card-desc">${escHtml(t.description || '')}</div>
+      ${propBadges ? `<div style="margin-bottom:4px">${propBadges}</div>` : ''}
+      ${exampleStr}
+    </div>`;
+  }).join('');
+}
+
+function filterToolsCatalog(query) {
+  if (_toolsCache) renderToolsCatalog(_toolsCache, query.toLowerCase());
 }
 
 function activateTab(name) {
@@ -3412,6 +3563,35 @@ async function wizComplete() {
     spinnerOff();
   }
 }
+
+/* ── KEYBOARD SHORTCUTS ── */
+document.addEventListener('keydown', (e) => {
+  const modalOpen = document.getElementById('modal-overlay')?.classList.contains('open');
+  const wizardOpen = document.getElementById('wizard-overlay')?.classList.contains('open');
+
+  // Escape: close the new-job modal (but not wizard)
+  if (e.key === 'Escape' && modalOpen && !wizardOpen) {
+    document.getElementById('modal-overlay').classList.remove('open');
+    e.preventDefault();
+    return;
+  }
+
+  // Ctrl+Enter: submit new job modal when it is open
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && modalOpen) {
+    e.preventDefault();
+    submitNewJob();
+    return;
+  }
+
+  // N: open new job modal (when no input focused and no modal open)
+  if (e.key === 'n' && !modalOpen && !wizardOpen) {
+    const tag = document.activeElement?.tagName?.toLowerCase();
+    if (tag !== 'input' && tag !== 'textarea' && tag !== 'select') {
+      openNewJobModal();
+      e.preventDefault();
+    }
+  }
+});
 
 /* ── BOOTSTRAP ── */
 document.addEventListener('DOMContentLoaded', init);

@@ -48,7 +48,9 @@ from .api.health import router as health_router
 from .api.jobs import router as jobs_router
 from .api.providers import router as providers_router
 from .api.setup import router as setup_router
+from .api.stats import router as stats_router
 from .api.templates import router as templates_router
+from .api.tools import router as tools_router
 from .core.engine_bridge import bridge
 from .core.session_store import store
 
@@ -102,6 +104,8 @@ app.include_router(events_router)
 app.include_router(health_router)
 app.include_router(setup_router)
 app.include_router(templates_router)
+app.include_router(tools_router)
+app.include_router(stats_router)
 
 # ------------------------------------------------------------------
 # Frontend — serve index.html for all non-API routes

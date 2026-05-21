@@ -77,6 +77,21 @@ _ALLOWED_KEYS_BY_TOOL: dict[str, list[str]] = {
     "image_scraper": ["url", "limit", "download", "output_directory", "min_size_kb", "require_https", "timeout_seconds"],
     "html_report_generator": ["title", "content", "output_path", "theme", "palette_id", "style_id", "include_toc", "sections"],
     "json_transform": ["data", "query", "transform", "max_depth"],
+    "read_file": ["path", "encoding", "max_bytes", "include_line_count"],
+    "csv_processor": [
+        "data",
+        "filter_column",
+        "filter_value",
+        "sort_column",
+        "sort_order",
+        "columns",
+        "max_rows",
+        "operation",
+    ],
+    "url_checker": ["urls", "timeout_seconds", "follow_redirects", "check_ssl", "method"],
+    "text_diff": ["text_a", "text_b", "label_a", "label_b", "context_lines", "format"],
+    "base64_tool": ["operation", "data", "variant", "encoding"],
+    "json_schema_validator": ["data", "json_schema", "stop_on_first_error"],
 }
 _EXAMPLES_BY_TOOL: dict[str, dict] = {
     "run_command": {
@@ -153,6 +168,36 @@ _EXAMPLES_BY_TOOL: dict[str, dict] = {
     "json_transform": {
         "tool_name": "json_transform",
         "arguments": {"data": "{\"key\": \"value\"}", "transform": "pretty"},
+    },
+    "read_file": {
+        "tool_name": "read_file",
+        "arguments": {"path": "final_output.md"},
+    },
+    "csv_processor": {
+        "tool_name": "csv_processor",
+        "arguments": {"data": "data/results.csv", "operation": "summary"},
+    },
+    "url_checker": {
+        "tool_name": "url_checker",
+        "arguments": {"urls": ["https://example.com", "https://python.org"]},
+    },
+    "text_diff": {
+        "tool_name": "text_diff",
+        "arguments": {
+            "text_a": "Hello world\nLine two",
+            "text_b": "Hello world\nLine 2",
+        },
+    },
+    "base64_tool": {
+        "tool_name": "base64_tool",
+        "arguments": {"operation": "encode", "data": "Hello, Overlord11!"},
+    },
+    "json_schema_validator": {
+        "tool_name": "json_schema_validator",
+        "arguments": {
+            "data": "{\"name\": \"Alice\", \"age\": 30}",
+            "json_schema": "{\"type\": \"object\", \"required\": [\"name\"], \"properties\": {\"name\": {\"type\": \"string\"}}}",
+        },
     },
 }
 

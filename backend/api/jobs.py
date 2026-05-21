@@ -11,9 +11,11 @@ On creation the engine bridge runs conflict detection and either:
 
 import re
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
 from ..auth.auth import require_auth
@@ -23,6 +25,9 @@ from ..core.event_stream import broadcaster
 from ..core.session_store import Job, JobStatus, store
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
+
+_BASE_DIR = Path(__file__).resolve().parent.parent.parent
+_WORKSPACE_DIR = _BASE_DIR / "workspace"
 
 _JOB_ID_RE = re.compile(r"^[a-f0-9]{8,64}$")
 
@@ -57,8 +62,25 @@ class CreateJobRequest(BaseModel):
 # ------------------------------------------------------------------
 
 @router.get("")
-async def list_jobs(_session: dict = Depends(require_auth)):
-    return [j.to_dict() for j in store.list_jobs()]
+async def list_jobs(
+    _session: dict = Depends(require_auth),
+    status: Optional[str] = Query(None, description="Filter by status (e.g. completed, running, failed)"),
+    q: Optional[str] = Query(None, description="Search by title or prompt (case-insensitive)"),
+    limit: Optional[int] = Query(None, ge=1, le=500, description="Max number of results"),
+):
+    jobs = store.list_jobs()
+    if status:
+        try:
+            status_filter = JobStatus(status.lower())
+            jobs = [j for j in jobs if j.status == status_filter]
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Unknown status: {status!r}")
+    if q:
+        needle = q.lower()
+        jobs = [j for j in jobs if needle in j.title.lower() or needle in j.prompt.lower()]
+    if limit:
+        jobs = jobs[:limit]
+    return [j.to_dict() for j in jobs]
 
 
 @router.get("/queue-status")
@@ -229,3 +251,108 @@ async def restart_job(job_id: str, _session: dict = Depends(require_auth)):
         "status": JobStatus.QUEUED.value,
     })
     return new_job.to_dict()
+
+
+# ------------------------------------------------------------------
+# Output convenience endpoint
+# ------------------------------------------------------------------
+
+@router.get("/{job_id}/output", response_class=PlainTextResponse)
+async def get_job_output(job_id: str, _session: dict = Depends(require_auth)):
+    """Return the contents of final_output.md (or final_response.md) for a completed job."""
+    job = _get_or_404(job_id)
+    job_dir = _WORKSPACE_DIR / job_id
+    for candidate in ("final_output.md", "final_response.md"):
+        output_file = job_dir / candidate
+        if output_file.exists():
+            return output_file.read_text(encoding="utf-8", errors="replace")
+    raise HTTPException(status_code=404, detail="No output file found for this job")
+
+
+# ------------------------------------------------------------------
+# Clone endpoint
+# ------------------------------------------------------------------
+
+class CloneJobRequest(BaseModel):
+    title: Optional[str] = None
+    prompt: Optional[str] = None
+    auto_start: bool = True
+
+
+@router.post("/{job_id}/clone", status_code=201)
+async def clone_job(job_id: str, req: CloneJobRequest, _session: dict = Depends(require_auth)):
+    """Create a copy of a job, optionally overriding title and/or prompt."""
+    job = _get_or_404(job_id)
+    new_title = (req.title or job.title).strip() or job.title
+    new_prompt = (req.prompt or job.prompt).strip() or job.prompt
+
+    domains = extract_domains(new_prompt, new_title)
+    domains_dict = domains_to_dict(domains)
+
+    new_job = store.create_job(
+        title=new_title,
+        prompt=new_prompt,
+        rate_limit_action=job.rate_limit_action,
+        resource_domains=domains_dict,
+        priority=job.priority,
+        auto_started=req.auto_start,
+    )
+
+    if req.auto_start:
+        conflict_result = bridge.smart_enqueue(new_job, store, broadcaster)
+        new_job = store.get_job(new_job.job_id) or new_job
+        response = new_job.to_dict()
+        if conflict_result is not None:
+            response["_conflict"] = {
+                "hard": conflict_result.conflicting_job_ids,
+                "soft": conflict_result.soft_conflict_job_ids,
+                "can_run_parallel": conflict_result.can_run_parallel,
+                "sequenced": bool(conflict_result.conflicting_job_ids),
+            }
+        return response
+
+    return new_job.to_dict()
+
+
+# ------------------------------------------------------------------
+# Retry endpoint
+# ------------------------------------------------------------------
+
+class RetryJobRequest(BaseModel):
+    prompt: Optional[str] = None  # override prompt for the retry
+
+
+@router.post("/{job_id}/retry", status_code=201)
+async def retry_job(job_id: str, req: RetryJobRequest, _session: dict = Depends(require_auth)):
+    """Re-queue a failed or completed job, optionally with a modified prompt."""
+    job = _get_or_404(job_id)
+    retriable = (JobStatus.FAILED, JobStatus.COMPLETED)
+    if job.status not in retriable:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Can only retry failed or completed jobs (current status: {job.status})"
+        )
+
+    new_prompt = (req.prompt or job.prompt).strip() or job.prompt
+    title = job.title if not req.prompt else job.title + " (retry)"
+    domains = extract_domains(new_prompt, title)
+
+    new_job = store.create_job(
+        title=title,
+        prompt=new_prompt,
+        rate_limit_action=job.rate_limit_action,
+        resource_domains=domains_to_dict(domains),
+        priority=job.priority,
+        auto_started=True,
+    )
+    conflict_result = bridge.smart_enqueue(new_job, store, broadcaster)
+    new_job = store.get_job(new_job.job_id) or new_job
+    response = new_job.to_dict()
+    response["_retried_from"] = job_id
+    if conflict_result is not None:
+        response["_conflict"] = {
+            "hard": conflict_result.conflicting_job_ids,
+            "soft": conflict_result.soft_conflict_job_ids,
+            "sequenced": bool(conflict_result.conflicting_job_ids),
+        }
+    return response

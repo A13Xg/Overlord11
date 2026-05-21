@@ -13,16 +13,22 @@ from typing import Any, List
 from tool_gateway.executor import ToolGateway
 from tool_gateway.registry import ToolRegistry
 from tool_gateway.tools import (
+    Base64Tool,
     CalculatorTool,
+    CsvProcessorTool,
     DynamicBrowserTool,
     HtmlReportGeneratorTool,
     ImageScraperTool,
     IntelligentThemeScraperTool,
+    JsonSchemaValidatorTool,
     JsonTransformTool,
+    ReadFileTool,
     RssReadTool,
     SearchAndExtractPipelineTool,
     SemanticContentExtractorTool,
     ShellExecutionAdapter,
+    TextDiffTool,
+    UrlCheckerTool,
     WebCodeScraperTool,
     WebExtractImagesTool,
     WebExtractTextTool,
@@ -85,6 +91,7 @@ class ToolExecutor:
         registry = ToolRegistry()
         registry.register_tool(ShellExecutionAdapter())
         registry.register_tool(WriteFileTool())
+        registry.register_tool(ReadFileTool())
         registry.register_tool(WebSearchTool())
         registry.register_tool(WebFetchTool())
         registry.register_tool(WebExtractTextTool())
@@ -100,6 +107,11 @@ class ToolExecutor:
         registry.register_tool(ImageScraperTool())
         registry.register_tool(HtmlReportGeneratorTool())
         registry.register_tool(JsonTransformTool())
+        registry.register_tool(CsvProcessorTool())
+        registry.register_tool(UrlCheckerTool())
+        registry.register_tool(TextDiffTool())
+        registry.register_tool(Base64Tool())
+        registry.register_tool(JsonSchemaValidatorTool())
         self._gateway = ToolGateway(registry)
         self._runtime_context: dict[str, str] = {}
 
@@ -129,6 +141,10 @@ class ToolExecutor:
     def _normalize_params(self, tool_name: str, params: dict) -> None:
         # Canonical schema-only runtime; normalization happens in gateway.
         return
+
+    def list_tools(self) -> list[dict]:
+        """Return schema dicts for all registered tools."""
+        return self._gateway.registry.list_tools()
 
     def execute(self, tool_call: ToolCall) -> dict:
         start = time.monotonic()

@@ -182,6 +182,16 @@ class EngineBridge:
             "workers": len([t for t in self._worker_tasks if not t.done()]),
         }
 
+    def list_tools(self) -> list[dict]:
+        """Return schema dicts for all registered tools (lazy initialisation)."""
+        import sys
+        from pathlib import Path as _Path
+        _root = _Path(__file__).resolve().parent.parent.parent
+        if str(_root) not in sys.path:
+            sys.path.insert(0, str(_root))
+        from engine.tool_executor import ToolExecutor  # type: ignore
+        return ToolExecutor().list_tools()
+
     # ------------------------------------------------------------------
     # Worker lifecycle
     # ------------------------------------------------------------------

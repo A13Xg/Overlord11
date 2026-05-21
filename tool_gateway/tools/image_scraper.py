@@ -158,7 +158,6 @@ class ImageScraperTool(BaseTool):
             )
             resp.raise_for_status()
             # Determine filename
-            from urllib.parse import urlparse
             fname = slugify_filename(urlparse(src).path.split("/")[-1] or "image")
             if not fname or fname == "image":
                 fname = slugify_filename(src[-40:]) + ".bin"
