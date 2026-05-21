@@ -39,9 +39,11 @@ class WebSearchArgs(BaseModel):
             raise ValueError("query cannot be empty")
         return q
 
-    @field_validator("domain_allowlist", "domain_blocklist")
+    @field_validator("domain_allowlist", "domain_blocklist", mode="before")
     @classmethod
-    def normalize_domains(cls, value: list[str]) -> list[str]:
+    def normalize_domains(cls, value: list[str] | None) -> list[str]:
+        if value is None:
+            return []
         out: list[str] = []
         for raw in value:
             d = str(raw or "").strip().lower()

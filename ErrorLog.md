@@ -118,3 +118,81 @@
 - **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
 - **Attempt**: 1
 - **Session**: d915b328-b878-4198-acbf-0851656e2b17
+
+## [2026-05-21T04:54:24.815277+00:00] TOOL_FAILURE
+- **Tool**: web_search
+- **Message**: [{'code': 'EXECUTION_ERROR', 'message': 'Tool execution failed', 'details': {'error': 'web search failed after 3 attempts: ddgs dependency is not installed'}}]
+- **Attempt**: 1
+- **Session**: a92b0eb9
+
+## [2026-05-21T04:55:08.421291+00:00] TOOL_FAILURE
+- **Tool**: web_search
+- **Message**: [{'code': 'EXECUTION_ERROR', 'message': 'Tool execution failed', 'details': {'error': 'web search failed after 3 attempts: ddgs dependency is not installed'}}]
+- **Attempt**: 1
+- **Session**: a92b0eb9
+
+## [2026-05-21T04:57:32.810277+00:00] TOOL_FAILURE
+- **Tool**: web_search
+- **Message**: [{'code': 'EXECUTION_ERROR', 'message': 'Tool execution failed', 'details': {'error': 'web search failed after 3 attempts: ddgs dependency is not installed'}}]
+- **Attempt**: 1
+- **Session**: 8042a238
+
+## [2026-05-21T04:57:38.207360+00:00] TOOL_FAILURE
+- **Tool**: web_search
+- **Message**: [{'code': 'EXECUTION_ERROR', 'message': 'Tool execution failed', 'details': {'error': 'web search failed after 3 attempts: ddgs dependency is not installed'}}]
+- **Attempt**: 1
+- **Session**: 8042a238
+
+## [2026-05-21T04:57:42.026623+00:00] TOOL_FAILURE
+- **Tool**: web_search
+- **Message**: [{'code': 'EXECUTION_ERROR', 'message': 'Tool execution failed', 'details': {'error': 'web search failed after 3 attempts: ddgs dependency is not installed'}}]
+- **Attempt**: 1
+- **Session**: 8042a238
+
+## [2026-05-21T04:58:01.811322+00:00] TOOL_FAILURE
+- **Tool**: web_search
+- **Message**: [{'code': 'EXECUTION_ERROR', 'message': 'Tool execution failed', 'details': {'error': 'web search failed after 3 attempts: ddgs dependency is not installed'}}]
+- **Attempt**: 1
+- **Session**: 8042a238
+
+## [2026-05-21T05:01:42.315316+00:00] TOOL_FAILURE
+- **Tool**: web_search
+- **Message**: [{'code': 'EXECUTION_ERROR', 'message': 'Tool execution failed', 'details': {'error': "web search failed after 3 attempts: DDGS.news() missing 1 required positional argument: 'query'"}}]
+- **Attempt**: 1
+- **Session**: f961fdda
+
+## [2026-05-21T05:03:02.095462+00:00] API_ERROR
+- **Tool**: web_search
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'missing', 'loc': ('query',), 'msg': 'Field required', 'input': {'keywords': 'OpenAI API Responses endpoint changelog', 'max_results': 8, 'region': 'us-en', 'safe_search': 'moderate', 'time_range': 'month', 'result_type': 'news', 'include_snippets': True, 'include_metadata': True, 'include_rank': True, 'include_dates': True, 'domain_blocklist': ['twitter.com', 'x.com']}, 'url': 'https://errors.pydantic.dev/2.12/v/missing'}, {'type': 'extra_forbidden', 'loc': ('keywords',), 'msg': 'Extra inputs are not permitted', 'input': 'OpenAI API Responses endpoint changelog', 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['query', 'max_results', 'region', 'safe_search', 'time_range', 'result_type', 'include_snippets', 'include_metadata', 'include_rank', 'include_dates', 'domain_allowlist', 'domain_blocklist'], 'example': {'tool_name': 'web_search', 'arguments': {'query': 'python release notes', 'max_results': 5, 'safe_search': 'moderate', 'time_range': 'month', 'result_type': 'text', 'include_snippets': True}}}}]
+- **Attempt**: 1
+- **Session**: f961fdda
+
+## [2026-05-21T05:04:04.319649+00:00] TOOL_FAILURE
+- **Tool**: web_search
+- **Message**: [{'code': 'EXECUTION_ERROR', 'message': 'Tool execution failed', 'details': {'error': "web search failed after 3 attempts: DDGS.news() missing 1 required positional argument: 'query'"}}]
+- **Attempt**: 1
+- **Session**: f961fdda
+
+## [2026-05-21T05:04:04.320292+00:00] TOOL_FAILURE
+- **Tool**: web_search
+- **Message**: [{'code': 'EXECUTION_ERROR', 'message': 'Tool execution failed', 'details': {'error': "web search failed after 3 attempts: DDGS.text() missing 1 required positional argument: 'query'"}}]
+- **Attempt**: 1
+- **Session**: f961fdda
+
+## [2026-05-21T05:04:13.874607+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: 40181bd9-0071-4895-ad1a-8c5dcf07ea11
+
+## [2026-05-21T05:04:58.389453+00:00] TOOL_FAILURE
+- **Tool**: web_search
+- **Message**: [{'code': 'EXECUTION_ERROR', 'message': 'Tool execution failed', 'details': {'error': "web search failed after 3 attempts: DDGS.text() missing 1 required positional argument: 'query'"}}]
+- **Attempt**: 1
+- **Session**: f961fdda
+
+## [2026-05-21T05:06:04.290563+00:00] TOOL_FAILURE
+- **Tool**: web_search
+- **Message**: [{'code': 'EXECUTION_ERROR', 'message': 'Tool execution failed', 'details': {'error': "web search failed after 3 attempts: DDGS.text() missing 1 required positional argument: 'query'"}}]
+- **Attempt**: 1
+- **Session**: f961fdda

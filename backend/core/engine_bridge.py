@@ -488,6 +488,16 @@ class EngineBridge:
         def _run_sync() -> dict:
             import time
             while _check_paused():
+                if stop_event.is_set():
+                    return {
+                        "status": "failed",
+                        "output": "",
+                        "error": "stopped_by_user",
+                        "completion_mode": "no_effect_fail",
+                        "tool_call_count": 0,
+                        "artifact_count": 0,
+                        "session_id": None,
+                    }
                 time.sleep(0.5)
             return runner.run(job.prompt, job_id=job_id, job_title=job.title)
 
@@ -511,6 +521,13 @@ class EngineBridge:
         finally:
             stop_event.set()
             self._job_stop_events.pop(job_id, None)
+
+        # If user already stopped this job, never overwrite terminal state
+        # with late runner output.
+        latest_job = store.get_job(job_id)
+        if latest_job is not None and latest_job.status == JobStatus.FAILED and latest_job.error == "Stopped by user":
+            log.info("Job %s: preserving user-stop terminal state; ignoring late runner result", job_id)
+            return
 
         result_status = str(result.get("status", "") or "").lower()
         is_complete = result_status == "complete"

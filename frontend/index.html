@@ -1227,7 +1227,11 @@ let _streamIncomingBuffer = '';     // queued incoming chunk text
 let _streamRenderedText = '';       // what is currently shown in panel
 let _streamIsStreaming = false;     // true while job stream is active
 let _streamRafId = null;            // renderer loop handle
-const _STREAM_CHARS_PER_TICK = 3;   // typing speed
+let _streamLastTs = 0;              // last RAF timestamp
+let _streamCharBudget = 0;          // fractional char carry for smooth pacing
+const _STREAM_CHARS_PER_SECOND = 42; // visual typing speed target
+const _STREAM_MAX_CHARS_PER_FRAME = 4; // cap burst size per frame to reduce jumpiness
+const _AUTO_COLLAPSE_EVENT_BRANCHES = false; // keep manual expand/collapse state stable
 
 /* ═══════════════════════════════════════════════════════
    NOTIFICATIONS
@@ -1346,6 +1350,8 @@ function streamStart(jobId) {
     _streamTokens = 0;
     _streamIncomingBuffer = '';
     _streamRenderedText = '';
+    _streamLastTs = 0;
+    _streamCharBudget = 0;
   }
   const panel = document.getElementById('stream-panel');
   const textEl = document.getElementById('stream-text');
@@ -1371,7 +1377,6 @@ function streamAppend(text) {
 }
 
 function streamEnd({ keepVisible = true } = {}) {
-  _drainStreamBufferNow();
   _streamIsStreaming = false;
   _streamJobId = null;
   const panel = document.getElementById('stream-panel');
@@ -1379,7 +1384,7 @@ function streamEnd({ keepVisible = true } = {}) {
     if (keepVisible) panel.classList.add('active');
     else panel.classList.remove('active');
   }
-  _setStreamCursor(keepVisible);
+  _setStreamCursor(keepVisible || _streamIncomingBuffer.length > 0);
 }
 
 function streamClear() {
@@ -1415,11 +1420,20 @@ function _renderStreamText() {
 
 function _ensureStreamRenderLoop() {
   if (_streamRafId !== null) return;
-  const tick = () => {
+  const tick = (ts) => {
+    if (_streamLastTs === 0) _streamLastTs = ts;
+    const dtSeconds = Math.max(0, (ts - _streamLastTs) / 1000);
+    _streamLastTs = ts;
+    _streamCharBudget += dtSeconds * _STREAM_CHARS_PER_SECOND;
+
     if (_streamIncomingBuffer.length > 0) {
-      const take = Math.min(_STREAM_CHARS_PER_TICK, _streamIncomingBuffer.length);
+      let take = Math.floor(_streamCharBudget);
+      if (take <= 0) take = 1;
+      take = Math.min(take, _STREAM_MAX_CHARS_PER_FRAME, _streamIncomingBuffer.length);
+
       _streamRenderedText += _streamIncomingBuffer.slice(0, take);
       _streamIncomingBuffer = _streamIncomingBuffer.slice(take);
+      _streamCharBudget = Math.max(0, _streamCharBudget - take);
       _renderStreamText();
       _streamRafId = requestAnimationFrame(tick);
       return;
@@ -1428,6 +1442,8 @@ function _ensureStreamRenderLoop() {
       _streamRafId = requestAnimationFrame(tick);
       return;
     }
+    _streamLastTs = 0;
+    _streamCharBudget = 0;
     _streamRafId = null;
   };
   _streamRafId = requestAnimationFrame(tick);
@@ -2058,8 +2074,8 @@ function collapseAllExpandedBranches() {
 }
 
 function appendEventLine(ev) {
-  // Collapse all previously expanded branches when a new agent loop starts
-  if (ev.type === 'AGENT_START' && (ev.loop || 0) > 1) {
+  // Optional auto-collapse behavior on new loops (disabled by default).
+  if (_AUTO_COLLAPSE_EVENT_BRANCHES && ev.type === 'AGENT_START' && (ev.loop || 0) > 1) {
     collapseAllExpandedBranches();
   }
   const feed = document.getElementById('event-feed');

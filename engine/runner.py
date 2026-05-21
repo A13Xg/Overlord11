@@ -187,6 +187,18 @@ class EngineRunner:
         loop = 0
 
         while loop < max_loops:
+            if self._stop_event.is_set():
+                status = "failed"
+                completion_mode = "no_effect_fail"
+                failure_reason = "stopped_by_user"
+                self.events.emit(
+                    EventType.ERROR,
+                    session_id=sid,
+                    loop=loop,
+                    message=failure_reason,
+                )
+                session.log_event("error", {"message": failure_reason, "loop": loop})
+                break
             loop += 1
             self.events.emit(EventType.AGENT_START, agent_id=agent_id, loop=loop)
 
@@ -310,6 +322,18 @@ class EngineRunner:
                     session.log_event("error", {"message": str(exc), "loop": loop})
                     break
 
+            if self._stop_event.is_set():
+                status = "failed"
+                completion_mode = "no_effect_fail"
+                failure_reason = "stopped_by_user"
+                self.events.emit(
+                    EventType.ERROR,
+                    session_id=sid,
+                    loop=loop,
+                    message=failure_reason,
+                )
+                session.log_event("error", {"message": failure_reason, "loop": loop})
+                break
             if response is None:
                 break
 
@@ -427,6 +451,18 @@ class EngineRunner:
             # Execute tool calls with dependency-aware parallelism.
             # Independent calls run concurrently; conflicting calls are
             # serialized into sequential waves by DependencyAnalyzer.
+            if self._stop_event.is_set():
+                status = "failed"
+                completion_mode = "no_effect_fail"
+                failure_reason = "stopped_by_user"
+                self.events.emit(
+                    EventType.ERROR,
+                    session_id=sid,
+                    loop=loop,
+                    message=failure_reason,
+                )
+                session.log_event("error", {"message": failure_reason, "loop": loop})
+                break
             ordered_pairs = self._parallel_executor.execute_all(
                 tool_calls,
                 on_call=lambda **kw: self.events.emit(EventType.TOOL_CALL, **kw),
@@ -501,6 +537,18 @@ class EngineRunner:
                 failure_reason = "repeated_failed_write_file_call"
                 completion_mode = "no_effect_fail"
                 status = "failed"
+                self.events.emit(
+                    EventType.ERROR,
+                    session_id=sid,
+                    loop=loop,
+                    message=failure_reason,
+                )
+                session.log_event("error", {"message": failure_reason, "loop": loop})
+                break
+            if self._stop_event.is_set():
+                status = "failed"
+                completion_mode = "no_effect_fail"
+                failure_reason = "stopped_by_user"
                 self.events.emit(
                     EventType.ERROR,
                     session_id=sid,

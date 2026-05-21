@@ -69,6 +69,13 @@ class WebSearchToolTests(unittest.TestCase):
         self.assertFalse(res["ok"])
         self.assertEqual(res["errors"][0]["code"], "VALIDATION_ERROR")
 
+    def test_allowlist_and_blocklist_can_be_null(self):
+        res = self.gw.validate_tool_call(
+            "web_search",
+            {"query": "python", "domain_allowlist": None, "domain_blocklist": None},
+        )
+        self.assertTrue(res["ok"])
+
     @patch("tool_gateway.tools.web_search.DDGS", _FakeDDGS)
     def test_dedup_and_normalized_urls(self):
         res = self.gw.execute_tool_call({"tool_name": "web_search", "arguments": {"query": "python", "max_results": 5}})
@@ -101,4 +108,3 @@ class WebSearchToolTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
