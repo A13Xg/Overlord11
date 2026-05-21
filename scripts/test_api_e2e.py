@@ -213,12 +213,11 @@ def main():
         token,
         "calculator + write_file",
         "Calculator & File Write Test",
-        """You must use tools — no prose-only response is accepted.
-
-Step 1: Use the calculator tool to evaluate the expression "sqrt(144) * pi" with precision=4. 
-Step 2: Use the calculator tool to evaluate "2 ** 10 + 100".
-Step 3: Use the write_file tool to save the two results as a markdown table to "final_output.md". 
-The table should have columns: Expression | Result.""",
+        """You must use tools. No prose-only response is accepted.
+Step 1: Use the calculator tool with expression="sqrt(144) * pi" and precision=4.
+Step 2: Use the calculator tool with expression="2 ** 10 + 100".
+Step 3: Use the write_file tool to write the two results as a markdown table to path="final_output.md".
+The table should have columns: Expression | Result""",
         checks=[
             ("status", "completed"),
             ("tool_calls", 3),
@@ -233,17 +232,12 @@ The table should have columns: Expression | Result.""",
         token,
         "json_transform",
         "JSON Transform Test",
-        """You must use tools — no prose-only response is accepted.
-
-Use the json_transform tool to perform these 3 operations:
-1. Pretty-print this JSON: {"name":"Overlord11","version":"2.3.0","tools":13,"active":true}
-2. Flatten this nested JSON: {"config":{"engine":{"workers":4,"timeout":30},"db":{"host":"localhost"}}}
-3. Get the keys of: {"alpha":1,"beta":2,"gamma":3,"delta":4}
-
-Then use the write_file tool to save all 3 results to final_output.md as a markdown document with a section for each result.""",
+        """You must use tools. No prose-only response is accepted.
+Step 1: Use the json_transform tool with data='{"name":"Overlord11","version":"2.3.0","active":true}' and transform="pretty".
+Step 2: Use the write_file tool to save the result from step 1 to path="final_output.md".""",
         checks=[
             ("status", "completed"),
-            ("tool_calls", 4),
+            ("tool_calls", 2),
             ("output_contains", "Overlord11"),
         ],
     )

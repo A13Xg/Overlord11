@@ -250,3 +250,21 @@
 - **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('mode',), 'msg': 'Extra inputs are not permitted', 'input': 'text', 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['query', 'max_results', 'region', 'safe_search', 'time_range', 'result_type', 'include_snippets', 'include_metadata', 'include_rank', 'include_dates', 'domain_allowlist', 'domain_blocklist'], 'example': {'tool_name': 'web_search', 'arguments': {'query': 'python release notes', 'max_results': 5, 'safe_search': 'moderate', 'time_range': 'month', 'result_type': 'text', 'include_snippets': True}}}}]
 - **Attempt**: 1
 - **Session**: 83fbc4b3
+
+## [2026-05-21T06:52:01.557094+00:00] API_ERROR
+- **Tool**: web_search
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('mode',), 'msg': 'Extra inputs are not permitted', 'input': 'text', 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['query', 'max_results', 'region', 'safe_search', 'time_range', 'result_type', 'include_snippets', 'include_metadata', 'include_rank', 'include_dates', 'domain_allowlist', 'domain_blocklist'], 'example': {'tool_name': 'web_search', 'arguments': {'query': 'python release notes', 'max_results': 5, 'safe_search': 'moderate', 'time_range': 'month', 'result_type': 'text', 'include_snippets': True}}}}]
+- **Attempt**: 1
+- **Session**: 3e2e01be
+
+## [2026-05-21T07:01:12.508568+00:00] API_ERROR
+- **Tool**: web_search
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('mode',), 'msg': 'Extra inputs are not permitted', 'input': 'text', 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['query', 'max_results', 'region', 'safe_search', 'time_range', 'result_type', 'include_snippets', 'include_metadata', 'include_rank', 'include_dates', 'domain_allowlist', 'domain_blocklist'], 'example': {'tool_name': 'web_search', 'arguments': {'query': 'python release notes', 'max_results': 5, 'safe_search': 'moderate', 'time_range': 'month', 'result_type': 'text', 'include_snippets': True}}}}]
+- **Attempt**: 1
+- **Session**: cca47c44
+
+## [2026-05-21T07:02:56.479727+00:00] API_ERROR
+- **Tool**: semantic_content_extractor
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('extract_types',), 'msg': 'Extra inputs are not permitted', 'input': ['emails', 'phone_numbers', 'prices', 'faq_pairs'], 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['url', 'html', 'raw_text', 'extraction_targets'], 'example': {'tool_name': 'semantic_content_extractor', 'arguments': {'url': 'https://example.com', 'extraction_targets': []}}}}]
+- **Attempt**: 1
+- **Session**: b8d2a952
