@@ -46,77 +46,14 @@ Every agent, every session — in this order:
 
 ## Available Tools
 
-Tools are implemented in `tools/python/` and registered in `config.json`.
+The active runtime only exposes two tools:
 
-### File Operations
 | Tool | What It Does |
 |------|-------------|
-| `read_file` | Read file contents (full or line range) |
-| `write_file` | Write content to a file (overwrite or append) |
-| `list_directory` | List files in a directory |
-| `glob` | Find files matching a pattern |
-| `search_file_content` | Regex search across files (ripgrep with Python fallback) |
-| `replace` | Precise find-and-replace in a file |
-| `diff_tool` | Unified diff between two files or strings |
+| `run_command` | Execute shell commands with structured arguments and workspace-aware safeguards |
+| `write_file` | Write UTF-8 text files inside the active workspace |
 
-### Execution
-| Tool | What It Does |
-|------|-------------|
-| `run_shell_command` | Execute shell commands |
-| `git_tool` | Git operations |
-| `calculator` | Math and statistics |
-| `execute_python` | Sandboxed Python code execution |
-| `scaffold_generator` | Generate project boilerplate from templates |
-| `launcher_generator` | Generate `run.py` + `run.bat` + `run.command` |
-
-### Web
-| Tool | What It Does |
-|------|-------------|
-| `web_fetch` | HTTP GET → Markdown/JSON/text |
-| `web_scraper` | Article extraction, structured scraping, LLM context packaging, image download |
-| `http_request` | Full HTTP client (POST/PUT/PATCH/DELETE, auth, JSON body) |
-
-### Intelligence
-| Tool | What It Does |
-|------|-------------|
-| `code_analyzer` | Static analysis (bugs, security, complexity) |
-| `project_scanner` | Project structure + framework detection |
-| `save_memory` | Write to `Consciousness.md` |
-| `consciousness_tool` | Read, query, and manage `Consciousness.md` entries |
-| `publisher_tool` | Generate styled self-contained HTML reports |
-| `ui_design_system` | Generate a complete UI/UX design system (10 styles × 10 palettes) |
-| `vision_tool` | Image analysis: OCR, object detection, screenshot interpretation |
-| `computer_control` | Desktop automation: mouse, keyboard, window management |
-| `data_visualizer` | Generate charts and visual data summaries |
-
-### Data & Transformation
-| Tool | What It Does |
-|------|-------------|
-| `response_formatter` | Format agent responses (sections, tables, summaries) |
-| `file_converter` | Convert files between JSON, CSV, YAML, Markdown |
-| `json_tool` | Parse, query, format, merge, diff JSON |
-| `regex_tool` | Test, extract, replace text with regex |
-| `hash_tool` | Compute and verify cryptographic hashes |
-| `zip_tool` | Create, extract, inspect ZIP archives |
-| `env_tool` | Read, write, and validate `.env` files |
-| `database_tool` | SQLite-backed structured storage |
-| `datetime_tool` | Parse, format, calculate, and convert dates/times |
-
-### Project Management
-| Tool | What It Does |
-|------|-------------|
-| `task_manager` | Manage `TaskingLog.md` — add/complete tasks and subtasks |
-| `error_logger` | Manage `ErrorLog.md` — log errors, attempts, resolutions |
-| `error_handler` | Catch, classify, and recover from tool execution errors |
-| `cleanup_tool` | Pre-deploy scan: secrets detection, temp cleanup, structure validation |
-| `notification_tool` | Push browser toast notifications to the WebUI operator |
-
-### Session & Logging
-| Tool | What It Does |
-|------|-------------|
-| `session_manager` | Create and track work sessions with unique IDs |
-| `log_manager` | Central JSONL logging for all tool/agent activity |
-| `session_clean` | Reset between tasks — purge workspace, clear Consciousness.md active entries |
+Any other tool name should be treated as unavailable unless the runtime explicitly reports it.
 
 ---
 
@@ -322,18 +259,11 @@ Phases may be skipped when not needed.
 15. **Stay in scope** — complete the delegated subtask fully; don't expand scope without notifying the Orchestrator.
 16. **Be explicit about uncertainty** — if you don't know something, say so. Don't fabricate data or code.
 17. **Tool-call contract for non-trivial execution tasks is mandatory** — if the task requires building, editing, testing, research collection, analysis with evidence, or artifact creation, you must emit at least one parseable tool call. Prose-only planning is not completion.
-18. **Supported tool-call formats only** — use one of:
-    - JSON block:
-      ```json
-      {"tool":"read_file","params":{"path":"config.json"}}
-      ```
-    - XML wrapper:
-      ```xml
-      <tool_call>{"tool":"glob","params":{"pattern":"**/*.py"}}</tool_call>
-      ```
-    - Function style:
-      `TOOL_CALL: run_shell_command(command="python -m unittest -q")`
-19. **When unsure, inspect first** — call `list_directory`, `glob`, or `read_file` to gather context before proposing final output.
+18. **Supported tool-call format only** — use canonical JSON:
+    ```json
+    {"tool_name":"run_command","arguments":{"command":"python --version","timeout_seconds":30}}
+    ```
+19. **When unsure, inspect first** — use `run_command` to inspect workspace context before proposing final output.
 
 ---
 

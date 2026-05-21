@@ -1,10 +1,27 @@
 import unittest
+import shutil
+from pathlib import Path
 
 from engine.runner import EngineRunner
 from engine.tool_executor import ToolCall
 
 
 class RunnerCompletionGuardTests(unittest.TestCase):
+    def setUp(self):
+        self._workspace_root = Path(__file__).resolve().parent.parent / "workspace"
+        self._before = {p.name for p in self._workspace_root.iterdir() if p.is_dir()} if self._workspace_root.exists() else set()
+
+    def tearDown(self):
+        if not self._workspace_root.exists():
+            return
+        protected = {"archive", "users"}
+        after = {p.name for p in self._workspace_root.iterdir() if p.is_dir()}
+        created = [name for name in (after - self._before) if name not in protected]
+        for name in created:
+            target = self._workspace_root / name
+            if target.exists():
+                shutil.rmtree(target, ignore_errors=True)
+
     def _runner(self):
         runner = EngineRunner(verbose=False)
         runner._config.setdefault("orchestration", {})
@@ -47,7 +64,7 @@ class RunnerCompletionGuardTests(unittest.TestCase):
     def test_non_trivial_can_complete_after_effectful_tool_work(self):
         runner = self._runner()
         responses = [
-            "```json\n{\"tool\":\"dummy_tool\",\"params\":{\"x\":1}}\n```",
+            "```json\n{\"tool_name\":\"dummy_tool\",\"arguments\":{\"x\":1}}\n```",
             "Completed. Implemented the module and tests successfully.",
         ]
 
@@ -69,8 +86,8 @@ class RunnerCompletionGuardTests(unittest.TestCase):
     def test_invalid_pseudo_tool_format_fails_with_specific_reason(self):
         runner = self._runner()
         responses = [
-            "<tool_code>\nprint(search_file_content(path='.', pattern='TODO'))\n</tool_code>",
-            "<tool_code>\nprint(search_file_content(path='.', pattern='TODO'))\n</tool_code>",
+            "<tool_call>{\"tool\":\"dummy_tool\",\"params\":{\"x\":1}}</tool_call>",
+            "<tool_call>{\"tool\":\"dummy_tool\",\"params\":{\"x\":1}}</tool_call>",
         ]
 
         def fake_call(**kwargs):
@@ -84,7 +101,7 @@ class RunnerCompletionGuardTests(unittest.TestCase):
     def test_non_trivial_delegation_only_message_does_not_complete(self):
         runner = self._runner()
         responses = [
-            "```json\n{\"tool\":\"dummy_tool\",\"params\":{\"x\":1}}\n```",
+            "```json\n{\"tool_name\":\"dummy_tool\",\"arguments\":{\"x\":1}}\n```",
             "Now, I am delegating the initial code inspection to OVR_COD_03.\n<execute_task agent=\"OVR_COD_03\">read_file(path=\"engine/runner.py\")</execute_task>",
             "I am delegating the rest of this task to OVR_COD_03.",
         ]
@@ -106,7 +123,7 @@ class RunnerCompletionGuardTests(unittest.TestCase):
     def test_scope_mismatch_claim_after_list_directory_does_not_complete(self):
         runner = self._runner()
         responses = [
-            "```json\n{\"tool\":\"list_directory\",\"params\":{\"path\":\".\"}}\n```",
+            "```json\n{\"tool_name\":\"list_directory\",\"arguments\":{\"path\":\".\"}}\n```",
             "The directory listing confirms agents/, tools/, docs/, and config.json are present.",
             "Same confirmation as above.",
         ]
@@ -132,6 +149,150 @@ class RunnerCompletionGuardTests(unittest.TestCase):
         ]
         result = runner.run("Analyze repository structure and generate a verification report with metadata.")
         self.assertEqual(result.get("status"), "failed")
+
+    def test_replay_payload_with_shell_auto_succeeds_first_try(self):
+        runner = self._runner()
+        responses = [
+            "```json\n{\"tool_name\":\"run_command\",\"arguments\":{\"command\":\"python --version\",\"timeout_seconds\":30,\"shell\":\"auto\"}}\n```",
+            "Completed. shell_used: powershell, exit_code: 0",
+        ]
+
+        def fake_call(**kwargs):
+            return responses.pop(0) if responses else "Completed."
+
+        runner._bridge.call_provider_streaming = fake_call  # type: ignore[method-assign]
+        result = runner.run("Run python version and report shell and exit code.")
+        self.assertEqual(result.get("status"), "complete")
+        self.assertEqual(result.get("completion_mode"), "tool_driven")
+
+    def test_duplicate_shell_alias_calls_are_deduped(self):
+        runner = self._runner()
+        responses = [
+            "```json\n[\n"
+            "{\"tool_name\":\"run_command\",\"arguments\":{\"command\":\"python --version\",\"timeout_seconds\":30,\"shell\":\"auto\"}},\n"
+            "{\"tool_name\":\"run_command\",\"arguments\":{\"command\":\"python --version\",\"timeout_seconds\":30,\"shell\":\"auto\"}}\n"
+            "]\n```",
+            "Completed.",
+        ]
+
+        def fake_call(**kwargs):
+            return responses.pop(0) if responses else "Completed."
+
+        seen_counts = {"calls": 0}
+
+        def fake_execute_all(tool_calls, **kwargs):
+            seen_counts["calls"] = len(tool_calls)
+            return [
+                (
+                    ToolCall(tool_name="run_command", params={"command": "python --version"}, raw=""),
+                    {"status": "success", "result": {"exit_code": 0}, "tool": "run_command", "duration_ms": 1.0},
+                )
+            ]
+
+        runner._bridge.call_provider_streaming = fake_call  # type: ignore[method-assign]
+        runner._parallel_executor.execute_all = fake_execute_all  # type: ignore[method-assign]
+        result = runner.run("Run python version and report.")
+        self.assertEqual(result.get("status"), "complete")
+        self.assertEqual(seen_counts["calls"], 1)
+
+    def test_failed_write_file_then_claim_saved_does_not_complete(self):
+        runner = self._runner()
+        responses = [
+            "```json\n{\"tool_name\":\"run_command\",\"arguments\":{\"command\":\"python --version\",\"timeout_seconds\":30}}\n```",
+            "```json\n{\"tool_name\":\"write_file\",\"arguments\":{\"path\":\"answer.md\",\"content\":\"report\"}}\n```",
+            "The diagnostics report was saved to answer.md.",
+            "Still saved to answer.md.",
+        ]
+
+        def fake_call(**kwargs):
+            return responses.pop(0) if responses else "saved"
+
+        call_idx = {"i": 0}
+
+        def fake_execute_all(tool_calls, **kwargs):
+            call_idx["i"] += 1
+            if call_idx["i"] == 1:
+                return [
+                    (
+                        ToolCall(tool_name="run_command", params={"command": "python --version"}, raw=""),
+                        {"status": "success", "result": {"exit_code": 0}, "tool": "run_command", "duration_ms": 1.0},
+                    )
+                ]
+            return [
+                (
+                    ToolCall(tool_name="write_file", params={"path": "answer.md"}, raw=""),
+                    {
+                        "status": "error",
+                        "result": {
+                            "ok": False,
+                            "errors": [{"code": "UNKNOWN_TOOL", "message": "Unknown tool: write_file", "details": {}}],
+                        },
+                        "tool": "write_file",
+                        "duration_ms": 1.0,
+                    },
+                )
+            ]
+
+        runner._bridge.call_provider_streaming = fake_call  # type: ignore[method-assign]
+        runner._parallel_executor.execute_all = fake_execute_all  # type: ignore[method-assign]
+        result = runner.run("Run diagnostics and save answer.md.")
+        self.assertEqual(result.get("status"), "failed")
+
+    def test_command_derived_claim_without_run_command_does_not_complete(self):
+        runner = self._runner()
+        responses = [
+            "```json\n{\"tool_name\":\"write_file\",\"arguments\":{\"path\":\"answer.md\",\"content\":\"report\"}}\n```",
+            "Diagnostics report complete. Shell used: powershell. Exit code: 0. OS release: 11. Python version: 3.14.4.",
+            "Diagnostics report complete. Shell used: powershell. Exit code: 0. OS release: 11. Python version: 3.14.4.",
+        ]
+
+        def fake_call(**kwargs):
+            return responses.pop(0) if responses else "same claim"
+
+        runner._bridge.call_provider_streaming = fake_call  # type: ignore[method-assign]
+        runner._parallel_executor.execute_all = lambda *args, **kwargs: [  # type: ignore[method-assign]
+            (
+                ToolCall(tool_name="write_file", params={"path": "answer.md", "content": "report"}, raw=""),
+                {"status": "success", "result": {"path": "answer.md"}, "tool": "write_file", "duration_ms": 1.0},
+            )
+        ]
+        result = runner.run("Create diagnostics report from command output and save it.")
+        self.assertEqual(result.get("status"), "failed")
+        self.assertEqual(result.get("error"), "missing_run_command_evidence")
+
+    def test_command_derived_claim_with_run_command_can_complete(self):
+        runner = self._runner()
+        responses = [
+            "```json\n{\"tool_name\":\"run_command\",\"arguments\":{\"command\":\"python --version\",\"timeout_seconds\":30}}\n```",
+            "```json\n{\"tool_name\":\"write_file\",\"arguments\":{\"path\":\"answer.md\",\"content\":\"report\"}}\n```",
+            "Diagnostics report complete. Shell used: powershell. Exit code: 0. OS release: 11. Python version: 3.14.4.",
+        ]
+
+        def fake_call(**kwargs):
+            return responses.pop(0) if responses else "complete"
+
+        call_idx = {"i": 0}
+
+        def fake_execute_all(tool_calls, **kwargs):
+            call_idx["i"] += 1
+            if call_idx["i"] == 1:
+                return [
+                    (
+                        ToolCall(tool_name="run_command", params={"command": "python --version"}, raw=""),
+                        {"status": "success", "result": {"exit_code": 0}, "tool": "run_command", "duration_ms": 1.0},
+                    )
+                ]
+            return [
+                (
+                    ToolCall(tool_name="write_file", params={"path": "answer.md", "content": "report"}, raw=""),
+                    {"status": "success", "result": {"path": "answer.md"}, "tool": "write_file", "duration_ms": 1.0},
+                )
+            ]
+
+        runner._bridge.call_provider_streaming = fake_call  # type: ignore[method-assign]
+        runner._parallel_executor.execute_all = fake_execute_all  # type: ignore[method-assign]
+        result = runner.run("Create diagnostics report from command output and save it.")
+        self.assertEqual(result.get("status"), "complete")
 
 
 if __name__ == "__main__":

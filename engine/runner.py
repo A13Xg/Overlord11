@@ -155,8 +155,13 @@ class EngineRunner:
             + "\n\nRuntime execution requirements:\n"
             + f"- Active shell family: {shell_type}\n"
             + f"- {syntax_hint}\n"
-            + "- For run_shell_command, explicitly set parameters:\n"
-            + f"  shell_preference=\"{shell_pref}\", reject_on_shell_mismatch=true, auto_switch_shell=true\n"
+            + "- Workspace boundary is strict: all command execution and file writes must stay inside OVERLORD11_TASK_DIR.\n"
+            + "- Do not reference parent paths (..), absolute system paths, or locations outside the active workspace.\n"
+            + "- For run_command, pass structured arguments:\n"
+            + "  command=\"...\", timeout_seconds=30, working_directory=\".\", dry_run=false\n"
+            + "- Available core tools in this runtime: run_command, write_file.\n"
+            + "- Do not assume any other tool exists unless a previous tool response confirms it.\n"
+            + "- shell defaults to auto; omit shell unless you explicitly need a different shell.\n"
             + "- Any deliverable file intended for users should be written inside ./output and named answer.<ext> when possible (e.g., answer.md, answer.html, answer.png)."
         )
         messages = [{"role": "user", "content": user_input}]
@@ -168,7 +173,11 @@ class EngineRunner:
         total_tool_call_count = 0
         artifact_count = 0
         had_effectful_tool_success = False
+        successful_tool_names: set[str] = set()
+        write_file_succeeded = False
         no_tool_retry_count = 0
+        repeated_write_file_failure_count = 0
+        last_failed_write_file_signature: Optional[str] = None
         observed_dir_path: Optional[str] = None
         observed_dir_entries: set[str] = set()
         max_no_tool_retries = (
@@ -327,6 +336,7 @@ class EngineRunner:
             )
 
             tool_calls = extract_tool_calls(response)
+            tool_calls = self._canonicalize_and_dedupe_tool_calls(tool_calls)
             total_tool_call_count += len(tool_calls)
             cycle = session.log_agent_cycle(
                 agent_id=agent_id,
@@ -360,6 +370,8 @@ class EngineRunner:
                             response,
                             observed_dir_path=observed_dir_path,
                             observed_entries=observed_dir_entries,
+                            successful_tool_names=successful_tool_names,
+                            write_file_succeeded=write_file_succeeded,
                         )
                     ):
                         final_output = response
@@ -371,14 +383,14 @@ class EngineRunner:
                         guidance = (
                             "SYSTEM REQUIREMENT: For non-trivial execution tasks you must emit at least one "
                             "parseable tool call in supported format. Prose-only planning is not completion. "
-                            "Use one of: ```json {\"tool\":\"name\",\"params\":{...}}```, "
-                            "<tool_call>{\"tool\":\"name\",\"params\":{...}}</tool_call>, "
-                            "TOOL_CALL: name(param=\"value\"), or TOOL_CODE: name(param=\"value\")."
+                            "Use canonical format only: "
+                            "{\"tool_name\":\"name\",\"arguments\":{...}} "
+                            "or ```json {\"tool_name\":\"name\",\"arguments\":{...}}```."
                         )
                         if format_issue:
                             guidance += (
-                                f" Detected invalid tool-call format ({format_issue}). "
-                                "Do not use pseudo tags like <tool_code> or <execute_bash>."
+                                f" Detected invalid non-canonical tool-call format ({format_issue}). "
+                                "Use only canonical JSON blocks with tool_name and arguments."
                             )
                         messages.append({
                             "role": "user",
@@ -386,7 +398,10 @@ class EngineRunner:
                         })
                         continue
 
-                    failure_reason = "invalid_tool_call_format" if format_issue else "no_effect_completion"
+                    if self._claims_command_derived_facts(response) and "run_command" not in successful_tool_names:
+                        failure_reason = "missing_run_command_evidence"
+                    else:
+                        failure_reason = "invalid_tool_call_format" if format_issue else "no_effect_completion"
                     completion_mode = "no_effect_fail"
                     status = "failed"
                     self.events.emit(
@@ -430,6 +445,21 @@ class EngineRunner:
             had_effectful_tool_success = had_effectful_tool_success or any(
                 self._is_effectful_tool_result(result) for result in tool_results
             )
+            for tc, result in ordered_pairs:
+                if isinstance(result, dict) and result.get("status") == "success":
+                    successful_tool_names.add(getattr(tc, "tool_name", ""))
+                    if getattr(tc, "tool_name", "") == "write_file":
+                        write_file_succeeded = True
+                        repeated_write_file_failure_count = 0
+                        last_failed_write_file_signature = None
+                if isinstance(result, dict) and result.get("status") == "error":
+                    if getattr(tc, "tool_name", "") == "write_file":
+                        sig = json.dumps(getattr(tc, "params", {}), sort_keys=True, ensure_ascii=False)
+                        if sig == last_failed_write_file_signature:
+                            repeated_write_file_failure_count += 1
+                        else:
+                            repeated_write_file_failure_count = 1
+                            last_failed_write_file_signature = sig
             observed_dir_path, observed_dir_entries = self._update_observed_directory_snapshot(
                 ordered_pairs=ordered_pairs,
                 prior_path=observed_dir_path,
@@ -447,9 +477,11 @@ class EngineRunner:
                     _hint = (
                         f"⚠ TOOL ERROR — {_tc.tool_name}\n"
                         f"Error    : {_err}\n"
-                        f"Recovery : Check tools/defs/{_tc.tool_name}.json for exact parameter names and types.\n"
-                        f"Common causes: wrong parameter name (e.g. --add_task not --add-task), "
-                        f"missing required parameter, incorrect value type.\n"
+                        f"Recovery : Use canonical tool payload only: "
+                        f"{{\"tool_name\":\"{_tc.tool_name}\",\"arguments\":{{...}}}} "
+                        f"or fenced as ```json ... ```.\n"
+                        f"Common causes: wrong argument name, missing required argument, unknown extra field, incorrect type.\n"
+                        f"Evidence : Any command-derived facts (shell, exit code, OS, Python version) must come from a successful run_command result.\n"
                         f"Action   : Retry this tool call with corrected parameters."
                     )
                     _heal_hints.append(_hint)
@@ -465,7 +497,25 @@ class EngineRunner:
                     "role": "user",
                     "content": "SYSTEM — RECOVERY GUIDANCE:\n\n" + "\n\n".join(_heal_hints),
                 })
+            if repeated_write_file_failure_count >= 2:
+                failure_reason = "repeated_failed_write_file_call"
+                completion_mode = "no_effect_fail"
+                status = "failed"
+                self.events.emit(
+                    EventType.ERROR,
+                    session_id=sid,
+                    loop=loop,
+                    message=failure_reason,
+                )
+                session.log_event("error", {"message": failure_reason, "loop": loop})
+                break
 
+        if status == "max_loops_reached":
+            status = "failed"
+            if not failure_reason:
+                failure_reason = "no_effect_completion"
+            if completion_mode == "no_effect_fail":
+                completion_mode = "no_effect_fail"
         self.events.emit(EventType.SESSION_END, session_id=sid, status=status, loops=loop)
         output_path = session.log_product_output(final_output or (messages[-1].get("content", "") if messages else ""))
         if output_path:
@@ -547,7 +597,7 @@ class EngineRunner:
         keywords = (
             "create", "build", "implement", "generate", "write code", "refactor",
             "run tests", "analyze", "research", "report", "html", "artifact",
-            "security review", "scan", "fix",
+            "security review", "scan", "fix", "write file", "save", "answer.md",
         )
         return any(k in lowered for k in keywords)
 
@@ -609,10 +659,14 @@ class EngineRunner:
 
     def _detect_tool_format_issue(self, response: str) -> Optional[str]:
         lowered = (response or "").lower()
+        if "<tool_call>" in lowered or "</tool_call>" in lowered:
+            return "non_canonical_xml_tool_call"
+        if "tool_call:" in lowered or "tool_code:" in lowered:
+            return "non_canonical_function_tool_call"
         if "<tool_code>" in lowered or "</tool_code>" in lowered:
-            return "pseudo_tool_code_tag"
+            return "non_canonical_tool_code_tag"
         if "<execute_bash>" in lowered or "</execute_bash>" in lowered:
-            return "pseudo_execute_bash_tag"
+            return "non_canonical_execute_bash_tag"
         return None
 
     def _is_intermediate_or_handoff_response(self, response: str) -> bool:
@@ -637,6 +691,8 @@ class EngineRunner:
         *,
         observed_dir_path: Optional[str],
         observed_entries: set[str],
+        successful_tool_names: set[str],
+        write_file_succeeded: bool,
     ) -> bool:
         text = (response or "").strip()
         if not text:
@@ -647,6 +703,10 @@ class EngineRunner:
             return False
         # Prevent claiming repository-root verification when only scripts/ was observed.
         lowered = text.lower()
+        if self._claims_file_saved(lowered) and not write_file_succeeded:
+            return False
+        if self._claims_command_derived_facts(lowered) and "run_command" not in successful_tool_names:
+            return False
         claims_repo_structure = any(k in lowered for k in ("agents/", "tools/", "docs/"))
         if claims_repo_structure and observed_entries:
             required = {"agents", "tools", "docs"}
@@ -667,6 +727,29 @@ class EngineRunner:
             "result",
         )
         return any(sig in lowered for sig in completion_signals) or len(text) >= 80
+
+    def _claims_file_saved(self, lowered_text: str) -> bool:
+        markers = (
+            "saved",
+            "written",
+            "wrote",
+            "created answer.md",
+            "saved to answer.md",
+            "write_file",
+        )
+        return any(m in lowered_text for m in markers)
+
+    def _claims_command_derived_facts(self, text: str) -> bool:
+        lowered = (text or "").lower()
+        markers = (
+            "shell used",
+            "exit code",
+            "python version",
+            "os release",
+            "diagnostics report",
+            "platform.system",
+        )
+        return any(m in lowered for m in markers)
 
     def _update_observed_directory_snapshot(
         self,
@@ -700,3 +783,21 @@ class EngineRunner:
                 if new_entries:
                     latest_entries = new_entries
         return latest_path, latest_entries
+
+    def _canonicalize_and_dedupe_tool_calls(self, tool_calls: list) -> list:
+        """
+        Canonicalize and drop exact duplicate tool calls within
+        the same model response to reduce redundant execution.
+        """
+        deduped = []
+        seen: set[tuple[str, str]] = set()
+        for tc in tool_calls:
+            tool_name = getattr(tc, "tool_name", "")
+            params = getattr(tc, "params", {}) if isinstance(getattr(tc, "params", {}), dict) else {}
+            key = (tool_name, json.dumps(params, sort_keys=True, ensure_ascii=False))
+            if key in seen:
+                continue
+            seen.add(key)
+            tc.tool_name = tool_name
+            deduped.append(tc)
+        return deduped

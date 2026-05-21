@@ -46,7 +46,7 @@ except ImportError:
 SERIAL_TOOLS: frozenset[str] = frozenset({
     "write_file",
     "replace",
-    "run_shell_command",
+    "run_command",
     "git_tool",
     "database_tool",
     "computer_control",

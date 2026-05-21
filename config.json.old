@@ -90,49 +90,312 @@
       "name": "Researcher",
       "file": "agents/researcher.md",
       "description": "Web research, information gathering, source verification",
-      "entry_point": false
+      "entry_point": false,
+      "tools": [
+        "web_fetch",
+        "web_scraper",
+        "read_file",
+        "list_directory",
+        "glob",
+        "search_file_content",
+        "save_memory",
+        "project_scanner",
+        "consciousness_tool",
+        "error_handler"
+      ]
     },
     "coder": {
       "id": "OVR_COD_03",
       "name": "Coder",
       "file": "agents/coder.md",
       "description": "Code generation, debugging, testing, refactoring",
-      "entry_point": false
+      "entry_point": false,
+      "tools": [
+        "read_file",
+        "write_file",
+        "replace",
+        "run_shell_command",
+        "code_analyzer",
+        "project_scanner",
+        "scaffold_generator",
+        "git_tool",
+        "search_file_content",
+        "glob",
+        "task_manager",
+        "error_logger",
+        "project_docs_init",
+        "launcher_generator",
+        "ui_design_system",
+        "execute_python",
+        "sandbox_runner",
+        "notification_tool"
+      ]
     },
     "analyst": {
       "id": "OVR_ANL_04",
       "name": "Analyst",
       "file": "agents/analyst.md",
       "description": "Data analysis, summarization, pattern recognition",
-      "entry_point": false
+      "entry_point": false,
+      "tools": [
+        "read_file",
+        "calculator",
+        "code_analyzer",
+        "project_scanner",
+        "search_file_content",
+        "glob",
+        "save_memory",
+        "consciousness_tool",
+        "response_formatter",
+        "file_converter",
+        "data_visualizer",
+        "notification_tool"
+      ]
     },
     "writer": {
       "id": "OVR_WRT_05",
       "name": "Writer",
       "file": "agents/writer.md",
       "description": "Documentation, reports, content creation",
-      "entry_point": false
+      "entry_point": false,
+      "tools": [
+        "read_file",
+        "write_file",
+        "replace",
+        "list_directory",
+        "glob",
+        "task_manager",
+        "consciousness_tool",
+        "response_formatter",
+        "file_converter"
+      ]
     },
     "reviewer": {
       "id": "OVR_REV_06",
       "name": "Reviewer",
       "file": "agents/reviewer.md",
       "description": "QA, code review, proofreading, validation",
-      "entry_point": false
+      "entry_point": false,
+      "tools": [
+        "read_file",
+        "code_analyzer",
+        "run_shell_command",
+        "search_file_content",
+        "glob",
+        "cleanup_tool",
+        "ui_design_system",
+        "consciousness_tool",
+        "error_handler",
+        "notification_tool"
+      ]
     },
     "publisher": {
       "id": "OVR_PUB_07",
       "name": "Publisher",
       "file": "agents/publisher.md",
       "description": "Tiered output formatter — markdown for mid-complexity, styled self-contained HTML for detailed/visual requests",
-      "entry_point": false
+      "entry_point": false,
+      "tools": [
+        "read_file",
+        "write_file",
+        "replace",
+        "publisher_tool",
+        "response_formatter",
+        "data_visualizer"
+      ]
     },
     "cleanup": {
       "id": "OVR_CLN_08",
       "name": "Cleanup",
       "file": "agents/cleanup.md",
       "description": "Pre-deployment sanity check — scans for secrets, removes temp files, validates structure",
-      "entry_point": false
+      "entry_point": false,
+      "tools": [
+        "cleanup_tool",
+        "session_clean",
+        "read_file",
+        "glob",
+        "search_file_content",
+        "run_shell_command"
+      ]
+    }
+  },
+  "tools": {
+    "read_file": {
+      "def": "tools/defs/read_file.json",
+      "impl": "tools/python/read_file.py"
+    },
+    "write_file": {
+      "def": "tools/defs/write_file.json",
+      "impl": "tools/python/write_file.py"
+    },
+    "list_directory": {
+      "def": "tools/defs/list_directory.json",
+      "impl": "tools/python/list_directory.py"
+    },
+    "glob": {
+      "def": "tools/defs/glob_tool.json",
+      "impl": "tools/python/glob_tool.py"
+    },
+    "search_file_content": {
+      "def": "tools/defs/search_file_content.json",
+      "impl": "tools/python/search_file_content.py"
+    },
+    "replace": {
+      "def": "tools/defs/replace.json",
+      "impl": "tools/python/replace.py"
+    },
+    "run_shell_command": {
+      "def": "tools/defs/run_shell_command.json",
+      "impl": "tools/python/run_shell_command.py"
+    },
+    "sandbox_runner": {
+      "def": "tools/defs/sandbox_runner.json",
+      "impl": "tools/python/sandbox_runner.py"
+    },
+    "web_fetch": {
+      "def": "tools/defs/web_fetch.json",
+      "impl": "tools/python/web_fetch.py"
+    },
+    "git_tool": {
+      "def": "tools/defs/git_tool.json",
+      "impl": "tools/python/git_tool.py"
+    },
+    "calculator": {
+      "def": "tools/defs/calculator.json",
+      "impl": "tools/python/calculator.py"
+    },
+    "save_memory": {
+      "def": "tools/defs/save_memory.json",
+      "impl": "tools/python/save_memory.py"
+    },
+    "web_scraper": {
+      "def": "tools/defs/web_scraper.json",
+      "impl": "tools/python/web_scraper.py"
+    },
+    "project_scanner": {
+      "def": "tools/defs/project_scanner.json",
+      "impl": "tools/python/project_scanner.py"
+    },
+    "code_analyzer": {
+      "def": "tools/defs/code_analyzer.json",
+      "impl": "tools/python/code_analyzer.py"
+    },
+    "publisher_tool": {
+      "def": "tools/defs/publisher_tool.json",
+      "impl": "tools/python/publisher_tool.py"
+    },
+    "scaffold_generator": {
+      "def": "tools/defs/scaffold_generator.json",
+      "impl": "tools/python/scaffold_generator.py"
+    },
+    "task_manager": {
+      "def": "tools/defs/task_manager.json",
+      "impl": "tools/python/task_manager.py"
+    },
+    "error_logger": {
+      "def": "tools/defs/error_logger.json",
+      "impl": "tools/python/error_logger.py"
+    },
+    "cleanup_tool": {
+      "def": "tools/defs/cleanup_tool.json",
+      "impl": "tools/python/cleanup_tool.py"
+    },
+    "project_docs_init": {
+      "def": "tools/defs/project_docs_init.json",
+      "impl": "tools/python/project_docs_init.py"
+    },
+    "launcher_generator": {
+      "def": "tools/defs/launcher_generator.json",
+      "impl": "tools/python/launcher_generator.py"
+    },
+    "ui_design_system": {
+      "def": "tools/defs/ui_design_system.json",
+      "impl": "tools/python/ui_design_system.py"
+    },
+    "consciousness_tool": {
+      "def": "tools/defs/consciousness_tool.json",
+      "impl": "tools/python/consciousness_tool.py"
+    },
+    "error_handler": {
+      "def": "tools/defs/error_handler.json",
+      "impl": "tools/python/error_handler.py"
+    },
+    "response_formatter": {
+      "def": "tools/defs/response_formatter.json",
+      "impl": "tools/python/response_formatter.py"
+    },
+    "file_converter": {
+      "def": "tools/defs/file_converter.json",
+      "impl": "tools/python/file_converter.py"
+    },
+    "computer_control": {
+      "def": "tools/defs/computer_control.json",
+      "impl": "tools/python/computer_control.py"
+    },
+    "vision_tool": {
+      "def": "tools/defs/vision_tool.json",
+      "impl": "tools/python/vision_tool.py"
+    },
+    "execute_python": {
+      "def": "tools/defs/execute_python.json",
+      "impl": "tools/python/execute_python.py"
+    },
+    "log_manager": {
+      "def": "tools/defs/log_manager.json",
+      "impl": "tools/python/log_manager.py"
+    },
+    "session_manager": {
+      "def": "tools/defs/session_manager.json",
+      "impl": "tools/python/session_manager.py"
+    },
+    "datetime_tool": {
+      "def": "tools/defs/datetime_tool.json",
+      "impl": "tools/python/datetime_tool.py"
+    },
+    "database_tool": {
+      "def": "tools/defs/database_tool.json",
+      "impl": "tools/python/database_tool.py"
+    },
+    "http_request": {
+      "def": "tools/defs/http_request.json",
+      "impl": "tools/python/http_request.py"
+    },
+    "json_tool": {
+      "def": "tools/defs/json_tool.json",
+      "impl": "tools/python/json_tool.py"
+    },
+    "hash_tool": {
+      "def": "tools/defs/hash_tool.json",
+      "impl": "tools/python/hash_tool.py"
+    },
+    "zip_tool": {
+      "def": "tools/defs/zip_tool.json",
+      "impl": "tools/python/zip_tool.py"
+    },
+    "regex_tool": {
+      "def": "tools/defs/regex_tool.json",
+      "impl": "tools/python/regex_tool.py"
+    },
+    "env_tool": {
+      "def": "tools/defs/env_tool.json",
+      "impl": "tools/python/env_tool.py"
+    },
+    "diff_tool": {
+      "def": "tools/defs/diff_tool.json",
+      "impl": "tools/python/diff_tool.py"
+    },
+    "session_clean": {
+      "def": "tools/defs/session_clean.json",
+      "impl": "tools/python/session_clean.py"
+    },
+    "data_visualizer": {
+      "def": "tools/defs/data_visualizer.json",
+      "impl": "tools/python/data_visualizer.py"
+    },
+    "notification_tool": {
+      "def": "tools/defs/notification_tool.json",
+      "impl": "tools/python/notification_tool.py"
     }
   },
   "orchestration": {
@@ -153,6 +416,7 @@
       "review",
       "delivery"
     ],
+    "memory_file": "Consciousness.md",
     "log_sessions": true,
     "log_dir": "logs/",
     "cache": {
@@ -205,7 +469,7 @@
     "level": "info",
     "log_dir": "logs/",
     "log_format": "json",
-    "include_tool_calls": false,
+    "include_tool_calls": true,
     "include_agent_outputs": true,
     "rotate_daily": true,
     "max_log_files": 30

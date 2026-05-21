@@ -224,9 +224,12 @@ body::after {
   white-space: pre-wrap; word-break: break-word;
   max-height: 260px; overflow-y: auto;
 }
-#stream-text::after {
-  content: '▋';
+#stream-cursor {
+  display: inline;
   color: var(--green);
+  margin-left: 2px;
+}
+#stream-cursor.active {
   animation: blink .75s step-end infinite;
 }
 @keyframes blink { 50% { opacity: 0; } }
@@ -977,6 +980,7 @@ body::after {
                 <span id="stream-token-count" style="color:var(--txt3);margin-left:auto"></span>
               </div>
               <div id="stream-text"></div>
+              <div><span id="stream-cursor">...|</span></div>
             </div>
             <div class="exec-section">
               <h3>◼ RESULT</h3>
@@ -1216,9 +1220,14 @@ let logFooterCollapsed = false;
 let artifactCache = {};
 let collapsedEventKeys = new Set();
 
-// Streaming state — tracks the current live token stream
-let _streamJobId = null;    // which job is currently streaming
-let _streamTokens = 0;      // total tokens received this stream session
+// Streaming state — smooth typed rendering without panel flicker between loops
+let _streamJobId = null;            // active streaming job id
+let _streamTokens = 0;              // raw chars received
+let _streamIncomingBuffer = '';     // queued incoming chunk text
+let _streamRenderedText = '';       // what is currently shown in panel
+let _streamIsStreaming = false;     // true while job stream is active
+let _streamRafId = null;            // renderer loop handle
+const _STREAM_CHARS_PER_TICK = 3;   // typing speed
 
 /* ═══════════════════════════════════════════════════════
    NOTIFICATIONS
@@ -1330,33 +1339,98 @@ function showToast(title, body, severity = 'info') {
 ═══════════════════════════════════════════════════════ */
 
 function streamStart(jobId) {
+  const isNewJob = _streamJobId !== jobId;
   _streamJobId = jobId;
-  _streamTokens = 0;
+  _streamIsStreaming = true;
+  if (isNewJob) {
+    _streamTokens = 0;
+    _streamIncomingBuffer = '';
+    _streamRenderedText = '';
+  }
   const panel = document.getElementById('stream-panel');
   const textEl = document.getElementById('stream-text');
-  if (!panel || !textEl) return;
-  textEl.textContent = '';
+  const countEl = document.getElementById('stream-token-count');
+  if (!panel || !textEl || !countEl) return;
+  if (isNewJob) {
+    textEl.textContent = '';
+    countEl.textContent = '0 chars';
+  }
   panel.classList.add('active');
+  _setStreamCursor(true);
+  _ensureStreamRenderLoop();
 }
 
 function streamAppend(text) {
-  const textEl = document.getElementById('stream-text');
   const countEl = document.getElementById('stream-token-count');
-  if (!textEl) return;
-  textEl.textContent += text;
-  // Auto-scroll to bottom of streaming window
-  textEl.scrollTop = textEl.scrollHeight;
+  if (!text) return;
+  _streamIncomingBuffer += text;
   _streamTokens += text.length;
   if (countEl) countEl.textContent = _streamTokens + ' chars';
+  _setStreamCursor(true);
+  _ensureStreamRenderLoop();
 }
 
-function streamEnd() {
+function streamEnd({ keepVisible = true } = {}) {
+  _drainStreamBufferNow();
+  _streamIsStreaming = false;
   _streamJobId = null;
   const panel = document.getElementById('stream-panel');
-  if (!panel) return;
-  panel.classList.remove('active');
+  if (panel) {
+    if (keepVisible) panel.classList.add('active');
+    else panel.classList.remove('active');
+  }
+  _setStreamCursor(keepVisible);
+}
+
+function streamClear() {
+  _streamIncomingBuffer = '';
+  _streamRenderedText = '';
+  _streamTokens = 0;
+  const countEl = document.getElementById('stream-token-count');
+  if (countEl) countEl.textContent = '0 chars';
+  _renderStreamText();
+}
+
+function _setStreamCursor(active) {
+  const cursor = document.getElementById('stream-cursor');
+  if (!cursor) return;
+  cursor.classList.toggle('active', !!active);
+  cursor.style.visibility = active ? 'visible' : 'hidden';
+}
+
+function _drainStreamBufferNow() {
+  if (_streamIncomingBuffer.length > 0) {
+    _streamRenderedText += _streamIncomingBuffer;
+    _streamIncomingBuffer = '';
+  }
+  _renderStreamText();
+}
+
+function _renderStreamText() {
   const textEl = document.getElementById('stream-text');
-  if (textEl) textEl.textContent = '';
+  if (!textEl) return;
+  textEl.textContent = _streamRenderedText;
+  textEl.scrollTop = textEl.scrollHeight;
+}
+
+function _ensureStreamRenderLoop() {
+  if (_streamRafId !== null) return;
+  const tick = () => {
+    if (_streamIncomingBuffer.length > 0) {
+      const take = Math.min(_STREAM_CHARS_PER_TICK, _streamIncomingBuffer.length);
+      _streamRenderedText += _streamIncomingBuffer.slice(0, take);
+      _streamIncomingBuffer = _streamIncomingBuffer.slice(take);
+      _renderStreamText();
+      _streamRafId = requestAnimationFrame(tick);
+      return;
+    }
+    if (_streamIsStreaming) {
+      _streamRafId = requestAnimationFrame(tick);
+      return;
+    }
+    _streamRafId = null;
+  };
+  _streamRafId = requestAnimationFrame(tick);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1596,7 +1670,13 @@ function renderJobList() {
 
 function selectJob(jobId) {
   // Close any streaming panel from the previously selected job
-  if (_streamJobId && _streamJobId !== jobId) streamEnd();
+  if (_streamJobId && _streamJobId !== jobId) {
+    streamEnd({ keepVisible: false });
+    streamClear();
+  } else if (!_streamJobId && selectedJobId && selectedJobId !== jobId) {
+    streamEnd({ keepVisible: false });
+    streamClear();
+  }
   selectedJobId = jobId;
   renderJobList();
   const job = jobs.find(j => j.job_id === jobId);
@@ -2490,8 +2570,8 @@ function handleEvent(ev) {
 
   if (!jobId) return;
 
-  // Close the streaming panel when the agent finishes a response or job ends
-  if (ev.type === 'AGENT_COMPLETE' || ev.type === 'JOB_COMPLETE' || ev.type === 'SESSION_END') {
+  // Keep stream panel persistent across agent loops; end only when the job/session ends.
+  if (ev.type === 'JOB_COMPLETE' || ev.type === 'SESSION_END') {
     if (_streamJobId === jobId) streamEnd();
   }
 

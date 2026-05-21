@@ -32,7 +32,6 @@ log = logging.getLogger("overlord11.tool_cache")
 _DEFAULT_EXCLUDED: frozenset[str] = frozenset({
     "write_file",
     "replace",
-    "run_shell_command",
     "git_tool",
     "datetime_tool",
     "web_fetch",

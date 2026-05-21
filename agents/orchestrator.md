@@ -48,10 +48,8 @@ Before delegating work, classify the required output tier:
 
 ## Execution Contract (Critical)
 - For non-trivial tasks (implementation, testing, research collection, artifact/report generation), prose-only responses are not considered complete.
-- Emit parseable tool calls in supported engine formats so execution can proceed:
-  - ` ```json {"tool":"name","params":{...}} ``` `
-  - `<tool_call>{"tool":"name","params":{...}}</tool_call>`
-  - `TOOL_CALL: name(param="value")`
+- Emit parseable tool calls in canonical format so execution can proceed:
+  - ` ```json {"tool_name":"name","arguments":{...}} ``` `
 - If context is missing, inspect workspace/files with tools first; do not end on a narrative plan.
 
 > See `ONBOARDING.md` §Delegation Patterns for the full set of delegation templates.
