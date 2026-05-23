@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .base import BaseTool
-from .web_common import domain_from_url, make_metadata, normalize_url
+from .web_common import domain_from_url, is_blacklisted, make_metadata, normalize_url
 from .web_fetch import WebFetchTool, WebFetchArgs
 
 
@@ -24,7 +24,10 @@ class WebExtractImagesArgs(BaseModel):
     @field_validator("url")
     @classmethod
     def validate_url(cls, value: str) -> str:
-        return normalize_url(value)
+        url = normalize_url(value)
+        if is_blacklisted(url, tool_name="web_extract_images"):
+            raise ValueError(f"domain is blacklisted: {domain_from_url(url)}")
+        return url
 
 
 class WebExtractImagesTool(BaseTool):

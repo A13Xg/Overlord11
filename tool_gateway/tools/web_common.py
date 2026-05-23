@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
@@ -11,6 +13,28 @@ import requests
 
 _ALLOWED_SCHEMES = {"http", "https"}
 _DEFAULT_UA = "Overlord11-ToolGateway/1.0"
+_BLACKLISTS_PATH = Path(__file__).parent / "web_blacklists.json"
+
+
+@lru_cache(maxsize=1)
+def _load_blacklists() -> dict[str, Any]:
+    try:
+        return json.loads(_BLACKLISTS_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {"master": [], "tools": {}}
+
+
+def is_blacklisted(url: str, *, tool_name: str | None = None) -> bool:
+    """Return True if the URL's domain is on the master or tool-specific blacklist."""
+    host = (urlparse(url).hostname or "").lower()
+    domain = host[4:] if host.startswith("www.") else host
+    if not domain:
+        return False
+    cfg = _load_blacklists()
+    master: list[str] = cfg.get("master") or []
+    tool_list: list[str] = (cfg.get("tools") or {}).get(tool_name or "", []) if tool_name else []
+    blocked = {d.lower().lstrip("www.").lstrip(".") for d in master + tool_list}
+    return domain in blocked or any(domain.endswith("." + b) for b in blocked)
 
 
 def workspace_root() -> Path:

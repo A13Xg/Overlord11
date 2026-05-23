@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .base import BaseTool
-from .web_common import make_metadata, normalize_url, trim_text
+from .web_common import domain_from_url, is_blacklisted, make_metadata, normalize_url, trim_text
 from .web_fetch import WebFetchTool, WebFetchArgs
 
 
@@ -27,6 +27,8 @@ class WebExtractTextArgs(BaseModel):
             raise ValueError("at least one of url, html, raw_text is required")
         if self.url:
             self.url = normalize_url(self.url)
+            if is_blacklisted(self.url, tool_name="web_extract_text"):
+                raise ValueError(f"domain is blacklisted: {domain_from_url(self.url)}")
         return self
 
 

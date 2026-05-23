@@ -298,3 +298,111 @@
 - **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
 - **Attempt**: 1
 - **Session**: c0c5e8a0-cd46-4270-9dbe-8997f13cd3c9
+
+## [2026-05-22T17:10:48.851989+00:00] TOOL_FAILURE
+- **Tool**: delegate_to_agent
+- **Message**: [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: delegate_to_agent', 'details': {'tool_name': 'delegate_to_agent'}}]
+- **Attempt**: 1
+- **Session**: 9c2144a3
+
+## [2026-05-22T17:11:32.990068+00:00] API_ERROR
+- **Tool**: web_image_grabber
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('max_results',), 'msg': 'Extra inputs are not permitted', 'input': 1, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}, {'type': 'extra_forbidden', 'loc': ('download',), 'msg': 'Extra inputs are not permitted', 'input': True, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['source_mode', 'query', 'urls', 'output_directory', 'max_images', 'matching_mode', 'allowed_extensions', 'require_https', 'deduplicate', 'overwrite_existing', 'create_manifest', 'dry_run'], 'example': {'tool_name': 'web_image_grabber', 'arguments': {'query': 'mountain landscape', 'max_images': 10, 'source_mode': 'search_query'}}}}]
+- **Attempt**: 1
+- **Session**: 9c2144a3
+
+## [2026-05-22T17:11:32.990768+00:00] API_ERROR
+- **Tool**: web_image_grabber
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('max_results',), 'msg': 'Extra inputs are not permitted', 'input': 1, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}, {'type': 'extra_forbidden', 'loc': ('download',), 'msg': 'Extra inputs are not permitted', 'input': True, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['source_mode', 'query', 'urls', 'output_directory', 'max_images', 'matching_mode', 'allowed_extensions', 'require_https', 'deduplicate', 'overwrite_existing', 'create_manifest', 'dry_run'], 'example': {'tool_name': 'web_image_grabber', 'arguments': {'query': 'mountain landscape', 'max_images': 10, 'source_mode': 'search_query'}}}}]
+- **Attempt**: 1
+- **Session**: 9c2144a3
+
+## [2026-05-22T17:11:32.991381+00:00] API_ERROR
+- **Tool**: web_image_grabber
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('max_results',), 'msg': 'Extra inputs are not permitted', 'input': 1, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}, {'type': 'extra_forbidden', 'loc': ('download',), 'msg': 'Extra inputs are not permitted', 'input': True, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['source_mode', 'query', 'urls', 'output_directory', 'max_images', 'matching_mode', 'allowed_extensions', 'require_https', 'deduplicate', 'overwrite_existing', 'create_manifest', 'dry_run'], 'example': {'tool_name': 'web_image_grabber', 'arguments': {'query': 'mountain landscape', 'max_images': 10, 'source_mode': 'search_query'}}}}]
+- **Attempt**: 1
+- **Session**: 9c2144a3
+
+## [2026-05-22T17:11:32.992014+00:00] API_ERROR
+- **Tool**: web_image_grabber
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('max_results',), 'msg': 'Extra inputs are not permitted', 'input': 1, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}, {'type': 'extra_forbidden', 'loc': ('download',), 'msg': 'Extra inputs are not permitted', 'input': True, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['source_mode', 'query', 'urls', 'output_directory', 'max_images', 'matching_mode', 'allowed_extensions', 'require_https', 'deduplicate', 'overwrite_existing', 'create_manifest', 'dry_run'], 'example': {'tool_name': 'web_image_grabber', 'arguments': {'query': 'mountain landscape', 'max_images': 10, 'source_mode': 'search_query'}}}}]
+- **Attempt**: 1
+- **Session**: 9c2144a3
+
+## [2026-05-22T17:11:32.992698+00:00] API_ERROR
+- **Tool**: web_image_grabber
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('max_results',), 'msg': 'Extra inputs are not permitted', 'input': 1, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}, {'type': 'extra_forbidden', 'loc': ('download',), 'msg': 'Extra inputs are not permitted', 'input': True, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['source_mode', 'query', 'urls', 'output_directory', 'max_images', 'matching_mode', 'allowed_extensions', 'require_https', 'deduplicate', 'overwrite_existing', 'create_manifest', 'dry_run'], 'example': {'tool_name': 'web_image_grabber', 'arguments': {'query': 'mountain landscape', 'max_images': 10, 'source_mode': 'search_query'}}}}]
+- **Attempt**: 1
+- **Session**: 9c2144a3
+
+## [2026-05-22T17:24:04.156674+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: 1a975f8e-0d05-408a-9b2e-23a1077093c2
+
+## [2026-05-22T17:27:47.020428+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: fb6d306e-23d3-4c5e-8b50-36a3e1ba3caf
+
+## [2026-05-22T17:29:22.381787+00:00] API_ERROR
+- **Tool**: web_image_grabber
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('download',), 'msg': 'Extra inputs are not permitted', 'input': True, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}, {'type': 'extra_forbidden', 'loc': ('max_results',), 'msg': 'Extra inputs are not permitted', 'input': 1, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}, {'type': 'extra_forbidden', 'loc': ('queries',), 'msg': 'Extra inputs are not permitted', 'input': ['Giant Sequoia tree', 'Coast Redwood tree', 'Bristlecone Pine tree', 'Baobab tree', 'Dragon Blood Tree'], 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['source_mode', 'query', 'urls', 'output_directory', 'max_images', 'matching_mode', 'allowed_extensions', 'require_https', 'deduplicate', 'overwrite_existing', 'create_manifest', 'dry_run'], 'example': {'tool_name': 'web_image_grabber', 'arguments': {'query': 'mountain landscape', 'max_images': 10, 'source_mode': 'search_query'}}}}]
+- **Attempt**: 1
+- **Session**: f10623fd
+
+## [2026-05-22T17:29:47.437005+00:00] API_ERROR
+- **Tool**: web_image_grabber
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('count',), 'msg': 'Extra inputs are not permitted', 'input': 1, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}, {'type': 'extra_forbidden', 'loc': ('download',), 'msg': 'Extra inputs are not permitted', 'input': True, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['source_mode', 'query', 'urls', 'output_directory', 'max_images', 'matching_mode', 'allowed_extensions', 'require_https', 'deduplicate', 'overwrite_existing', 'create_manifest', 'dry_run'], 'example': {'tool_name': 'web_image_grabber', 'arguments': {'query': 'mountain landscape', 'max_images': 10, 'source_mode': 'search_query'}}}}]
+- **Attempt**: 1
+- **Session**: 4ee3a48c
+
+## [2026-05-22T17:29:47.438416+00:00] API_ERROR
+- **Tool**: web_image_grabber
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('count',), 'msg': 'Extra inputs are not permitted', 'input': 1, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}, {'type': 'extra_forbidden', 'loc': ('download',), 'msg': 'Extra inputs are not permitted', 'input': True, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['source_mode', 'query', 'urls', 'output_directory', 'max_images', 'matching_mode', 'allowed_extensions', 'require_https', 'deduplicate', 'overwrite_existing', 'create_manifest', 'dry_run'], 'example': {'tool_name': 'web_image_grabber', 'arguments': {'query': 'mountain landscape', 'max_images': 10, 'source_mode': 'search_query'}}}}]
+- **Attempt**: 1
+- **Session**: 4ee3a48c
+
+## [2026-05-22T17:29:47.440066+00:00] API_ERROR
+- **Tool**: web_image_grabber
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('count',), 'msg': 'Extra inputs are not permitted', 'input': 1, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}, {'type': 'extra_forbidden', 'loc': ('download',), 'msg': 'Extra inputs are not permitted', 'input': True, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['source_mode', 'query', 'urls', 'output_directory', 'max_images', 'matching_mode', 'allowed_extensions', 'require_https', 'deduplicate', 'overwrite_existing', 'create_manifest', 'dry_run'], 'example': {'tool_name': 'web_image_grabber', 'arguments': {'query': 'mountain landscape', 'max_images': 10, 'source_mode': 'search_query'}}}}]
+- **Attempt**: 1
+- **Session**: 4ee3a48c
+
+## [2026-05-22T17:29:47.441560+00:00] API_ERROR
+- **Tool**: web_image_grabber
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('count',), 'msg': 'Extra inputs are not permitted', 'input': 1, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}, {'type': 'extra_forbidden', 'loc': ('download',), 'msg': 'Extra inputs are not permitted', 'input': True, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['source_mode', 'query', 'urls', 'output_directory', 'max_images', 'matching_mode', 'allowed_extensions', 'require_https', 'deduplicate', 'overwrite_existing', 'create_manifest', 'dry_run'], 'example': {'tool_name': 'web_image_grabber', 'arguments': {'query': 'mountain landscape', 'max_images': 10, 'source_mode': 'search_query'}}}}]
+- **Attempt**: 1
+- **Session**: 4ee3a48c
+
+## [2026-05-22T17:29:47.442433+00:00] API_ERROR
+- **Tool**: web_image_grabber
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('count',), 'msg': 'Extra inputs are not permitted', 'input': 1, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}, {'type': 'extra_forbidden', 'loc': ('download',), 'msg': 'Extra inputs are not permitted', 'input': True, 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['source_mode', 'query', 'urls', 'output_directory', 'max_images', 'matching_mode', 'allowed_extensions', 'require_https', 'deduplicate', 'overwrite_existing', 'create_manifest', 'dry_run'], 'example': {'tool_name': 'web_image_grabber', 'arguments': {'query': 'mountain landscape', 'max_images': 10, 'source_mode': 'search_query'}}}}]
+- **Attempt**: 1
+- **Session**: 4ee3a48c
+
+## [2026-05-22T17:31:34.848910+00:00] API_ERROR
+- **Tool**: web_search
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'literal_error', 'loc': ('result_type',), 'msg': "Input should be 'auto', 'text', 'news' or 'images'", 'input': 'image', 'ctx': {'expected': "'auto', 'text', 'news' or 'images'"}, 'url': 'https://errors.pydantic.dev/2.12/v/literal_error'}], 'allowed_keys': ['query', 'max_results', 'region', 'safe_search', 'time_range', 'result_type', 'include_snippets', 'include_metadata', 'include_rank', 'include_dates', 'domain_allowlist', 'domain_blocklist'], 'example': {'tool_name': 'web_search', 'arguments': {'query': 'python release notes', 'max_results': 5, 'safe_search': 'moderate', 'time_range': 'month', 'result_type': 'text', 'include_snippets': True}}, 'allowed_values': ['auto', 'text', 'news', 'images']}}]
+- **Attempt**: 1
+- **Session**: f10623fd
+
+## [2026-05-22T17:31:34.849986+00:00] API_ERROR
+- **Tool**: web_search
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'literal_error', 'loc': ('result_type',), 'msg': "Input should be 'auto', 'text', 'news' or 'images'", 'input': 'image', 'ctx': {'expected': "'auto', 'text', 'news' or 'images'"}, 'url': 'https://errors.pydantic.dev/2.12/v/literal_error'}], 'allowed_keys': ['query', 'max_results', 'region', 'safe_search', 'time_range', 'result_type', 'include_snippets', 'include_metadata', 'include_rank', 'include_dates', 'domain_allowlist', 'domain_blocklist'], 'example': {'tool_name': 'web_search', 'arguments': {'query': 'python release notes', 'max_results': 5, 'safe_search': 'moderate', 'time_range': 'month', 'result_type': 'text', 'include_snippets': True}}, 'allowed_values': ['auto', 'text', 'news', 'images']}}]
+- **Attempt**: 1
+- **Session**: f10623fd
+
+## [2026-05-22T17:31:59.733910+00:00] API_ERROR
+- **Tool**: html_report_generator
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('markdown_path',), 'msg': 'Extra inputs are not permitted', 'input': 'artifacts/trees_report.md', 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}, {'type': 'extra_forbidden', 'loc': ('style',), 'msg': 'Extra inputs are not permitted', 'input': 'editorial', 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}, {'type': 'extra_forbidden', 'loc': ('palette',), 'msg': 'Extra inputs are not permitted', 'input': 'deep-forest', 'url': 'https://errors.pydantic.dev/2.12/v/extra_forbidden'}], 'allowed_keys': ['title', 'content', 'output_path', 'theme', 'palette_id', 'style_id', 'include_toc', 'sections'], 'example': {'tool_name': 'html_report_generator', 'arguments': {'title': 'My Report', 'content': '## Overview\nContent here.', 'theme': 'dark'}}}}]
+- **Attempt**: 1
+- **Session**: 4ee3a48c
+
+## [2026-05-22T19:07:22.950191+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: 881a7d50-8970-4540-bc3a-b3056843cb5d

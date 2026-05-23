@@ -1,0 +1,16 @@
+{
+  "master": [
+    "malware.com",
+    "phishing-example.com",
+    "ads.doubleclick.net",
+    "tracking.example.com"
+  ],
+  "tools": {
+    "web_search": [],
+    "web_fetch": [],
+    "web_extract_text": [],
+    "web_extract_images": [],
+    "web_image_grabber": [],
+    "web_code_scraper": []
+  }
+}

@@ -9,6 +9,7 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .base import BaseTool
+from .web_common import is_blacklisted
 
 try:
     from ddgs import DDGS
@@ -155,7 +156,7 @@ class WebSearchTool(BaseTool):
 
         results: list[dict[str, Any]] = []
         for idx, item in enumerate(top, start=1):
-            rec = {
+            rec: dict[str, Any] = {
                 "title": item.get("title") or "",
                 "url": item.get("url") or "",
                 "snippet": (item.get("snippet") or "") if args.include_snippets else "",
@@ -164,6 +165,9 @@ class WebSearchTool(BaseTool):
                 "rank": idx if args.include_rank else None,
                 "published_date": item.get("published_date") if args.include_dates else None,
             }
+            # Preserve direct image URL for image search results
+            if item.get("image_url"):
+                rec["image_url"] = item["image_url"]
             results.append(rec)
 
         out: dict[str, Any] = {
@@ -204,6 +208,9 @@ class WebSearchTool(BaseTool):
                 continue
             if block_set and domain in block_set:
                 continue
+            url = normalized.get("url") or ""
+            if url and is_blacklisted(url, tool_name="web_search"):
+                continue
             out.append(normalized)
         return out
 
@@ -243,13 +250,18 @@ class WebSearchTool(BaseTool):
         if source_domain.startswith("www."):
             source_domain = source_domain[4:]
         published_date = self._normalize_date(raw.get("date") or raw.get("published") or raw.get("published_date"))
-        return {
+        result: dict[str, Any] = {
             "title": title,
             "url": url,
             "snippet": snippet,
             "source_domain": source_domain,
             "published_date": published_date,
         }
+        # Preserve direct image URL for image search results (DDGS returns this as "image")
+        raw_image_url = str(raw.get("image") or "").strip()
+        if raw_image_url:
+            result["image_url"] = self._normalize_url(raw_image_url)
+        return result
 
     def _normalize_url(self, url: str) -> str:
         if not url:

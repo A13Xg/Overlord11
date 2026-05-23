@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .base import BaseTool
-from .web_common import content_hash, make_metadata, normalize_url, request_with_retries, resolve_workspace_path, slugify_filename
+from .web_common import content_hash, is_blacklisted, make_metadata, normalize_url, request_with_retries, resolve_workspace_path, slugify_filename
 from .web_extract_images import WebExtractImagesTool, WebExtractImagesArgs
 from .web_search import WebSearchTool, WebSearchArgs
 
@@ -60,7 +60,13 @@ class WebImageGrabberTool(BaseTool):
         if args.query and args.source_mode == "search_query":
             search = WebSearchTool().execute(WebSearchArgs(query=args.query, max_results=max(args.max_images * 2, 10), result_type="images"))
             warnings.extend(search.get("_warnings", []))
-            candidate_urls.extend([x.get("url", "") for x in search.get("results", []) if isinstance(x, dict)])
+            for x in search.get("results", []):
+                if not isinstance(x, dict):
+                    continue
+                # Prefer the direct image URL (image_url) over the page URL (url)
+                img_url = x.get("image_url") or x.get("url", "")
+                if img_url:
+                    candidate_urls.append(img_url)
         if args.urls:
             candidate_urls.extend(args.urls)
         if args.source_mode == "page_urls":
@@ -76,9 +82,14 @@ class WebImageGrabberTool(BaseTool):
             if not raw:
                 continue
             try:
-                normalized_urls.append(normalize_url(str(raw), require_https=args.require_https))
+                normed = normalize_url(str(raw), require_https=args.require_https)
             except ValueError:
                 warnings.append(f"skipped invalid image url: {raw}")
+                continue
+            if is_blacklisted(normed, tool_name="web_image_grabber"):
+                warnings.append(f"skipped blacklisted url: {normed}")
+                continue
+            normalized_urls.append(normed)
 
         if args.deduplicate:
             normalized_urls = sorted(dict.fromkeys(normalized_urls))
