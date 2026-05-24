@@ -66,6 +66,23 @@
       "temperature": 0.7,
       "top_p": 1.0,
       "api_base": "https://api.openai.com/v1"
+    },
+    "nvidia_nim": {
+      "model": "nemotron-4-340b-instruct",
+      "available_models": {
+        "nemotron-4-340b-instruct": "Frontier instruction-tuned — best general-purpose, strong reasoning, enterprise-grade",
+        "nemotron-4-340b": "Nemotron 4 340B base model — high-quality instruction following",
+        "llama-3.1-70b-instruct": "Meta Llama 3.1 70B — strong reasoning and coding, 128K context",
+        "mistral-large-2407": "Mistral Large (April 2407) — advanced reasoning, 32K context",
+        "mixtral-8x22b": "Mixtral 8x22B — efficient MoE, strong general capability",
+        "llama-3.1-8b-instruct": "Meta Llama 3.1 8B — lightweight, fast inference",
+        "phi-3-medium": "Microsoft Phi-3 Medium — compact high-capability model"
+      },
+      "api_key_env": "NVIDIA_NIM_API_KEY",
+      "max_tokens": 8192,
+      "temperature": 0.7,
+      "top_p": 1.0,
+      "api_base": "https://integrate.api.nvidia.com/v1"
     }
   },
   "agents": {
@@ -143,6 +160,7 @@
     "fallback_provider_order": [
       "anthropic",
       "gemini",
+      "nvidia_nim",
       "openai"
     ],
     "phases": [

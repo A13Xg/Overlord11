@@ -171,7 +171,8 @@ def _md_to_html(md: str) -> tuple[str, list[dict[str, str]]]:
                 close_table()
                 out.append("<ol>")
                 in_ol = True
-            out.append(f'<li>{inline(re.sub(r"^\d+\.\s+", "", stripped))}</li>')
+            ordered_text = re.sub(r"^\d+\.\s+", "", stripped)
+            out.append(f'<li>{inline(ordered_text)}</li>')
             continue
 
         # Blank line

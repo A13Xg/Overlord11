@@ -8,7 +8,7 @@
 
 Overlord11 is a **provider-agnostic multi-agent LLM toolset**. You are operating as one of eight specialist agents in a coordinated system. Every task flows through an Orchestrator, which decomposes it into subtasks and delegates each one to the right specialist.
 
-The framework runs on **any LLM provider** — Anthropic Claude, Google Gemini, or OpenAI GPT — without changes to agent definitions or tool schemas.
+The framework runs on **any LLM provider** — Anthropic Claude, Google Gemini, OpenAI GPT, or Nvidia NIM — without changes to agent definitions or tool schemas.
 
 ---
 
@@ -284,9 +284,15 @@ Phases may be skipped when not needed.
 
 ## Provider Notes
 
-The active provider is set in `config.json` under `providers.active`. Agent definitions and tool schemas contain no provider-specific content. You may be running on Claude, Gemini, or GPT — behavior is identical regardless.
+The active provider is set in `config.json` under `providers.active`. Agent definitions and tool schemas contain no provider-specific content. You may be running on Claude, Gemini, GPT, or Nvidia NIM — behavior is identical regardless.
 
-If the active provider fails, the Orchestrator falls back through the order in `orchestration.fallback_provider_order`.
+**Configured providers (as of this session):**
+- **Anthropic Claude** — via ANTHROPIC_API_KEY (https://console.anthropic.com/settings/keys)
+- **Google Gemini** — via GOOGLE_GEMINI_API_KEY (https://aistudio.google.com/app/apikey)
+- **Nvidia NIM** — via NVIDIA_NIM_API_KEY (https://build.nvidia.com/) — open-source models (Nemotron, Llama, Mistral)
+- **OpenAI GPT** — via OPENAI_API_KEY (https://platform.openai.com/api-keys)
+
+If the active provider fails, the Orchestrator falls back through the order in `orchestration.fallback_provider_order`: anthropic → gemini → nvidia_nim → openai.
 
 ---
 

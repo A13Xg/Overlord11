@@ -144,10 +144,30 @@ def _validate_key_openai(key: str, base_url: str) -> dict:
         return {"valid": False, "latency_ms": None, "error": str(exc)[:120]}
 
 
+def _validate_key_nvidia_nim(key: str, base_url: str) -> dict:
+    """Validate Nvidia NIM API key using Bearer token auth (OpenAI-compatible)."""
+    url = base_url.rstrip("/") + "/models"
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {key}"})
+    t0 = time.monotonic()
+    try:
+        with urllib.request.urlopen(req, timeout=_KEY_TIMEOUT_S) as r:
+            latency_ms = round((time.monotonic() - t0) * 1000)
+            json.loads(r.read())
+            return {"valid": True, "latency_ms": latency_ms, "error": None}
+    except urllib.error.HTTPError as e:
+        latency_ms = round((time.monotonic() - t0) * 1000)
+        if e.code == 401:
+            return {"valid": False, "latency_ms": latency_ms, "error": "Invalid API key (401)"}
+        return {"valid": False, "latency_ms": latency_ms, "error": f"HTTP {e.code}"}
+    except Exception as exc:
+        return {"valid": False, "latency_ms": None, "error": str(exc)[:120]}
+
+
 _VALIDATORS = {
     "anthropic": _validate_key_anthropic,
     "gemini": _validate_key_gemini,
     "openai": _validate_key_openai,
+    "nvidia_nim": _validate_key_nvidia_nim,
 }
 
 

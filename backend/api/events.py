@@ -4,6 +4,7 @@ Events API — SSE endpoints for real-time event streaming.
 
 import asyncio
 import re
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -25,7 +26,7 @@ class QuietStreamingResponse(StreamingResponse):
             return
 
 
-async def _safe_event_stream(request: Request, job_id: str | None):
+async def _safe_event_stream(request: Request, job_id: Optional[str]):
     """Exit quietly when the SSE client disconnects or the task is cancelled."""
     try:
         async for chunk in broadcaster.subscribe(job_id=job_id):

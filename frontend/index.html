@@ -1210,6 +1210,15 @@ body::after {
           </div>
           <div class="wiz-key-status" id="wiz-status-openai"></div>
         </div>
+        <!-- Nvidia NIM -->
+        <div class="wiz-field">
+          <label>NVIDIA NIM API KEY</label>
+          <div class="wiz-key-row">
+            <input type="password" id="wiz-key-nvidia_nim" placeholder="nvapi-..." autocomplete="off">
+            <button class="wiz-test-btn" onclick="wizTestKey('nvidia_nim')">TEST</button>
+          </div>
+          <div class="wiz-key-status" id="wiz-status-nvidia_nim"></div>
+        </div>
       </div>
 
       <!-- Step 2: Provider Selection -->
@@ -3409,10 +3418,10 @@ function buildWizardProviderGrid() {
   const grid = document.getElementById('wiz-provider-grid');
   if (!grid) return;
   grid.innerHTML = '';
-  ['anthropic', 'gemini', 'openai'].forEach(name => {
+  ['anthropic', 'gemini', 'nvidia_nim', 'openai'].forEach(name => {
     const btn = document.createElement('button');
     btn.className = 'wiz-provider-btn';
-    btn.textContent = name.toUpperCase();
+    btn.textContent = name === 'nvidia_nim' ? 'NVIDIA NIM' : name.toUpperCase();
     btn.onclick = () => selectWizardProvider(name);
     btn.id = `wiz-prov-${name}`;
     grid.appendChild(btn);
@@ -3482,7 +3491,7 @@ function wizBack() {
 
 async function wizSaveKeys() {
   const keys = {};
-  ['anthropic', 'gemini', 'openai'].forEach(p => {
+  ['anthropic', 'gemini', 'nvidia_nim', 'openai'].forEach(p => {
     const val = (document.getElementById(`wiz-key-${p}`) || {}).value || '';
     if (val.trim()) keys[p] = val.trim();
   });
