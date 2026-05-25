@@ -131,6 +131,21 @@ body::after {
 .job-item.selected { background: rgba(0,255,65,.08); border-left: 2px solid var(--teal); }
 .job-title { font-size: 12px; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .job-status-row { display: flex; align-items: center; gap: 5px; }
+.job-result-btn {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--teal);
+  color: var(--teal);
+  font-family: var(--font);
+  font-size: 10px;
+  letter-spacing: .08em;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+.job-result-btn:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
 .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .status-label { font-size: 10px; letter-spacing: .08em; }
 .s-queued                    { color: var(--amber); }
@@ -349,6 +364,7 @@ body::after {
   letter-spacing: .06em; transition: all .12s;
 }
 .ftree-btn:hover { border-color: var(--teal); color: var(--teal); background: rgba(0,229,204,.07); }
+.ftree-btn.active { border-color: var(--teal); color: var(--teal); background: rgba(0,229,204,.10); }
 #file-tree-stats { color: var(--txt3); font-size: 10px; margin-left: auto; letter-spacing: .04em; }
 #file-tree-body { flex: 1; overflow-y: auto; padding: 2px 0; }
 .ftree-empty { color: var(--txt3); padding: 28px 12px; text-align: center; font-size: 11px; letter-spacing: .06em; }
@@ -527,6 +543,12 @@ body::after {
   width: 14px;
   height: 14px;
   accent-color: #00e5cc;
+}
+.inline-field {
+  margin-top: 8px;
+}
+.inline-field.hidden {
+  display: none;
 }
 #modal-footer { padding: 10px 14px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
 .modal-btn {
@@ -983,6 +1005,7 @@ body::after {
         <button class="ctrl-btn" id="ctrl-resume" onclick="ctrlResume()" disabled>▶ RESUME</button>
         <button class="ctrl-btn danger" id="ctrl-stop" onclick="ctrlStop()" disabled>■ STOP</button>
         <button class="ctrl-btn" id="ctrl-restart" onclick="ctrlRestart()" disabled>↺ RESTART</button>
+        <button class="ctrl-btn" id="ctrl-view-result" onclick="ctrlViewResult()" disabled title="View final output">↦ VIEW RESULT</button>
         <button class="ctrl-btn" id="ctrl-clone" onclick="ctrlClone()" disabled title="Clone this job">⧉ CLONE</button>
         <button class="ctrl-btn danger" id="ctrl-delete" onclick="ctrlDelete()" disabled>✕ DELETE</button>
         <span id="selected-job-title">— NO JOB SELECTED —</span>
@@ -1044,6 +1067,7 @@ body::after {
                 <button class="ftree-btn" onclick="refreshFilesPanel()" title="Refresh">↺ REFRESH</button>
                 <button class="ftree-btn" onclick="captureProjectScreenshot()" title="Screenshot">◫ SHOT</button>
                 <button class="ftree-btn" onclick="downloadWorkspaceZip()" title="Download ZIP">↓ ZIP</button>
+                <button class="ftree-btn" id="btn-show-logs" onclick="toggleSystemFiles()" title="Toggle engine logs">⊡ LOGS</button>
                 <span id="file-tree-stats"></span>
               </div>
               <div id="file-tree-body">
@@ -1149,6 +1173,16 @@ body::after {
           <input type="checkbox" id="new-job-auto-start" checked>
           AUTO START JOB IMMEDIATELY AFTER CREATION
         </label>
+      </div>
+      <div class="form-group">
+        <label>OUTPUT GUARD</label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="new-job-require-output" onchange="toggleRequiredOutputExt()">
+          REQUIRE OUTPUT FILE
+        </label>
+        <div id="required-output-ext-wrap" class="inline-field hidden">
+          <input type="text" id="new-job-required-output-ext" placeholder=".html" maxlength="16">
+        </div>
       </div>
     </div>
     <div id="modal-footer">
@@ -1397,6 +1431,65 @@ function showToast(title, body, severity = 'info') {
     toast.style.transform = 'translateX(20px)';
     setTimeout(() => toast.remove(), 300);
   }, 6000);
+}
+
+function showToastAction(title, body, severity = 'info', actionLabel = 'OPEN', onAction = null) {
+  const color = NOTIF_COLORS[severity] || NOTIF_COLORS.info;
+  const container = _getToastContainer();
+
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    background: var(--panel);
+    border: 1px solid ${color};
+    box-shadow: 0 0 16px ${color}33;
+    padding: 10px 14px;
+    min-width: 280px; max-width: 420px;
+    font-family: 'Courier New', monospace;
+    pointer-events: auto;
+    opacity: 0;
+    transform: translateX(20px);
+    transition: opacity .25s, transform .25s;
+  `;
+
+  const actionId = `toast-action-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  toast.innerHTML = `
+    <div style="font-size:11px;letter-spacing:.15em;color:${color};margin-bottom:4px;display:flex;justify-content:space-between">
+      <span>${escHtml(title)}</span>
+      <span style="cursor:pointer;color:var(--txt3)" data-close="1">✕</span>
+    </div>
+    <div style="font-size:12px;color:var(--txt2);line-height:1.5">${escHtml(body)}</div>
+    <div style="margin-top:8px;display:flex;justify-content:flex-end">
+      <button id="${actionId}" style="background:transparent;border:1px solid ${color};color:${color};font-family:var(--font);font-size:11px;padding:4px 10px;cursor:pointer">${escHtml(actionLabel)}</button>
+    </div>
+  `;
+  toast.dataset.toast = '1';
+  container.appendChild(toast);
+
+  const closeEl = toast.querySelector('[data-close="1"]');
+  if (closeEl) closeEl.addEventListener('click', () => toast.remove());
+
+  const actionEl = toast.querySelector(`#${actionId}`);
+  if (actionEl) {
+    actionEl.addEventListener('click', async () => {
+      try {
+        if (typeof onAction === 'function') await onAction();
+      } finally {
+        toast.remove();
+      }
+    });
+  }
+
+  requestAnimationFrame(() => {
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(0)';
+  });
+
+  setTimeout(() => {
+    if (!toast.isConnected) return;
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(20px)';
+    setTimeout(() => toast.remove(), 300);
+  }, 7000);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1745,6 +1838,10 @@ function renderJobList() {
     } else if (j.conflict_info && j.conflict_info.sequenced_after && j.conflict_info.sequenced_after.length > 0 && j.status === 'queued') {
       depRowHtml = `<div class="conflict-info-row">⚠ SEQUENCED — CONFLICT</div>`;
     }
+    const done = ['completed', 'failed'].includes(j.status);
+    const quickResultBtn = done
+      ? `<button class="job-result-btn" title="View final result" onclick="event.stopPropagation();openPrimaryOutputForJob('${j.job_id}')">↦ RESULT</button>`
+      : '';
 
     div.innerHTML = `
       <div class="job-title">${escHtml(j.title)}</div>
@@ -1753,6 +1850,7 @@ function renderJobList() {
         <span class="status-label s-${j.status}">${displayStatus}</span>
         ${waveform}
         ${durationHtml}
+        ${quickResultBtn}
       </div>
       <div style="font-size:10px;color:var(--txt3)">${ts}</div>
       ${depRowHtml}
@@ -1795,8 +1893,13 @@ function updateJobControls(job) {
   document.getElementById('ctrl-resume').disabled  = !['paused', 'rate_limited'].includes(s);
   document.getElementById('ctrl-stop').disabled    = !['running','queued','paused','rate_limited','waiting_for_dependencies'].includes(s);
   document.getElementById('ctrl-restart').disabled = false;
+  document.getElementById('ctrl-view-result').disabled = !isJobResultReady(job);
   document.getElementById('ctrl-clone').disabled   = false;
   document.getElementById('ctrl-delete').disabled  = false;
+}
+
+function isJobResultReady(job) {
+  return !!job && ['completed', 'failed'].includes(job.status);
 }
 
 function updateJobInList(jobData) {
@@ -1847,6 +1950,15 @@ async function ctrlRestart() {
     selectJob(data.job_id);
   }
 }
+async function ctrlViewResult() {
+  if (!selectedJobId) return;
+  const job = jobs.find(j => j.job_id === selectedJobId);
+  if (!isJobResultReady(job)) {
+    appendFooterLog('WARN: Result is not ready yet for this job');
+    return;
+  }
+  await openPrimaryOutputForJob(selectedJobId);
+}
 async function ctrlDelete() {
   if (!selectedJobId) return;
   if (!confirm('Delete this job?')) return;
@@ -1866,6 +1978,9 @@ async function ctrlClone() {
   document.getElementById('new-job-prompt').value = job.prompt || '';
   document.getElementById('new-job-rl-action').value = job.rate_limit_action || 'try_different_model';
   document.getElementById('new-job-auto-start').checked = true;
+  document.getElementById('new-job-require-output').checked = !!job.required_output_ext;
+  document.getElementById('new-job-required-output-ext').value = job.required_output_ext || '.html';
+  toggleRequiredOutputExt();
   document.getElementById('modal-overlay').classList.add('open');
   document.getElementById('new-job-title').focus();
   document.getElementById('new-job-title').select();
@@ -1898,6 +2013,14 @@ function openNewJobModal() {
   document.getElementById('modal-overlay').classList.add('open');
   document.getElementById('new-job-title').focus();
 }
+function toggleRequiredOutputExt() {
+  const checked = !!document.getElementById('new-job-require-output').checked;
+  const wrap = document.getElementById('required-output-ext-wrap');
+  wrap.classList.toggle('hidden', !checked);
+  if (checked && !document.getElementById('new-job-required-output-ext').value.trim()) {
+    document.getElementById('new-job-required-output-ext').value = '.html';
+  }
+}
 function closeNewJobModal(e) {
   if (e && e.target !== document.getElementById('modal-overlay')) return;
   document.getElementById('modal-overlay').classList.remove('open');
@@ -1905,18 +2028,26 @@ function closeNewJobModal(e) {
   document.getElementById('new-job-prompt').value = '';
   document.getElementById('new-job-rl-action').value = 'try_different_model';
   document.getElementById('new-job-auto-start').checked = true;
+  document.getElementById('new-job-require-output').checked = false;
+  document.getElementById('new-job-required-output-ext').value = '';
+  toggleRequiredOutputExt();
 }
 async function submitNewJob() {
   const title           = document.getElementById('new-job-title').value.trim();
   const prompt          = document.getElementById('new-job-prompt').value.trim();
   const rate_limit_action = document.getElementById('new-job-rl-action').value;
   const auto_start        = !!document.getElementById('new-job-auto-start').checked;
+  const require_output    = !!document.getElementById('new-job-require-output').checked;
+  const required_output_ext = require_output
+    ? document.getElementById('new-job-required-output-ext').value.trim()
+    : null;
   if (!title || !prompt) { alert('Title and prompt are required.'); return; }
+  if (require_output && !required_output_ext) { alert('Output extension is required.'); return; }
   try {
     const res = await apiFetch('/api/jobs', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({title, prompt, rate_limit_action, auto_start})
+      body: JSON.stringify({title, prompt, rate_limit_action, auto_start, required_output_ext})
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({detail: res.statusText}));
@@ -1932,6 +2063,9 @@ async function submitNewJob() {
     document.getElementById('new-job-prompt').value = '';
     document.getElementById('new-job-rl-action').value = 'try_different_model';
     document.getElementById('new-job-auto-start').checked = true;
+    document.getElementById('new-job-require-output').checked = false;
+    document.getElementById('new-job-required-output-ext').value = '';
+    toggleRequiredOutputExt();
 
     // Handle conflict info from auto-start
     const conflict = job._conflict;
@@ -2020,6 +2154,7 @@ function renderExecutionPanel(job) {
     ${job.completion_mode ? `<div><span style="color:var(--txt3)">COMPLETION:</span> ${escHtml(String(job.completion_mode).toUpperCase())}</div>` : ''}
     ${job.tool_call_count !== undefined ? `<div><span style="color:var(--txt3)">TOOL COUNT: </span>${job.tool_call_count}</div>` : ''}
     ${job.artifact_count !== undefined ? `<div><span style="color:var(--txt3)">ARTIFACTS:  </span>${job.artifact_count}</div>` : ''}
+    ${job.required_output_ext ? `<div><span style="color:var(--txt3)">REQUIRES:  </span>${escHtml(job.required_output_ext)}</div>` : ''}
     ${['completed','failed'].includes(job.status) ? `<div><span style="color:var(--txt3)">RESULT:     </span><button class="meta-link-btn" onclick="openPrimaryOutputForJob('${job.job_id}')">OPEN RESULT</button></div>` : ''}
     ${job.status === 'running' ? `<div class="progress-bar"><span>■■■□□□</span><span class="progress-label">EXECUTING…</span></div>` : ''}
   `;
@@ -2102,9 +2237,15 @@ async function renderPrimaryOutputPanel(job) {
 async function openPrimaryOutputForJob(jobId) {
   if (!jobId) return;
   try {
+    if (selectedJobId !== jobId) selectJob(jobId);
     const data = await fetchPrimaryOutput(jobId);
     if (data.mode === 'file' && data.primary && data.primary.relative_path) {
       openArtifactPath(jobId, data.primary.relative_path);
+      return;
+    }
+    const outputFiles = Array.isArray(data.output_files) ? data.output_files : [];
+    if (outputFiles.length > 0) {
+      showResultChooserModal(jobId, data);
       return;
     }
     activateTab('files');
@@ -2113,6 +2254,36 @@ async function openPrimaryOutputForJob(jobId) {
   } catch (e) {
     appendFooterLog('ERROR resolving primary output: ' + (e.message || String(e)));
   }
+}
+
+function showResultChooserModal(jobId, outputData) {
+  const outputFiles = Array.isArray(outputData.output_files) ? outputData.output_files : [];
+  const dirHint = outputData.directory || 'output';
+  const previewContent = document.getElementById('preview-content');
+  const previewMeta = document.getElementById('preview-meta');
+  document.getElementById('preview-filename').textContent = `RESULT OPTIONS (${outputFiles.length})`;
+  previewMeta.textContent = `DIRECTORY MODE · ${dirHint}`;
+  document.getElementById('preview-overlay').classList.add('open');
+
+  const rows = outputFiles.slice(0, 20).map((f) => {
+    const rel = f.relative_path || f.name || '';
+    const relEnc = encodeURIComponent(rel);
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div style="color:var(--txt2);font-size:12px;word-break:break-all">${escHtml(rel)}</div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="result-btn" onclick="openArtifactPathEncoded('${jobId}','${relEnc}')">OPEN</button>
+          <button class="result-btn" onclick="downloadArtifactPathEncoded('${jobId}','${relEnc}')">DOWNLOAD</button>
+          <button class="result-btn" onclick="switchToFilesAndSelectEncoded('${jobId}','${relEnc}')">FILES</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  previewContent.innerHTML = `
+    <div style="color:var(--txt3);margin-bottom:10px">No single answer file was resolved. Choose an output below.</div>
+    <div>${rows || '<div style="color:var(--txt3)">No output files available yet.</div>'}</div>
+  `;
 }
 
 function downloadArtifactPath(jobId, relativePath) {
@@ -2243,7 +2414,8 @@ let _ftArtifacts = [];
 let _ftSelectedPath = null;
 let _ftCollapsed = {};   // section key → bool
 
-const _FT_SECTION_ORDER  = ['product','outputs','output','artifacts','tools','agent','logs','traces'];
+let _ftShowSystemFiles = false;
+const _FT_SECTION_ORDER  = ['product','outputs','output','artifacts','tools','agent','logs','traces','system'];
 const _FT_SECTION_LABELS = {
   product:   'DELIVERABLES',
   tools:     'TOOLS OUTPUT',
@@ -2253,12 +2425,14 @@ const _FT_SECTION_LABELS = {
   output:    'OUTPUT',
   artifacts: 'ARTIFACTS',
   traces:    'TRACES',
+  system:    'ENGINE LOGS',
 };
 const _FT_SECTION_CLASS = {
   product: 'sec-product',
   tools:   'sec-tools',
   agent:   'sec-agent',
   logs:    'sec-logs',
+  system:  'sec-system',
 };
 
 function _ftIcon(ext) {
@@ -2300,7 +2474,8 @@ async function renderFilesPanel(jobIdOrJob) {
 
     // Auto-select first product file if nothing currently selected for this job
     if (!_ftSelectedPath || _ftJobId !== jobId) {
-      const first = list.find(a => a.category === 'product') || list[0];
+      const visible = _ftShowSystemFiles ? list : list.filter(a => (a.category || '') !== 'system');
+      const first = visible.find(a => a.category === 'product') || visible[0];
       if (first) _ftSelectFile(jobId, first.relative_path, false);
     }
   } catch (e) {
@@ -2311,8 +2486,11 @@ async function renderFilesPanel(jobIdOrJob) {
 function _ftBuildTree(jobId, artifacts) {
   const treeBody = document.getElementById('file-tree-body');
   treeBody.innerHTML = '';
+  const visibleArtifacts = _ftShowSystemFiles
+    ? artifacts
+    : artifacts.filter(a => (a.category || '') !== 'system');
 
-  if (!artifacts.length) {
+  if (!visibleArtifacts.length) {
     const job = jobs.find(j => j.job_id === jobId);
     const msg = (job && job.status === 'running') ? 'EXECUTING — FILES WILL APPEAR HERE' : 'NO FILES YET';
     treeBody.innerHTML = `<div class="ftree-empty">${msg}</div>`;
@@ -2322,7 +2500,7 @@ function _ftBuildTree(jobId, artifacts) {
 
   // Group by category preserving section order
   const bySection = {};
-  artifacts.forEach(a => {
+  visibleArtifacts.forEach(a => {
     const cat = a.category || 'artifacts';
     (bySection[cat] = bySection[cat] || []).push(a);
   });
@@ -2373,8 +2551,17 @@ function _ftBuildTree(jobId, artifacts) {
   });
 
   // Stats bar
-  const totalSize = artifacts.reduce((s, a) => s + (a.size || 0), 0);
-  document.getElementById('file-tree-stats').textContent = `${artifacts.length} files · ${_ftFmtSize(totalSize)}`;
+  const totalSize = visibleArtifacts.reduce((s, a) => s + (a.size || 0), 0);
+  const hiddenCount = artifacts.length - visibleArtifacts.length;
+  document.getElementById('file-tree-stats').textContent =
+    `${visibleArtifacts.length} files · ${_ftFmtSize(totalSize)}${hiddenCount ? ` · ${hiddenCount} hidden` : ''}`;
+}
+
+function toggleSystemFiles() {
+  _ftShowSystemFiles = !_ftShowSystemFiles;
+  const btn = document.getElementById('btn-show-logs');
+  if (btn) btn.classList.toggle('active', _ftShowSystemFiles);
+  if (_ftJobId) _ftBuildTree(_ftJobId, _ftArtifacts);
 }
 
 function _ftSelectFile(jobId, relativePath, scrollIntoView) {
@@ -2517,9 +2704,6 @@ async function loadArtifacts(jobId) {
     if (selectedJobId === jobId) {
       _ftArtifacts = list;
       _ftBuildTree(jobId, list);
-      const totalSize = list.reduce((s, a) => s + (a.size || 0), 0);
-      document.getElementById('file-tree-stats').textContent =
-        list.length ? `${list.length} files · ${_ftFmtSize(totalSize)}` : '';
     }
   } catch (_) { /* silent — tree will show stale data */ }
 }
@@ -2567,8 +2751,16 @@ async function openArtifactPath(jobId, relativePath) {
 
     const res = await apiFetch(url);
     if (!res.ok) throw new Error(res.statusText);
-    const text = await res.text();
     const contentType = (res.headers.get('content-type') || '').toLowerCase();
+
+    // Avoid rendering binary payloads as text garbage.
+    if (contentType.includes('application/octet-stream')) {
+      previewMeta.textContent = 'BINARY';
+      previewContent.innerHTML = `<pre>Binary artifact cannot be previewed inline. Use DOWNLOAD or OPEN IN FILES.</pre>`;
+      return;
+    }
+
+    const text = await res.text();
 
     if (ext === 'json' || contentType.includes('application/json')) {
       previewMeta.textContent = 'JSON';
@@ -2583,6 +2775,17 @@ async function openArtifactPath(jobId, relativePath) {
     if (ext === 'md' || contentType.includes('text/markdown')) {
       previewMeta.textContent = 'MARKDOWN';
       previewContent.innerHTML = renderMarkdown(text);
+      return;
+    }
+
+    if (!(
+      contentType.startsWith('text/') ||
+      contentType.includes('json') ||
+      contentType.includes('xml') ||
+      contentType.includes('yaml')
+    )) {
+      previewMeta.textContent = contentType ? contentType.toUpperCase() : 'BINARY';
+      previewContent.innerHTML = `<pre>Unsupported preview type. Use DOWNLOAD or OPEN IN FILES.</pre>`;
       return;
     }
 
@@ -2770,6 +2973,25 @@ function handleEvent(ev) {
       title,
       isOk ? 'success' : 'error',
     );
+    if (selectedJobId === jobId) {
+      const viewBtn = document.getElementById('ctrl-view-result');
+      if (viewBtn) {
+        viewBtn.disabled = false;
+        viewBtn.style.borderColor = 'var(--green)';
+        viewBtn.style.color = 'var(--green)';
+        setTimeout(() => {
+          viewBtn.style.borderColor = '';
+          viewBtn.style.color = '';
+        }, 2500);
+      }
+      showToastAction(
+        'RESULT READY',
+        `${title} — open final output now`,
+        isOk ? 'success' : 'warning',
+        'VIEW RESULT',
+        () => openPrimaryOutputForJob(jobId),
+      );
+    }
   }
   if (ev.type === 'ERROR') {
     fireNotification('ENGINE ERROR', ev.message || 'An error occurred', 'error');
@@ -3097,6 +3319,8 @@ function clearContentPanels() {
   const dl = document.getElementById('file-dl-btn');
   if (dl) dl.style.display = 'none';
   document.getElementById('file-tree-stats').textContent = '';
+  const vr = document.getElementById('ctrl-view-result');
+  if (vr) vr.disabled = true;
 }
 
 function renderMarkdown(text) {

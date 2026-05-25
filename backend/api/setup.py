@@ -45,6 +45,7 @@ def _get_user_settings_file(username: str) -> Path:
     return _get_user_dir(username) / "settings.json"
 
 _KEY_TIMEOUT_S = 8
+_NVIDIA_NIM_KEY_TIMEOUT_S = 12
 
 
 # ---------------------------------------------------------------------------
@@ -147,12 +148,22 @@ def _validate_key_openai(key: str, base_url: str) -> dict:
 def _validate_key_nvidia_nim(key: str, base_url: str) -> dict:
     """Validate Nvidia NIM API key using Bearer token auth (OpenAI-compatible)."""
     url = base_url.rstrip("/") + "/models"
-    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {key}"})
+    req = urllib.request.Request(url, headers={
+        "Authorization": f"Bearer {key}",
+        "Accept": "application/json",
+    })
     t0 = time.monotonic()
     try:
-        with urllib.request.urlopen(req, timeout=_KEY_TIMEOUT_S) as r:
+        with urllib.request.urlopen(req, timeout=_NVIDIA_NIM_KEY_TIMEOUT_S) as r:
             latency_ms = round((time.monotonic() - t0) * 1000)
-            json.loads(r.read())
+            try:
+                json.loads(r.read())
+            except json.JSONDecodeError:
+                return {
+                    "valid": False,
+                    "latency_ms": latency_ms,
+                    "error": "Invalid JSON response from NVIDIA NIM",
+                }
             return {"valid": True, "latency_ms": latency_ms, "error": None}
     except urllib.error.HTTPError as e:
         latency_ms = round((time.monotonic() - t0) * 1000)

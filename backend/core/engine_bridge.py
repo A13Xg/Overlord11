@@ -30,6 +30,7 @@ Race conditions
 import asyncio
 import logging
 import sys
+import tempfile
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -82,6 +83,8 @@ class EngineBridge:
         # job.  Allows external callers (stop/pause API) to interrupt an
         # in-progress rate-limit wait without waiting for it to expire.
         self._job_stop_events: dict[str, threading.Event] = {}
+        # Maps job_id -> stop marker file used by tools for cooperative cancellation.
+        self._job_stop_files: dict[str, Path] = {}
 
         # Maps job_id → DomainSet for jobs that are currently RUNNING or QUEUED.
         # Used by smart_enqueue() to detect resource conflicts.
@@ -93,6 +96,13 @@ class EngineBridge:
         event = self._job_stop_events.get(job_id)
         if event is not None:
             event.set()
+        stop_file = self._job_stop_files.get(job_id)
+        if stop_file is not None:
+            try:
+                stop_file.parent.mkdir(parents=True, exist_ok=True)
+                stop_file.write_text("1", encoding="utf-8")
+            except OSError:
+                pass
 
     # ------------------------------------------------------------------
     # Smart enqueue with conflict detection
@@ -455,6 +465,12 @@ class EngineBridge:
         # job is paused, cancelled, or the server is shutting down.
         stop_event = threading.Event()
         self._job_stop_events[job_id] = stop_event
+        stop_file = Path(tempfile.gettempdir()) / f"overlord11-stop-{job_id}.flag"
+        try:
+            stop_file.unlink(missing_ok=True)
+        except OSError:
+            pass
+        self._job_stop_files[job_id] = stop_file
 
         def _event_callback(event: dict) -> None:
             """Sync callback invoked from EngineRunner (may be on a thread-pool thread)."""
@@ -486,6 +502,7 @@ class EngineBridge:
             verbose=False,
             stop_event=stop_event,
             rate_limit_action=job.rate_limit_action,
+            stop_file_path=str(stop_file),
         )
         runner.events.callbacks.append(_event_callback)
 
@@ -509,13 +526,23 @@ class EngineBridge:
                         "session_id": None,
                     }
                 time.sleep(0.5)
-            return runner.run(job.prompt, job_id=job_id, job_title=job.title)
+            return runner.run(
+                job.prompt,
+                job_id=job_id,
+                job_title=job.title,
+                required_output_ext=job.required_output_ext,
+            )
 
         try:
             result = await loop.run_in_executor(None, _run_sync)
         except Exception as exc:
             stop_event.set()
             self._job_stop_events.pop(job_id, None)
+            self._job_stop_files.pop(job_id, None)
+            try:
+                stop_file.unlink(missing_ok=True)
+            except OSError:
+                pass
             store.update_job(
                 job_id,
                 status=JobStatus.FAILED,
@@ -531,6 +558,11 @@ class EngineBridge:
         finally:
             stop_event.set()
             self._job_stop_events.pop(job_id, None)
+            self._job_stop_files.pop(job_id, None)
+            try:
+                stop_file.unlink(missing_ok=True)
+            except OSError:
+                pass
 
         # If user already stopped this job, never overwrite terminal state
         # with late runner output.

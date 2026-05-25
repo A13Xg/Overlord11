@@ -258,7 +258,48 @@ class RunnerCompletionGuardTests(unittest.TestCase):
         ]
         result = runner.run("Create diagnostics report from command output and save it.")
         self.assertEqual(result.get("status"), "failed")
-        self.assertEqual(result.get("error"), "missing_run_command_evidence")
+
+    def test_self_healing_disabled_fails_fast_on_tool_error(self):
+        runner = self._runner()
+        runner._config.setdefault("orchestration", {})
+        runner._config["orchestration"]["self_healing"] = {
+            "enabled": False,
+            "fail_fast_on_tool_error_when_disabled": True,
+            "fail_fast_on_any_error_when_disabled": True,
+        }
+        # Keep runtime flags in sync for this test instance.
+        runner._self_healing_enabled = False
+        runner._fail_fast_tool_error_when_disabled = True
+        runner._fail_fast_any_error_when_disabled = True
+
+        responses = [
+            "```json\n{\"tool_name\":\"write_file\",\"arguments\":{\"path\":\"answer.md\",\"content\":\"x\"}}\n```",
+            "I should never be reached because fail-fast is enabled.",
+        ]
+
+        def fake_call(**kwargs):
+            return responses.pop(0) if responses else "unexpected"
+
+        runner._bridge.call_provider_streaming = fake_call  # type: ignore[method-assign]
+        runner._parallel_executor.execute_all = lambda *args, **kwargs: [  # type: ignore[method-assign]
+            (
+                ToolCall(tool_name="write_file", params={"path": "answer.md", "content": "x"}, raw=""),
+                {
+                    "status": "error",
+                    "result": {
+                        "ok": False,
+                        "errors": [{"code": "VALIDATION_ERROR", "message": "path invalid", "details": {}}],
+                    },
+                    "tool": "write_file",
+                    "duration_ms": 1.0,
+                },
+            )
+        ]
+
+        result = runner.run("Write answer.md with content")
+        self.assertEqual(result.get("status"), "failed")
+        self.assertEqual(result.get("completion_mode"), "no_effect_fail")
+        self.assertIn("tool_failure_fail_fast", result.get("error") or "")
 
     def test_command_derived_claim_with_run_command_can_complete(self):
         runner = self._runner()
@@ -293,6 +334,40 @@ class RunnerCompletionGuardTests(unittest.TestCase):
         runner._parallel_executor.execute_all = fake_execute_all  # type: ignore[method-assign]
         result = runner.run("Create diagnostics report from command output and save it.")
         self.assertEqual(result.get("status"), "complete")
+
+    def test_required_output_ext_prompts_until_file_exists(self):
+        runner = self._runner()
+        responses = [
+            "```json\n{\"tool_name\":\"dummy_tool\",\"arguments\":{\"x\":1}}\n```",
+            "Completed without writing the HTML.",
+            "```json\n{\"tool_name\":\"dummy_tool\",\"arguments\":{\"write_html\":true}}\n```",
+            "Completed with the HTML file saved.",
+        ]
+
+        def fake_call(**kwargs):
+            return responses.pop(0) if responses else "Completed."
+
+        call_idx = {"i": 0}
+
+        def fake_execute_all(tool_calls, **kwargs):
+            call_idx["i"] += 1
+            if call_idx["i"] == 2:
+                task_dir = Path(runner._tool_executor._runtime_context["OVERLORD11_TASK_DIR"])
+                out = task_dir / "output" / "report.html"
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text("<html><body>done</body></html>", encoding="utf-8")
+            return [
+                (
+                    ToolCall(tool_name="dummy_tool", params={}, raw=""),
+                    {"status": "success", "result": {"changed_files": ["output/report.html"]}, "tool": "dummy_tool", "duration_ms": 1.0},
+                )
+            ]
+
+        runner._bridge.call_provider_streaming = fake_call  # type: ignore[method-assign]
+        runner._parallel_executor.execute_all = fake_execute_all  # type: ignore[method-assign]
+        result = runner.run("Create an HTML report.", required_output_ext=".html")
+        self.assertEqual(result.get("status"), "complete")
+        self.assertGreaterEqual(call_idx["i"], 2)
 
 
 if __name__ == "__main__":

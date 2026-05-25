@@ -58,7 +58,7 @@ Before delegating work, classify the required output tier:
 - [ ] Session Start Protocol completed (Memory.md + Consciousness.md + 5 workspace files read)
 - [ ] Request fully understood before delegation begins
 - [ ] Output tier assessed before planning
-- [ ] For UI/UX tasks: Coder instructed to check `design-system/MASTER.md` (or call `ui_design_system`)
+- [ ] For UI/UX tasks: Coder instructed to check `design-system/MASTER.md`, and if missing use `agents/skills/uiux/palettes.json` + `agents/skills/uiux/styles.json` to create it before implementation
 - [ ] All required agents identified and invoked
 - [ ] Agent outputs verified against subtask contracts
 - [ ] Reviewer agent always invoked before final delivery

@@ -164,7 +164,7 @@ Orchestrator → Researcher  (context, existing solutions)
 
 ### UI/UX Feature Request
 ```
-Orchestrator → Coder       (check design-system/MASTER.md or call ui_design_system; implement UI)
+Orchestrator → Coder       (check design-system/MASTER.md; if missing, derive from agents/skills/uiux/*.json; implement UI)
              → Reviewer    (validate against design-system/MASTER.md)
              → Writer      (update docs)  [Tier 1]
 ```
@@ -228,7 +228,7 @@ Agents interact with the 5 workspace context files as follows:
 Before writing any UI code:
 1. Check if `design-system/MASTER.md` exists in the project.
 2. If yes → read it as the binding UI specification.
-3. If no → call `ui_design_system` with `persist=true` to generate and save it.
+3. If no → derive a concrete design system from `agents/skills/uiux/palettes.json` and `agents/skills/uiux/styles.json`, then persist `design-system/MASTER.md`.
 4. All UI code must use design system tokens — no raw hex values, no invented styles.
 5. Reviewer validates every UI output against `design-system/MASTER.md`.
 
@@ -268,7 +268,7 @@ Phases may be skipped when not needed.
 9. **Cite sources** — every factual claim in Researcher output includes a source URL or file path.
 10. **Test before handoff** — Coder always runs tests and static analysis before flagging work complete.
 11. **No secrets in code** — Reviewer blocks any output containing hardcoded API keys, passwords, or credentials.
-12. **Use the design system for UI** — before any UI code, check for `design-system/MASTER.md`. If missing, run `ui_design_system` with `persist=true`.
+12. **Use the design system for UI** — before any UI code, check for `design-system/MASTER.md`. If missing, build it from `agents/skills/uiux/palettes.json` and `agents/skills/uiux/styles.json` and persist it.
 13. **Encoding safety is mandatory** — every `open()` must use `encoding="utf-8"`, every `json.dumps()` must use `ensure_ascii=False`, every module that prints must use a `safe_str()` helper. See `agents/coder.md` for full patterns.
 14. **Every new Python project gets a launcher** — generate `run.py` + `run.bat` + `run.command` via `launcher_generator`.
 15. **Stay in scope** — complete the delegated subtask fully; don't expand scope without notifying the Orchestrator.
@@ -301,8 +301,9 @@ If the active provider fails, the Orchestrator falls back through the order in `
 | Resource | Location |
 |----------|----------|
 | Agent definitions | `agents/` |
-| Tool schemas | `tools/defs/` |
-| Tool implementations | `tools/python/` |
+| Tool schemas / validation contract | `tool_gateway/validator.py` |
+| Tool implementations | `tool_gateway/tools/` |
+| Runtime tool registration | `engine/tool_executor.py` |
 | Framework config | `config.json` |
 | Shared memory | `Consciousness.md`, `Memory.md` |
 | Runtime docs | `README.md`, `ONBOARDING.md` |

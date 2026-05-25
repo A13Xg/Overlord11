@@ -18,6 +18,7 @@ ALIASES_BY_TOOL: dict[str, dict[str, str]] = {
         "limit": "max_results",
         "safesearch": "safe_search",
         "type": "result_type",
+        "mode": "result_type",
         "query_text": "query",
     },
     "web_fetch": {
@@ -42,6 +43,7 @@ ALIASES_BY_TOOL: dict[str, dict[str, str]] = {
     "dynamic_browser": {
         "timeout": "timeout_seconds",
         "selector": "wait_selector",
+        "action": "capture_screenshot",
     },
     "intelligent_theme_scraper": {
         "depth": "analysis_depth",
@@ -117,6 +119,15 @@ ALIASES_BY_TOOL: dict[str, dict[str, str]] = {
         "schema": "json_schema",
         "schema_str": "json_schema",
     },
+    "scaffold_generator": {
+        "project_dir": "output_dir",
+        "name": "app_name",
+        "type": "app_type",
+    },
+    "launcher_generator": {
+        "command": "app_command",
+        "project_path": "project_dir",
+    },
 }
 
 
@@ -148,5 +159,42 @@ def normalize_arguments(tool_name: str, arguments: dict[str, Any]) -> tuple[dict
         if field in normalized and isinstance(normalized[field], str):
             normalized[field] = [normalized[field]]
             warnings.append(f"Coerced scalar '{field}' to single-item list")
+
+    # Normalize frequent enum/value variants from model output.
+    if tool_name == "web_search" and isinstance(normalized.get("result_type"), str):
+        raw = str(normalized["result_type"]).strip().lower()
+        rt_alias = {
+            "web": "text",
+            "search": "text",
+            "image": "images",
+            "img": "images",
+        }
+        if raw in rt_alias:
+            normalized["result_type"] = rt_alias[raw]
+            warnings.append(f"Normalized result_type value '{raw}' -> '{rt_alias[raw]}'")
+
+    if tool_name == "dynamic_browser" and isinstance(normalized.get("capture_screenshot"), str):
+        raw = str(normalized["capture_screenshot"]).strip().lower()
+        shot_alias = {
+            "render": False,
+            "html": False,
+            "fetch": False,
+            "screenshot": True,
+            "capture": True,
+        }
+        if raw in shot_alias:
+            normalized["capture_screenshot"] = shot_alias[raw]
+            warnings.append(
+                f"Normalized capture_screenshot value '{raw}' -> '{shot_alias[raw]}'"
+            )
+
+    if tool_name == "html_report_generator" and isinstance(normalized.get("theme"), str):
+        raw_theme = str(normalized["theme"]).strip()
+        if raw_theme.lower() not in {"dark", "light", "auto"}:
+            if not normalized.get("style_id"):
+                normalized["style_id"] = raw_theme
+                warnings.append(f"Moved invalid theme value '{raw_theme}' to style_id")
+            normalized["theme"] = "dark"
+            warnings.append("Normalized invalid html_report_generator theme to 'dark'")
 
     return normalized, warnings, {"alias_corrections": corrections}

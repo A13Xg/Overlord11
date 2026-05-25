@@ -7,6 +7,7 @@ import re
 import subprocess
 import tempfile
 import zipfile
+import mimetypes
 from pathlib import Path
 from typing import Optional
 
@@ -64,12 +65,23 @@ def _iter_artifact_files(root: Path):
         if entry.is_file():
             yield "product", entry
 
+    # Subdirs that contain engine-internal trace/log files — shown as "system"
+    # so the frontend can hide them by default without losing the data.
+    _SYSTEM_SUBDIRS: set[str] = {"logs", "system"}
+
     for subdir in ("agent", "tools", "logs", "outputs", "output", "artifacts", "traces"):
         base = root / subdir
         if not base.exists():
             continue
         for entry in sorted(base.rglob("*")):
-            if entry.is_file():
+            if not entry.is_file():
+                continue
+            # Classify any file living inside a system subdir as "system"
+            rel_to_root = entry.relative_to(root)
+            parts = rel_to_root.parts  # e.g. ("artifacts", "logs", "tools", "file.json")
+            if len(parts) >= 2 and parts[1] in _SYSTEM_SUBDIRS:
+                yield "system", entry
+            else:
                 yield subdir, entry
 
 
@@ -77,6 +89,7 @@ def _artifact_item_from_entry(root: Path, category: str, entry: Path) -> dict:
     stat = entry.stat()
     ext = entry.suffix.lstrip(".").lower()
     rel = str(entry.relative_to(root)).replace("\\", "/")
+    mime_type = mimetypes.guess_type(entry.name)[0] or "application/octet-stream"
     return {
         "name": entry.name,
         "relative_path": rel,
@@ -84,6 +97,7 @@ def _artifact_item_from_entry(root: Path, category: str, entry: Path) -> dict:
         "size": stat.st_size,
         "mtime": stat.st_mtime,
         "ext": ext,
+        "mime_type": mime_type,
         "is_html": ext in ("html", "htm"),
         "is_image": ext in ("png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"),
     }
@@ -114,11 +128,14 @@ _OUTPUT_EXT_PRIORITY = {
 }
 
 
-def _is_primary_output_candidate(item: dict) -> bool:
+def _is_primary_output_candidate(item: dict, required_output_ext: Optional[str] = None) -> bool:
     cat = (item.get("category") or "").lower()
     rel = (item.get("relative_path") or "").lower()
     name = (item.get("name") or "").lower()
     ext = (item.get("ext") or "").lower()
+    required_ext = (required_output_ext or "").strip().lower().lstrip(".")
+    if required_ext and ext == required_ext:
+        return True
     if name.startswith("answer."):
         return True
     if name.startswith("final_output."):
@@ -132,13 +149,16 @@ def _is_primary_output_candidate(item: dict) -> bool:
     return False
 
 
-def _output_rank(item: dict) -> tuple:
+def _output_rank(item: dict, required_output_ext: Optional[str] = None) -> tuple:
     name = (item.get("name") or "").lower()
     rel = (item.get("relative_path") or "").lower()
     cat = (item.get("category") or "").lower()
     ext = (item.get("ext") or "").lower()
+    required_ext = (required_output_ext or "").strip().lower().lstrip(".")
     # Lower is better
-    if name.startswith("answer."):
+    if required_ext and ext == required_ext:
+        bucket = -1
+    elif name.startswith("answer."):
         bucket = 0
     elif name.startswith("final_output."):
         bucket = 1
@@ -160,11 +180,11 @@ def _output_rank(item: dict) -> tuple:
     return (bucket, ext_rank, mtime_rank, rel)
 
 
-def _select_primary_output(items: list[dict]) -> Optional[dict]:
-    candidates = [it for it in items if _is_primary_output_candidate(it)]
+def _select_primary_output(items: list[dict], required_output_ext: Optional[str] = None) -> Optional[dict]:
+    candidates = [it for it in items if _is_primary_output_candidate(it, required_output_ext)]
     if not candidates:
         return None
-    return sorted(candidates, key=_output_rank)[0]
+    return sorted(candidates, key=lambda item: _output_rank(item, required_output_ext))[0]
 
 
 def _resolve_relative_artifact(root: Path, relative_path: str) -> Path:
@@ -300,7 +320,7 @@ async def get_primary_output(job_id: str):
         if (it.get("category") or "").lower() in {"product", "output", "outputs"}
         or (it.get("relative_path") or "").lower().startswith(("output/", "outputs/"))
     ]
-    primary = _select_primary_output(items)
+    primary = _select_primary_output(items, getattr(job, "required_output_ext", None))
     if primary is not None:
         rel = primary["relative_path"]
         ext = (primary.get("ext") or "").lower()
@@ -320,7 +340,10 @@ async def get_primary_output(job_id: str):
             "download_url": f"/api/artifacts/{job_id}/file/{rel}",
             "artifacts_url": f"/api/artifacts/{job_id}",
             "workspace_zip_url": f"/api/artifacts/{job_id}/download/workspace.zip",
-            "output_files": sorted(output_items, key=_output_rank)[:25],
+            "output_files": sorted(
+                output_items,
+                key=lambda item: _output_rank(item, getattr(job, "required_output_ext", None)),
+            )[:25],
         }
 
     # Fallback to output directory hint when no single primary file can be inferred.
@@ -333,7 +356,10 @@ async def get_primary_output(job_id: str):
         "directory": "output" if has_output_dir else ".",
         "artifacts_url": f"/api/artifacts/{job_id}",
         "workspace_zip_url": f"/api/artifacts/{job_id}/download/workspace.zip",
-        "output_files": sorted(output_items, key=_output_rank)[:25],
+        "output_files": sorted(
+            output_items,
+            key=lambda item: _output_rank(item, getattr(job, "required_output_ext", None)),
+        )[:25],
     }
 
 

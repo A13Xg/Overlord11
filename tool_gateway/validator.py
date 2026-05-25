@@ -92,6 +92,8 @@ _ALLOWED_KEYS_BY_TOOL: dict[str, list[str]] = {
     "text_diff": ["text_a", "text_b", "label_a", "label_b", "context_lines", "format"],
     "base64_tool": ["operation", "data", "variant", "encoding"],
     "json_schema_validator": ["data", "json_schema", "stop_on_first_error"],
+    "scaffold_generator": ["output_dir", "app_name", "app_type", "language", "overwrite"],
+    "launcher_generator": ["project_dir", "app_command", "port", "overwrite"],
 }
 _EXAMPLES_BY_TOOL: dict[str, dict] = {
     "run_command": {
@@ -197,6 +199,23 @@ _EXAMPLES_BY_TOOL: dict[str, dict] = {
         "arguments": {
             "data": "{\"name\": \"Alice\", \"age\": 30}",
             "json_schema": "{\"type\": \"object\", \"required\": [\"name\"], \"properties\": {\"name\": {\"type\": \"string\"}}}",
+        },
+    },
+    "scaffold_generator": {
+        "tool_name": "scaffold_generator",
+        "arguments": {
+            "output_dir": "output/app",
+            "app_name": "crypto-dashboard",
+            "app_type": "webapp",
+            "language": "python",
+        },
+    },
+    "launcher_generator": {
+        "tool_name": "launcher_generator",
+        "arguments": {
+            "project_dir": "output/app",
+            "app_command": "python3 app.py --port {port}",
+            "port": 3000,
         },
     },
 }

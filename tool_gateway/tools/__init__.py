@@ -10,9 +10,11 @@ from .json_schema_validator import JsonSchemaValidatorTool
 from .json_transform import JsonTransformTool
 from .read_file import ReadFileTool
 from .rss_read import RssReadTool
+from .scaffold_generator import ScaffoldGeneratorTool
 from .search_and_extract_pipeline import SearchAndExtractPipelineTool
 from .shell_runner import ShellExecutionAdapter
 from .semantic_content_extractor import SemanticContentExtractorTool
+from .launcher_generator import LauncherGeneratorTool
 from .text_diff import TextDiffTool
 from .url_checker import UrlCheckerTool
 from .web_code_scraper import WebCodeScraperTool
@@ -34,10 +36,12 @@ __all__ = [
     "WebExtractImagesTool",
     "WebImageGrabberTool",
     "RssReadTool",
+    "ScaffoldGeneratorTool",
     "DynamicBrowserTool",
     "IntelligentThemeScraperTool",
     "WebCodeScraperTool",
     "SemanticContentExtractorTool",
+    "LauncherGeneratorTool",
     "SearchAndExtractPipelineTool",
     "CalculatorTool",
     "ImageScraperTool",

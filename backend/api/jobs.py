@@ -55,6 +55,7 @@ class CreateJobRequest(BaseModel):
     auto_start: bool = True            # auto-enqueue immediately after creation
     depends_on: List[str] = []         # explicit prerequisite job IDs (optional)
     priority: int = 0                  # 0=normal, -1=high, 1=low
+    required_output_ext: Optional[str] = None
 
 
 # ------------------------------------------------------------------
@@ -92,6 +93,7 @@ async def queue_status(_session: dict = Depends(require_auth)):
 @router.post("", status_code=201)
 async def create_job(req: CreateJobRequest, _session: dict = Depends(require_auth)):
     action = req.rate_limit_action if req.rate_limit_action in _VALID_RL_ACTIONS else "try_different_model"
+    required_output_ext = _normalize_required_output_ext(req.required_output_ext)
 
     # Pre-extract resource domains so conflict detection happens before creation
     domains = extract_domains(req.prompt.strip(), req.title.strip())
@@ -105,6 +107,7 @@ async def create_job(req: CreateJobRequest, _session: dict = Depends(require_aut
         resource_domains=domains_dict,
         priority=req.priority,
         auto_started=req.auto_start,
+        required_output_ext=required_output_ext,
     )
 
     conflict_result = None
@@ -123,6 +126,21 @@ async def create_job(req: CreateJobRequest, _session: dict = Depends(require_aut
             "sequenced": bool(conflict_result.conflicting_job_ids),
         }
     return response
+
+
+def _normalize_required_output_ext(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    ext = value.strip().lower()
+    if not ext:
+        return None
+    if "/" in ext or "\\" in ext or len(ext) > 16:
+        raise HTTPException(status_code=400, detail="required_output_ext must be a short file extension")
+    if not ext.startswith("."):
+        ext = f".{ext}"
+    if not re.match(r"^\.[a-z0-9]{1,12}$", ext):
+        raise HTTPException(status_code=400, detail="required_output_ext must look like .html or .pdf")
+    return ext
 
 
 # ------------------------------------------------------------------

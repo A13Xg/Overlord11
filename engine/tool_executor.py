@@ -8,6 +8,7 @@ import re
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, List
 
 from tool_gateway.executor import ToolGateway
@@ -22,8 +23,10 @@ from tool_gateway.tools import (
     IntelligentThemeScraperTool,
     JsonSchemaValidatorTool,
     JsonTransformTool,
+    LauncherGeneratorTool,
     ReadFileTool,
     RssReadTool,
+    ScaffoldGeneratorTool,
     SearchAndExtractPipelineTool,
     SemanticContentExtractorTool,
     ShellExecutionAdapter,
@@ -98,6 +101,8 @@ class ToolExecutor:
         registry.register_tool(WebExtractImagesTool())
         registry.register_tool(WebImageGrabberTool())
         registry.register_tool(RssReadTool())
+        registry.register_tool(ScaffoldGeneratorTool())
+        registry.register_tool(LauncherGeneratorTool())
         registry.register_tool(DynamicBrowserTool())
         registry.register_tool(IntelligentThemeScraperTool())
         registry.register_tool(WebCodeScraperTool())
@@ -115,12 +120,14 @@ class ToolExecutor:
         self._gateway = ToolGateway(registry)
         self._runtime_context: dict[str, str] = {}
 
-    def set_runtime_context(self, *, session_id=None, task_dir=None) -> None:
+    def set_runtime_context(self, *, session_id=None, task_dir=None, stop_file=None) -> None:
         self._runtime_context = {}
         if session_id:
             self._runtime_context["OVERLORD11_SESSION_ID"] = session_id
         if task_dir:
             self._runtime_context["OVERLORD11_TASK_DIR"] = str(task_dir)
+        if stop_file:
+            self._runtime_context["OVERLORD11_STOP_FILE"] = str(stop_file)
 
     @contextmanager
     def _runtime_env(self):
@@ -146,10 +153,42 @@ class ToolExecutor:
         """Return schema dicts for all registered tools."""
         return self._gateway.registry.list_tools()
 
+    def tool_prompt_catalog(self) -> str:
+        """Render a compact tool catalog for LLM prompting from live registry schemas."""
+        lines: list[str] = []
+        for schema in sorted(self.list_tools(), key=lambda s: str(s.get("name", ""))):
+            name = str(schema.get("name", ""))
+            desc = str(schema.get("description", "")).strip()
+            input_schema = schema.get("input_schema") or {}
+            properties = input_schema.get("properties") or {}
+            required = [str(k) for k in (input_schema.get("required") or [])]
+            optional = [str(k) for k in properties.keys() if k not in set(required)]
+            req_text = ", ".join(required) if required else "-"
+            opt_preview = optional[:6]
+            opt_text = ", ".join(opt_preview) if opt_preview else "-"
+            if len(optional) > len(opt_preview):
+                opt_text += ", ..."
+            lines.append(
+                f"- {name}: {desc} | required: [{req_text}] | optional: [{opt_text}]"
+            )
+        return "\n".join(lines)
+
     def execute(self, tool_call: ToolCall) -> dict:
         start = time.monotonic()
         tool_name = tool_call.tool_name
         session_id = self._runtime_context.get("OVERLORD11_SESSION_ID")
+        stop_file = self._runtime_context.get("OVERLORD11_STOP_FILE", "")
+        if stop_file and Path(stop_file).exists():
+            return {
+                "status": "error",
+                "result": {
+                    "ok": False,
+                    "errors": [{"code": "CANCELLED", "message": "Job was stopped before tool execution", "details": {}}],
+                },
+                "tool": tool_name,
+                "duration_ms": round((time.monotonic() - start) * 1000, 2),
+                "error": "cancelled",
+            }
         payload = {"tool_name": tool_name, "arguments": dict(tool_call.params or {})}
         with self._runtime_env():
             result = self._gateway.execute_tool_call(payload, session_id=session_id)

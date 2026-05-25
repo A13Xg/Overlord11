@@ -406,3 +406,111 @@
 - **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
 - **Attempt**: 1
 - **Session**: 881a7d50-8970-4540-bc3a-b3056843cb5d
+
+## [2026-05-24T18:42:38.204246+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: 88b5cc65-c5a1-4715-afd4-555fae37e83a
+
+## [2026-05-24T18:43:17.793471+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: 9a9bb4ca-2a41-4237-bda7-f691f972c81d
+
+## [2026-05-24T18:43:40.811585+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: 50b10cdf-2e67-480f-89d7-1b84875da73f
+
+## [2026-05-24T18:44:18.609606+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: c778738c-f127-42f6-afb5-c8e1386bd1f2
+
+## [2026-05-24T18:57:28.721237+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: 0875dba0-ddf2-490b-b142-2fac1c7115ae
+
+## [2026-05-24T18:59:11.784202+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: f8b92641-fd07-42ae-bc3c-ecdbaee8618e
+
+## [2026-05-24T19:00:05.203015+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: d097a6e7-3ce7-4f97-920b-b1e16ab87593
+
+## [2026-05-24T19:02:05.193316+00:00] API_ERROR
+- **Tool**: web_search
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('mode',), 'msg': 'Extra inputs are not permitted', 'input': 'text', 'url': 'https://errors.pydantic.dev/2.13/v/extra_forbidden'}], 'allowed_keys': ['query', 'max_results', 'region', 'safe_search', 'time_range', 'result_type', 'include_snippets', 'include_metadata', 'include_rank', 'include_dates', 'domain_allowlist', 'domain_blocklist'], 'example': {'tool_name': 'web_search', 'arguments': {'query': 'python release notes', 'max_results': 5, 'safe_search': 'moderate', 'time_range': 'month', 'result_type': 'text', 'include_snippets': True}}}}]
+- **Attempt**: 1
+- **Session**: 0f9358b3
+
+## [2026-05-24T19:03:44.334546+00:00] TIMEOUT_ERROR
+- **Tool**: dynamic_browser
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'extra_forbidden', 'loc': ('action',), 'msg': 'Extra inputs are not permitted', 'input': 'render', 'url': 'https://errors.pydantic.dev/2.13/v/extra_forbidden'}], 'allowed_keys': ['url', 'timeout_seconds', 'wait_selector', 'viewport', 'user_agent', 'capture_screenshot'], 'example': {'tool_name': 'dynamic_browser', 'arguments': {'url': 'https://example.com', 'timeout_seconds': 30, 'capture_screenshot': False}}}}]
+- **Attempt**: 1
+- **Session**: b25ad50c
+
+## [2026-05-24T19:10:02.132888+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: bddf087d-0cd1-4752-af33-a72eb2ed162e
+
+## [2026-05-24T19:10:24.876146+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: 0b08ce18-fe52-4403-ab1d-293bf62485b3
+
+## [2026-05-24T19:20:35.275912+00:00] API_ERROR
+- **Tool**: html_report_generator
+- **Message**: [{'code': 'VALIDATION_ERROR', 'message': 'Tool arguments failed schema validation', 'details': {'issues': [{'type': 'literal_error', 'loc': ('theme',), 'msg': "Input should be 'dark', 'light' or 'auto'", 'input': 'minimal-zen', 'ctx': {'expected': "'dark', 'light' or 'auto'"}, 'url': 'https://errors.pydantic.dev/2.13/v/literal_error'}], 'allowed_keys': ['title', 'content', 'output_path', 'theme', 'palette_id', 'style_id', 'include_toc', 'sections'], 'example': {'tool_name': 'html_report_generator', 'arguments': {'title': 'My Report', 'content': '## Overview\nContent here.', 'theme': 'dark'}}}}]
+- **Attempt**: 1
+- **Session**: 8c7bdb7e
+
+## [2026-05-25T06:38:22.060081+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: 863ba548-076c-4eba-be35-82b1e55169ec
+
+## [2026-05-25T06:38:41.117087+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: fd70bcc3-b7a5-48fe-bfd2-e4cfb1c1d228
+
+## [2026-05-25T06:38:46.058649+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: 5709fe3c-5b49-4dc9-a17d-174fdf27abe3
+
+## [2026-05-25T06:39:05.428888+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: 34d1eca9-177e-4807-8393-595c09b5d137
+
+## [2026-05-25T06:42:56.120359+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: d6ad7272-226a-4039-b47b-08b8e3845faf
+
+## [2026-05-25T06:43:58.988828+00:00] TOOL_FAILURE
+- **Tool**: write_file
+- **Message**: {'ok': False, 'errors': [{'code': 'UNKNOWN_TOOL', 'message': 'Unknown tool: write_file', 'details': {}}]}
+- **Attempt**: 1
+- **Session**: 5ff40abb-d809-49f2-a975-151b682e8878

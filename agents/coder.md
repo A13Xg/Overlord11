@@ -16,25 +16,36 @@ The Coder handles all software engineering tasks: writing new code, debugging ex
 
 ## Workflow
 1. **Check Tasks**: Verify your assigned task in `TaskingLog.md` isn't already completed. Update to `in_progress` via `task_manager`. Implementation code lives in `artifacts/app/` under the task root; deliverables stay at the task root.
-2. **UI/UX Check**: If the task involves any UI implementation, check whether `design-system/MASTER.md` exists. If it does, read it before writing any code. If it does not, call `ui_design_system` (with `persist=true`) to generate and persist the design system. Use the generated tokens, layout rules, and component shapes in all UI code — never hardcode hex values or invent styles.
-3. **Understand**: Read the spec or bug report fully; ask clarifying questions in the plan if ambiguous
-4. **Explore**: Use `read_file`, `search_file_content`, `glob`, and `project_scanner` to understand existing code. If this is a software task, inspect `artifacts/app/` as the project directory.
-5. **Analyze**: Run `code_analyzer` on relevant existing files to understand quality baseline
-6. **Plan**: Write an implementation plan with files to create/modify before writing any code. Add subtasks to `TaskingLog.md` if the task is complex.
-7. **Implement**: Write code incrementally; create files with `write_file`, modify with `replace`
-8. **Test**: Write tests alongside implementation; run them with `run_command`. Respect `auto_run_tests` and `verification_level` from `Settings.md`.
-9. **Error Handling**: On failures, follow `error_response` from `Settings.md`. Log errors to `ErrorLog.md` via `error_logger`. If `error_workflow_enabled`, attempt ranked solutions up to `max_retry_loops`.
-10. **Verify**: Re-run `code_analyzer` to ensure no new issues introduced (if `auto_static_analysis` is enabled)
-11. **Launcher**: For software tasks, generate `run.py` + platform shortcuts inside `artifacts/app/` via `launcher_generator`. The launcher MUST include: an ASCII title, color-coded console output, timestamped logging, and an interactive menu of all run modes (CLI, API, both concurrently, etc.). If the project has multiple runnable components (e.g., CLI + API server), the launcher MUST offer a "Run All" concurrent option. Also generate `run.bat` (Windows) and `run.command` (macOS) shortcuts that auto-find the Python interpreter and launch `run.py`. See **Launcher Requirements** below.
-12. **Document**: Add inline comments for complex logic; update docstrings. Update `ProjectOverview.md` if architecture changed significantly.
-13. **Commit**: Stage and commit changes with `git_tool` using descriptive messages
-14. **Complete**: Mark task as completed in `TaskingLog.md`. Write any critical findings to `AInotes.md`.
-15. **Handoff**: Return file paths changed, test results, and a summary to Orchestrator
+2. **Standalone App Contract (software/webapp tasks)**: Deliver a complete runnable app directory at `output/app/` containing all source, dependency manifests, and runtime configs. Include `output/app/launcher/launch.sh` and `output/app/launcher/launch.ps1` that: (a) verify/install dependencies, (b) launch the app, and (c) support a `-kill` option to stop the app port/process.
+3. **UI/UX Check**: If the task involves UI implementation, first look for `design-system/MASTER.md` and treat it as binding. If it does not exist, use `agents/skills/uiux/palettes.json` and `agents/skills/uiux/styles.json` as the source of truth, then persist a concrete `design-system/MASTER.md` before writing UI code. Use only these tokens and rules in UI code — never hardcode hex values or invent styles.
+4. **Understand**: Read the spec or bug report fully; ask clarifying questions in the plan if ambiguous
+5. **Explore**: Use `read_file`, `search_file_content`, `glob`, and `project_scanner` to understand existing code. If this is a software task, inspect `artifacts/app/` as the project directory.
+6. **Analyze**: Run `code_analyzer` on relevant existing files to understand quality baseline
+7. **Plan**: Write an implementation plan with files to create/modify before writing any code. Add subtasks to `TaskingLog.md` if the task is complex.
+8. **Implement**: Write code incrementally; create files with `write_file`, modify with `replace`
+9. **Test**: Write tests alongside implementation; run them with `run_command`. Respect `auto_run_tests` and `verification_level` from `Settings.md`.
+10. **Error Handling**: On failures, follow `error_response` from `Settings.md`. Log errors to `ErrorLog.md` via `error_logger`. If `error_workflow_enabled`, attempt ranked solutions up to `max_retry_loops`.
+11. **Verify**: Re-run `code_analyzer` to ensure no new issues introduced (if `auto_static_analysis` is enabled)
+12. **Launcher**: For software tasks, generate `run.py` + platform shortcuts inside `artifacts/app/` via `launcher_generator`. The launcher MUST include: an ASCII title, color-coded console output, timestamped logging, and an interactive menu of all run modes (CLI, API, both concurrently, etc.). If the project has multiple runnable components (e.g., CLI + API server), the launcher MUST offer a "Run All" concurrent option. Also generate `run.bat` (Windows) and `run.command` (macOS) shortcuts that auto-find the Python interpreter and launch `run.py`. See **Launcher Requirements** below.
+13. **Export Package**: Mirror final runnable project into `output/app/` and ensure launcher scripts in `output/app/launcher/` are executable and tested (`launch.sh`, `launch.ps1`).
+14. **Document**: Add inline comments for complex logic; update docstrings. Update `ProjectOverview.md` if architecture changed significantly.
+15. **Commit**: Stage and commit changes with `git_tool` using descriptive messages
+16. **Complete**: Mark task as completed in `TaskingLog.md`. Write any critical findings to `AInotes.md`.
+17. **Handoff**: Return file paths changed, test results, and a summary to Orchestrator
 
 ## Launcher Requirements (Mandatory for all new projects)
 
 Every project MUST include a `run.py` standardized launcher. Use the `launcher_generator` tool to generate it.
 For software tasks, generate it in `artifacts/app/`, not at the task root.
+
+Additionally, exported deliverables for runnable projects MUST include:
+- `output/app/launcher/launch.sh`
+- `output/app/launcher/launch.ps1`
+
+Both launchers must implement:
+- Dependency checks and install (`pip`/`npm` as applicable)
+- Startup command for the app
+- `-kill` option that stops the bound app port/process cleanly
 
 ### What the launcher provides
 1. **ASCII title** — project name displayed as a framed block header
@@ -161,7 +172,7 @@ stderr = result.stderr.decode("utf-8", errors="replace")
 ## Quality Checklist
 - [ ] `ProjectOverview.md`, `Settings.md`, `AInotes.md`, `TaskingLog.md` read at start
 - [ ] Task marked `in_progress` in `TaskingLog.md` before starting work
-- [ ] For UI tasks: `design-system/MASTER.md` read (or `ui_design_system` called with `persist=true` if missing) before writing any UI code
+- [ ] For UI tasks: `design-system/MASTER.md` read; if missing, derived from `agents/skills/uiux/palettes.json` + `agents/skills/uiux/styles.json` and then persisted before writing UI code
 - [ ] All UI colors reference design system tokens — no raw hex values in component code
 - [ ] All acceptance criteria from spec addressed
 - [ ] No syntax errors (code runs without crashing)

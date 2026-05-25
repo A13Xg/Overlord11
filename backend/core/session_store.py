@@ -63,6 +63,8 @@ class Job:
     completion_mode: Optional[str] = None  # tool_driven | direct_answer | empty_response_fail | no_effect_fail
     tool_call_count: int = 0
     artifact_count: int = 0
+    # Optional completion guard: require a deliverable file with this extension.
+    required_output_ext: Optional[str] = None
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -93,6 +95,7 @@ class Job:
             completion_mode=d.get("completion_mode"),
             tool_call_count=int(d.get("tool_call_count", 0) or 0),
             artifact_count=int(d.get("artifact_count", 0) or 0),
+            required_output_ext=d.get("required_output_ext"),
         )
 
 
@@ -120,6 +123,7 @@ class SessionStore:
         priority: int = 0,
         auto_started: bool = True,
         conflict_info: Optional[dict] = None,
+        required_output_ext: Optional[str] = None,
     ) -> Job:
         job_id = secrets.token_hex(4)  # 8-char hex
         job = Job(
@@ -141,6 +145,7 @@ class SessionStore:
             priority=priority,
             auto_started=auto_started,
             conflict_info=conflict_info or {},
+            required_output_ext=required_output_ext,
         )
         with self._lock:
             self._jobs[job_id] = job

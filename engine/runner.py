@@ -47,6 +47,7 @@ class EngineRunner:
         verbose: bool = True,
         stop_event: Optional[threading.Event] = None,
         rate_limit_action: Optional[str] = None,
+        stop_file_path: Optional[str] = None,
     ):
         config_file = Path(config_path)
         if not config_file.is_absolute():
@@ -69,6 +70,7 @@ class EngineRunner:
         # to interrupt an in-progress rate-limit wait.
         self._stop_event: threading.Event = stop_event or threading.Event()
         self._healer = SelfHealingEngine()
+        self._stop_file_path = stop_file_path
 
         # Rate-limit behaviour when all providers return 429.
         # "pause"              — exponential backoff (5m, 10m, 20m … up to 8h), keeps retrying
@@ -78,6 +80,16 @@ class EngineRunner:
         self._rl_action: str = rate_limit_action or rl_cfg.get("action", "pause")
         self._rl_initial_wait_s: float = float(rl_cfg.get("initial_wait_s", 300))
         self._rl_max_wait_s: float = float(rl_cfg.get("max_wait_s", 28800))
+
+        # Self-healing policy
+        sh_cfg = self._config.get("orchestration", {}).get("self_healing", {})
+        self._self_healing_enabled: bool = bool(sh_cfg.get("enabled", True))
+        self._fail_fast_tool_error_when_disabled: bool = bool(
+            sh_cfg.get("fail_fast_on_tool_error_when_disabled", True)
+        )
+        self._fail_fast_any_error_when_disabled: bool = bool(
+            sh_cfg.get("fail_fast_on_any_error_when_disabled", True)
+        )
 
     # ------------------------------------------------------------------
     # Main entry point
@@ -91,6 +103,7 @@ class EngineRunner:
         job_title: Optional[str] = None,
         agent_id: str = "OVR_DIR_01",
         streaming: bool = True,
+        required_output_ext: Optional[str] = None,
     ) -> dict:
         """
         Run the agent loop and return a result dict.
@@ -108,6 +121,9 @@ class EngineRunner:
             streaming: Whether to stream tokens (default: True)
         """
         max_loops: int = self._config.get("orchestration", {}).get("max_loops", 10)
+        normalized_required_ext = self._normalize_required_output_ext(required_output_ext)
+        required_output_retries = 0
+        effective_max_loops = max_loops + (2 if normalized_required_ext else 0)
 
         # Session setup
         session = EngineSession(
@@ -121,7 +137,11 @@ class EngineRunner:
             session.load()  # Restore _session_dir and existing logs for resume
 
         sid = session.session_id or "unknown"
-        self._tool_executor.set_runtime_context(session_id=sid, task_dir=session.session_dir)
+        self._tool_executor.set_runtime_context(
+            session_id=sid,
+            task_dir=session.session_dir,
+            stop_file=self._stop_file_path,
+        )
         # Reset events for this run but preserve registered callbacks
         existing_callbacks = list(self.events.callbacks)
         self.events = EventStream(verbose=self.verbose, callbacks=existing_callbacks)
@@ -138,6 +158,7 @@ class EngineRunner:
 
         # Build initial system prompt and message history
         system_prompt = self._bridge.build_system_prompt(agent_id)
+        tool_catalog = self._tool_executor.tool_prompt_catalog()
         shell_type = str((system_profile.get("shell") or {}).get("type") or "auto").lower()
         shell_pref = "powershell" if shell_type in {"powershell", "cmd"} else shell_type
         if shell_pref not in {"powershell", "pwsh", "cmd", "bash", "sh", "zsh"}:
@@ -159,10 +180,12 @@ class EngineRunner:
             + "- Do not reference parent paths (..), absolute system paths, or locations outside the active workspace.\n"
             + "- For run_command, pass structured arguments:\n"
             + "  command=\"...\", timeout_seconds=30, working_directory=\".\", dry_run=false\n"
-            + "- Available core tools in this runtime: run_command, write_file.\n"
-            + "- Do not assume any other tool exists unless a previous tool response confirms it.\n"
+            + "- Tool availability is registry-driven. Use only tool names listed in the runtime tool catalog below.\n"
+            + "- Use only schema-defined argument keys for each tool; avoid extra fields.\n"
             + "- shell defaults to auto; omit shell unless you explicitly need a different shell.\n"
-            + "- Any deliverable file intended for users should be written inside ./output and named answer.<ext> when possible (e.g., answer.md, answer.html, answer.png)."
+            + "- Any deliverable file intended for users should be written inside ./output and named answer.<ext> when possible (e.g., answer.md, answer.html, answer.png).\n\n"
+            + "Runtime tool catalog:\n"
+            + tool_catalog
         )
         messages = [{"role": "user", "content": user_input}]
 
@@ -186,7 +209,7 @@ class EngineRunner:
         )
         loop = 0
 
-        while loop < max_loops:
+        while loop < effective_max_loops:
             if self._stop_event.is_set():
                 status = "failed"
                 completion_mode = "no_effect_fail"
@@ -213,6 +236,7 @@ class EngineRunner:
             # the conversation context accumulated so far.
             response = None
             _rl_retries = 0
+            fail_fast_abort = False
             while True:
                 try:
                     if streaming:
@@ -274,7 +298,9 @@ class EngineRunner:
                     if self._rl_action == "stop" or self._stop_event.is_set():
                         self.events.emit(EventType.ERROR, session_id=sid, message=str(exc), loop=loop)
                         session.log_event("error", {"message": str(exc), "loop": loop})
-                        status = "rate_limited"
+                        failure_reason = "all_providers_rate_limited"
+                        status = "failed"
+                        completion_mode = "no_effect_fail"
                         break
 
                     # Compute how long to wait based on the selected action.
@@ -320,7 +346,15 @@ class EngineRunner:
                 except Exception as exc:
                     self.events.emit(EventType.ERROR, session_id=sid, message=str(exc), loop=loop)
                     session.log_event("error", {"message": str(exc), "loop": loop})
+                    failure_reason = f"provider_call_failed: {exc}"
+                    if (not self._self_healing_enabled) and self._fail_fast_any_error_when_disabled:
+                        status = "failed"
+                        completion_mode = "no_effect_fail"
+                        fail_fast_abort = True
                     break
+
+            if fail_fast_abort:
+                break
 
             if self._stop_event.is_set():
                 status = "failed"
@@ -398,6 +432,28 @@ class EngineRunner:
                             write_file_succeeded=write_file_succeeded,
                         )
                     ):
+                        if normalized_required_ext and not self._required_output_exists(
+                            session.session_dir,
+                            normalized_required_ext,
+                        ):
+                            if required_output_retries < 2:
+                                required_output_retries += 1
+                                messages.append({
+                                    "role": "user",
+                                    "content": self._required_output_guidance(normalized_required_ext),
+                                })
+                                continue
+                            failure_reason = f"missing_required_output{normalized_required_ext}"
+                            completion_mode = "no_effect_fail"
+                            status = "failed"
+                            self.events.emit(
+                                EventType.ERROR,
+                                session_id=sid,
+                                loop=loop,
+                                message=failure_reason,
+                            )
+                            session.log_event("error", {"message": failure_reason, "loop": loop})
+                            break
                         final_output = response
                         status = "complete"
                         completion_mode = "tool_driven"
@@ -439,6 +495,28 @@ class EngineRunner:
 
                 # Trivial/direct-answer path
                 if self.detect_completion(response) or self._is_trivial_direct_answer(user_input, response):
+                    if normalized_required_ext and not self._required_output_exists(
+                        session.session_dir,
+                        normalized_required_ext,
+                    ):
+                        if required_output_retries < 2:
+                            required_output_retries += 1
+                            messages.append({
+                                "role": "user",
+                                "content": self._required_output_guidance(normalized_required_ext),
+                            })
+                            continue
+                        failure_reason = f"missing_required_output{normalized_required_ext}"
+                        completion_mode = "no_effect_fail"
+                        status = "failed"
+                        self.events.emit(
+                            EventType.ERROR,
+                            session_id=sid,
+                            loop=loop,
+                            message=failure_reason,
+                        )
+                        session.log_event("error", {"message": failure_reason, "loop": loop})
+                        break
                     final_output = response
                     status = "complete"
                     completion_mode = "direct_answer"
@@ -476,6 +554,7 @@ class EngineRunner:
                 ),
                 loop=loop,
                 session_log_fn=session.log_tool_call,
+                stop_requested=lambda: self._stop_event.is_set(),
             )
             tool_results = [result for _tc, result in ordered_pairs]
             had_effectful_tool_success = had_effectful_tool_success or any(
@@ -496,6 +575,25 @@ class EngineRunner:
                         else:
                             repeated_write_file_failure_count = 1
                             last_failed_write_file_signature = sig
+
+            tool_errors = [r for r in tool_results if isinstance(r, dict) and r.get("status") == "error"]
+            if (
+                tool_errors
+                and (not self._self_healing_enabled)
+                and self._fail_fast_tool_error_when_disabled
+            ):
+                first_error = tool_errors[0].get("result")
+                failure_reason = f"tool_failure_fail_fast: {first_error}"
+                completion_mode = "no_effect_fail"
+                status = "failed"
+                self.events.emit(
+                    EventType.ERROR,
+                    session_id=sid,
+                    loop=loop,
+                    message=failure_reason,
+                )
+                session.log_event("error", {"message": failure_reason, "loop": loop})
+                break
             observed_dir_path, observed_dir_entries = self._update_observed_directory_snapshot(
                 ordered_pairs=ordered_pairs,
                 prior_path=observed_dir_path,
@@ -528,7 +626,7 @@ class EngineRunner:
                         )
                     except Exception:
                         pass
-            if _heal_hints:
+            if _heal_hints and self._self_healing_enabled:
                 messages.append({
                     "role": "user",
                     "content": "SYSTEM — RECOVERY GUIDANCE:\n\n" + "\n\n".join(_heal_hints),
@@ -601,6 +699,34 @@ class EngineRunner:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    def _normalize_required_output_ext(self, ext: Optional[str]) -> Optional[str]:
+        if ext is None:
+            return None
+        normalized = str(ext).strip().lower()
+        if not normalized:
+            return None
+        if not normalized.startswith("."):
+            normalized = f".{normalized}"
+        if not re.match(r"^\.[a-z0-9]{1,12}$", normalized):
+            return None
+        return normalized
+
+    def _required_output_exists(self, session_dir: Optional[Path], ext: str) -> bool:
+        if not session_dir:
+            return False
+        root = Path(session_dir)
+        if not root.exists():
+            return False
+        return any(path.is_file() and path.suffix.lower() == ext for path in root.rglob("*"))
+
+    def _required_output_guidance(self, ext: str) -> str:
+        example = "output/report.html" if ext == ".html" else f"output/answer{ext}"
+        return (
+            "SYSTEM REQUIREMENT: Before completing, create a user-visible deliverable "
+            f"file with extension `{ext}` inside the task workspace, preferably `{example}`. "
+            "Use an available file-writing or generation tool, then report the saved relative path."
+        )
 
     def _wait_interruptible(self, seconds: float) -> bool:
         """

@@ -68,15 +68,18 @@
       "api_base": "https://api.openai.com/v1"
     },
     "nvidia_nim": {
-      "model": "nemotron-4-340b-instruct",
+      "model": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
       "available_models": {
-        "nemotron-4-340b-instruct": "Frontier instruction-tuned — best general-purpose, strong reasoning, enterprise-grade",
-        "nemotron-4-340b": "Nemotron 4 340B base model — high-quality instruction following",
-        "llama-3.1-70b-instruct": "Meta Llama 3.1 70B — strong reasoning and coding, 128K context",
-        "mistral-large-2407": "Mistral Large (April 2407) — advanced reasoning, 32K context",
-        "mixtral-8x22b": "Mixtral 8x22B — efficient MoE, strong general capability",
-        "llama-3.1-8b-instruct": "Meta Llama 3.1 8B — lightweight, fast inference",
-        "phi-3-medium": "Microsoft Phi-3 Medium — compact high-capability model"
+        "nvidia/llama-3.3-nemotron-super-49b-v1.5": "NVIDIA Nemotron Super 49B v1.5 — current high-capability general-purpose model",
+        "nvidia/llama-3.1-nemotron-ultra-253b-v1": "NVIDIA Nemotron Ultra 253B v1 — strongest Nemotron reasoning model",
+        "nvidia/llama-3.1-nemotron-nano-8b-v1": "NVIDIA Nemotron Nano 8B v1 — fast lightweight fallback",
+        "nvidia/nvidia-nemotron-nano-9b-v2": "NVIDIA Nemotron Nano 9B v2 — current compact fallback",
+        "meta/llama-3.1-70b-instruct": "Meta Llama 3.1 70B — strong reasoning and coding, 128K context",
+        "meta/llama-3.1-8b-instruct": "Meta Llama 3.1 8B — lightweight, fast inference",
+        "meta/llama-3.3-70b-instruct": "Meta Llama 3.3 70B — newer high-capability Llama fallback",
+        "mistralai/mistral-nemotron": "Mistral Nemotron — NVIDIA-hosted Mistral/Nemotron fallback",
+        "mistralai/mixtral-8x22b-instruct": "Mixtral 8x22B Instruct — efficient MoE fallback",
+        "microsoft/phi-4-mini-instruct": "Microsoft Phi-4 Mini — compact high-capability fallback"
       },
       "api_key_env": "NVIDIA_NIM_API_KEY",
       "max_tokens": 8192,
@@ -183,6 +186,11 @@
     "parallel": {
       "max_concurrent_jobs": 3,
       "max_concurrent_tools": 4
+    },
+    "self_healing": {
+      "enabled": true,
+      "fail_fast_on_tool_error_when_disabled": true,
+      "fail_fast_on_any_error_when_disabled": true
     },
     "model_fallback_policy": {
       "description": "Selected model always attempted first; remaining models ranked by competency + quota fit + recent health",

@@ -5,6 +5,7 @@ from markdown or plain text, using the project's UI/UX design system.
 from __future__ import annotations
 
 import json
+import os
 import re
 import textwrap
 from datetime import datetime, timezone
@@ -270,14 +271,19 @@ class HtmlReportGeneratorTool(BaseTool):
         css = self._build_css(palette, style)
         html = self._render_html(args.title, css, toc_html, body_html, args.theme)
 
+        # In task runs, default to a real deliverable instead of returning HTML only.
+        output_path = args.output_path
+        if not output_path and os.environ.get("OVERLORD11_TASK_DIR"):
+            output_path = "output/report.html"
+
         # Write file if requested
         out_path_str: str | None = None
-        if args.output_path:
+        if output_path:
             try:
-                dest = resolve_workspace_path(args.output_path)
+                dest = resolve_workspace_path(output_path)
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 dest.write_text(html, encoding="utf-8")
-                out_path_str = args.output_path
+                out_path_str = output_path
             except Exception as exc:
                 warnings.append(f"Could not write file: {exc}")
 

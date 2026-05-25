@@ -348,13 +348,13 @@ class OrchestratorBridge:
     def _competency_score(self, model_name: str) -> float:
         """Higher is better."""
         lower = model_name.lower()
-        if "pro" in lower or "nemotron-4-340b" in lower:
+        if "pro" in lower or "nemotron-ultra" in lower or "nemotron-super" in lower:
             return 1.0
-        if "flash" in lower and "lite" not in lower or "llama-3.1-70b" in lower:
+        if ("flash" in lower and "lite" not in lower) or "llama-3.1-70b" in lower or "llama-3.3-70b" in lower:
             return 0.85
-        if "flash-lite" in lower or "lite" in lower or "mistral-large" in lower or "mixtral" in lower:
+        if "flash-lite" in lower or "lite" in lower or "mistral" in lower or "mixtral" in lower:
             return 0.7
-        if "gemma" in lower or "llama-3.1-8b" in lower or "phi-3" in lower:
+        if "gemma" in lower or "llama-3.1-8b" in lower or "phi-" in lower or "nemotron-nano" in lower:
             return 0.65
         return 0.6
 
@@ -367,19 +367,19 @@ class OrchestratorBridge:
         lower = (model_name or "").lower()
         deprecated = ("deprecated" in lower) or ("-1.5-" in lower) or ("-2.0-" in lower)
         # Prefer latest capable families first.
-        if lower.startswith("nemotron-4-340b"):
+        if lower.startswith("nvidia/llama-3.1-nemotron-ultra") or lower.startswith("nvidia/llama-3.3-nemotron-super"):
             base = 0
         elif lower.startswith("gemini-3.1-pro") or lower.startswith("gemini-3-pro"):
             base = 1
         elif lower.startswith("gemini-2.5-pro"):
             base = 2
-        elif lower.startswith("llama-3.1-70b"):
+        elif "llama-3.1-70b" in lower or "llama-3.3-70b" in lower:
             base = 3
         elif lower.startswith("gemini-3.1-flash") or lower.startswith("gemini-3-flash"):
             base = 4
         elif lower.startswith("gemini-2.5-flash") and "lite" not in lower:
             base = 5
-        elif lower.startswith("mistral-large") or lower.startswith("mixtral"):
+        elif "mistral" in lower or "mixtral" in lower:
             base = 6
         elif lower.startswith("gemini-3.1-flash-lite"):
             base = 7
@@ -387,7 +387,7 @@ class OrchestratorBridge:
             base = 8
         elif lower.startswith("gemma-4-"):
             base = 9
-        elif lower.startswith("llama-3.1-8b") or lower.startswith("phi-3"):
+        elif "llama-3.1-8b" in lower or "phi-" in lower or "nemotron-nano" in lower:
             base = 10
         elif lower.startswith("gemma-3-"):
             base = 11

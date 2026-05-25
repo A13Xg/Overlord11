@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Callable, List, Tuple
+from typing import Callable, List, Optional, Tuple
 
 try:
     from .dependency_analyzer import DependencyAnalyzer
@@ -72,6 +72,7 @@ class ParallelToolExecutor:
         on_notification: _EmitFn,
         loop: int,
         session_log_fn: Callable,
+        stop_requested: Optional[Callable[[], bool]] = None,
     ) -> List[Tuple[ToolCall, dict]]:
         """
         Execute all tool calls in dependency order.
@@ -119,6 +120,8 @@ class ParallelToolExecutor:
         results: dict[int, Tuple[ToolCall, dict]] = {}
 
         for wave_num, wave in enumerate(waves):
+            if stop_requested is not None and stop_requested():
+                break
             if len(wave) == 1:
                 # Single call — skip thread overhead
                 tc = wave[0]
@@ -167,6 +170,25 @@ class ParallelToolExecutor:
                                 "duration_ms": 0.0,
                             }
                         results[call_index] = (tc, result)
+
+        # If cancellation was requested, mark unstarted calls as cancelled.
+        if stop_requested is not None and stop_requested():
+            for i, tc in enumerate(tool_calls, start=1):
+                if i in results:
+                    continue
+                results[i] = (
+                    tc,
+                    {
+                        "status": "error",
+                        "result": {
+                            "ok": False,
+                            "errors": [{"code": "CANCELLED", "message": "Job stopped before tool execution", "details": {}}],
+                        },
+                        "tool": tc.tool_name,
+                        "duration_ms": 0.0,
+                        "error": "cancelled",
+                    },
+                )
 
         # Return in original LLM generation order
         return [results[i] for i in sorted(results)]

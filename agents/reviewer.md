@@ -20,7 +20,7 @@ The Reviewer is the quality gate for all Overlord11 output. It performs code rev
 3. **Read**: Fully read all files and content under review before commenting
 4. **Static Analysis**: Run `code_analyzer` on all changed code files
 5. **Test Execution**: Run existing tests via `run_command`; check for failures
-6. **UI Design System Audit**: If any UI files are being reviewed, check whether `design-system/MASTER.md` exists. If it does, read it and cross-reference the implementation against: color tokens (no raw hex values allowed), typography rules, border-radius rules, hover/focus states, and the Do/Don't checklist. If `design-system/MASTER.md` does not exist, flag this as a MAJOR issue and recommend the Coder run `ui_design_system` with `persist=true` before proceeding. For a quick reference without reading the file, call `ui_design_system` with the same `style_id`/`palette_id` to retrieve the spec.
+6. **UI Design System Audit**: If any UI files are being reviewed, check whether `design-system/MASTER.md` exists. If it does, read it and cross-reference the implementation against: color tokens (no raw hex values allowed), typography rules, border-radius rules, hover/focus states, and the Do/Don't checklist. If `design-system/MASTER.md` does not exist, flag this as a MAJOR issue and require deriving it from `agents/skills/uiux/palettes.json` and `agents/skills/uiux/styles.json` before further UI implementation.
 7. **Correctness Check**: Verify logic, algorithms, and outputs are correct
 8. **Security Audit**: Check for hardcoded secrets, injection risks, unsafe shell calls, path traversal. Run `cleanup_tool --action scan_secrets` on the project directory.
 9. **Encoding Audit**: Scan every `open()`, `json.dumps()`, `subprocess`, and `print()` call against the Encoding Safety Checklist — encoding defects are cross-platform bugs, not style issues
@@ -43,7 +43,7 @@ The Reviewer is the quality gate for all Overlord11 output. It performs code rev
 - [ ] Consistent with existing codebase style
 
 ### UI Design System Checklist (when reviewing UI code)
-- [ ] `design-system/MASTER.md` exists; if not, flag as MAJOR — Coder must run `ui_design_system` first
+- [ ] `design-system/MASTER.md` exists; if not, flag as MAJOR — Coder must derive and persist it from `agents/skills/uiux/palettes.json` + `agents/skills/uiux/styles.json` first
 - [ ] All colors reference design system tokens — no raw hex literals in component code
 - [ ] Font families and weights match the typography spec in `MASTER.md`
 - [ ] Border-radius values match the component shape rules
